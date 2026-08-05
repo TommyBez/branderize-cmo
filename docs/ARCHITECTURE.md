@@ -40,6 +40,8 @@ Architectural decisions are versioned normative objects in `adrs/` — the softw
 - [ADR-009 — The agent as its own deployment, and the console's data-surface discipline](../adrs/009-agent-deployment-and-console-data-surface.md)
 - [ADR-010 — The plan is a derivation, and other lessons from the Magister product](../adrs/010-plan-as-derivation.md)
 - [ADR-011 — Self-grilling: delegation guards, the CMO's job list, closing the verification loop, budget hierarchy, proposal shape, one schedule, human roles](../adrs/011-self-grilling-closing-the-gaps.md)
+- [ADR-012 — Contracts: one approval source, the brief schema, the intent lifecycle, plan-compiler inputs](../adrs/012-contracts-approval-brief-intents-compiler.md)
+- [ADR-013 — The policy matrix, typed lateral edges, and sandbox rules on eve's real trust model](../adrs/013-policy-matrix-lateral-edges-sandbox.md)
 
 ## From the ADE grammar to eve primitives
 
@@ -109,6 +111,8 @@ One lead — the **CMO** — and seven specialists (ADR-004). The lead loads the
 
 The CMO's job list is explicit (ADR-011): transduction of human chat into structured intents, routing with self-contained briefs, synthesis of specialist outputs back to the human, proposing roadmap-input Decisions, and the daily brief narrative. It does not author plans (ADR-010) and owns no special schedule — the daily brief is a task kind dispatched to the CMO root agent like any other.
 
+The brief is a zod schema per task kind, not a phrase (ADR-012): it carries the intent id, the size-capped brand-context preamble, artifact references **by id**, the constraints from active Decisions, the capabilities snapshot, the session budget, and an `output_contract` declaring which Object types the session may produce — the write path rejects the rest. What comes back is a token-capped summary plus produced object ids, follow-up tasks, and open questions: never full artifact bodies.
+
 ### Two activation paths (ADR-006)
 
 Every specialist is declared twice from one shared definition in `packages/agents/registry.ts`:
@@ -132,6 +136,8 @@ Both doors dedup (ADR-011): the CMO's delegation tool checks the tasks table for
 
 Non-overlap rules (the template's lesson): the product-marketer decides *what the team claims*, content writes *the words*, seo-discovery decides *which pages exist*, distribution and lifecycle are the two that *put something in front of an audience*. A newsletter is two hops: content writes the prose, lifecycle adapts it for the inbox and sends it — the lead chains them by passing an artifact id, not by briefing both.
 
+Specialists may request work from other specialists only across **typed lateral edges** declared in the registry — `(from → to, kind)` triples such as `content → seo-discovery: audit-request` (ADR-013). A need matching no declared edge returns `blocked` to the CMO hub. Loops die at enqueue dedup; chains are bounded by budget and visible in the graph via `parent_task_id`; authority never travels with the chain — the downstream specialist's own gates apply.
+
 The **brand context** is the only shared state read by everyone at the start of every task, and it has a single owner per brand: the product-marketer. Its quality bounds everything downstream, which is why its structure is a skill rather than a convention, and every claim is graded `proven / plausible / assumption` so downstream agents know when to hedge. It exists in two forms (ADR-008): the full document — an Object in the brain — and a **size-capped preamble extract** that rides in every specialist session, with the cap enforced by the write path rather than by the prompt asking nicely.
 
 ### Skills packaging
@@ -153,9 +159,23 @@ Risk is not classified semantically but by **effect signature**, from a closed v
   → allowed | requires-verification | requires-human-approval | denied
 ```
 
+The default verdicts are versioned data, not prompt discipline (ADR-013):
+
+| effect class | low structure | medium | high |
+| --- | --- | --- | --- |
+| graph-internal | allowed | allowed | allowed |
+| reversible-external | approval | verification | allowed |
+| communication | approval | approval | verification |
+| irreversible-external | approval | approval | approval |
+| financial | approval | approval | approval |
+
+Structure moves a verdict at most one step per column; `irreversible-external` and `financial` have an absolute floor at approval; `communication` never reaches `allowed` by structure alone — full automation there always takes an explicit Decision. Policy-override Decisions (the per-category toggles) set a cell explicitly, never below the floors.
+
 eve connections enforce the result: per-connection tool allowlists (the precedent is Resend cut from ~85 to 47 tools in the template) and approval gates where the function prescribes them. Approval semantics are principal-aware (ADR-007, from the trycompai/crm precedent): interactive sessions park at the gate, while automated sessions are denied with an instruction and leave a ready-to-execute proposal Object instead. The `policy_snapshot` persisted on every Action turns "why are you asking me to approve this?" into a query with a mechanical answer. Determinism covers the gate, not the judgment inside the gate: the outcome of a verification still belongs to the actors. Human roles are part of the Actor the function reads (ADR-011): owner/admin approve everything, members approve the non-financial, viewers are read-only — overridable per org via a Decision.
 
 Two refinements from the Magister product (ADR-010): the console renders the policy as per-category ask/auto switches whose toggles write `policy-override` Decisions — the UI stays trivial, the state stays versioned. And connectors make the dangerous thing **structurally impossible** rather than merely gated: draft and publish are separate tools, ad campaigns are created paused (activation is the explicit money step), PRs never target the default branch, and the safe direction (pause, unpublish, close) is always allowed without a gate.
+
+Sandbox discipline follows eve's trust model (ADR-013): writes leave the building only as authored tool or connection calls in the app runtime — never as sandbox commands, where there is no gate, no `policy_snapshot`, no provenance. Sandboxes default to `deny-all` egress with per-specialist read allow-lists in each specialist's own `sandbox/` definition (eve gives every subagent its own sandbox); credential brokering is reserved for authenticated reads. Domain allow-lists require the Vercel or microsandbox backend — Docker dev runs `deny-all`.
 
 ## Channels and surfaces
 
@@ -178,8 +198,10 @@ The product wedge — the first full turn of the flywheel:
 ```text
 self-serve signup → org + brand with website_url
   → Intent: "build the brand brain"
-    → product-marketer: fetch the site, extract the brand kit (logo, colors, fonts),
-      interview the user, brand context v0 with graded claims
+    → product-marketer: context.dev Brand API for the brand kit (logo, colors,
+      fonts, styleguide, socials) + site crawl to markdown (ADR-012);
+      the user interview covers what the web cannot tell (goals, taste, constraints);
+      brand context v0 with graded claims
     → cmo: proposes the first roadmap-input Decisions; the first-week plan
       compiles mechanically from evidence + Decisions (ADR-010)
   → proposals land in the approval inbox
