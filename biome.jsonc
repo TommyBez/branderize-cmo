@@ -5,6 +5,9 @@
     "ultracite/biome/react",
     "ultracite/biome/next"
   ],
+  "files": {
+    "includes": ["!**/public"]
+  },
   "javascript": {
     "formatter": {
       "quoteStyle": "single",
