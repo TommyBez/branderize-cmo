@@ -3,15 +3,16 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "check": "ultracite check",
+    "check-types": "turbo run check-types",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "fix": "ultracite fix"
   },
   "devDependencies": {
-    "prettier": "^3.7.4",
+    "@biomejs/biome": "2.5.6",
     "turbo": "^2.10.8",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "ultracite": "7.10.1"
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
