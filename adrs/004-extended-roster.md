@@ -3,6 +3,8 @@
 - **Status:** active
 - **Date:** 2026-08-05
 - **Deciders:** Tommaso (human), with assisted analysis
+- **Amended by:** [ADR-006](006-dual-declaration.md) — specialists are dual-declared (subagent + named root agent) from a shared registry, not single directories under `agent/subagents/`
+- **Amended by:** [ADR-010](010-plan-as-derivation.md) — the CMO does not author plans: it produces evidence ingredients and proposes roadmap-input Decisions; the plan is a mechanical derivation
 
 ## Context
 

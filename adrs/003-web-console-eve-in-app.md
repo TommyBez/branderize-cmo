@@ -1,8 +1,9 @@
 # ADR-003: Web console as the primary surface, eve mounted in apps/app
 
-- **Status:** active
+- **Status:** amended
 - **Date:** 2026-08-05
 - **Deciders:** Tommaso (human), with assisted analysis
+- **Amended by:** [ADR-009](009-agent-deployment-and-console-data-surface.md) — the console primacy and the four surfaces stand; the deployment topology is reversed: eve is its own deployment (`apps/agent`) behind an authenticated same-origin proxy, not mounted in `apps/app`
 
 ## Context
 
