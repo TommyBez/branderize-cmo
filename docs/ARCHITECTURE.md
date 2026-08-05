@@ -33,6 +33,7 @@ Architectural decisions are versioned normative objects in `adrs/` — the softw
 - [ADR-002 — Postgres as the work graph substrate](../adrs/002-postgres-work-graph.md)
 - [ADR-003 — Web console as the primary surface, eve mounted in apps/app](../adrs/003-web-console-eve-in-app.md)
 - [ADR-004 — Extended roster of seven specialists](../adrs/004-extended-roster.md)
+- [ADR-005 — Drizzle + Neon for data access, Better Auth for authentication](../adrs/005-drizzle-neon-better-auth.md)
 
 ## From the ADE grammar to eve primitives
 
@@ -61,7 +62,7 @@ branderize-cmo/
       agent/              # the eve directory: instructions.md, subagents/, skills/, tools/, channels/, schedules/
   packages/
     ui/                   # shadcn/ui — the only source of UI
-    db/                   # Prisma schema, migrations, shared Postgres client
+    db/                   # Drizzle schema, migrations, shared Neon Postgres client (ADR-005)
     brain/                # the ONLY write path of the work graph + projection reads
     policy/               # effect signatures → approval matrix as a pure function
     marketing-skills/     # submodule of coreyhaines31/marketingskills + materialization script
@@ -191,3 +192,6 @@ Part V of the ADE document becomes automated tests — the system's type-check:
 | [trycompai/crm](https://github.com/trycompai/crm) | The operational precedent: work queue, deny-all sandbox, autonomous agent |
 | [marketingskills](https://github.com/coreyhaines31/marketingskills) | The marketing capability taxonomy |
 | [Magister](https://magistermarketing.com/) | The product benchmark |
+| [Drizzle ORM](https://orm.drizzle.team/) | Schema, queries, migrations (ADR-005) |
+| [Neon](https://neon.tech/) | Serverless Postgres (ADR-005) |
+| [Better Auth](https://better-auth.com) | Authentication, with the Drizzle adapter (ADR-001, ADR-005) |
