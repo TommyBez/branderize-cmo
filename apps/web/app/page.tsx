@@ -1,22 +1,22 @@
-import { Button } from "@repo/ui/button";
-import Image, { type ImageProps } from "next/image";
-import styles from "./page.module.css";
+import { Button } from '@repo/ui/button'
+import Image, { type ImageProps } from 'next/image'
+import styles from './page.module.css'
 
-type Props = Omit<ImageProps, "src"> & {
-  srcLight: string;
-  srcDark: string;
-};
+type Props = Omit<ImageProps, 'src'> & {
+  srcLight: string
+  srcDark: string
+}
 
 const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props;
+  const { srcLight, srcDark, ...rest } = props
 
   return (
     <>
       <Image {...rest} className="imgLight" src={srcLight} />
       <Image {...rest} className="imgDark" src={srcDark} />
     </>
-  );
-};
+  )
+}
 
 export default function Home() {
   return (
@@ -98,5 +98,5 @@ export default function Home() {
         </a>
       </footer>
     </div>
-  );
+  )
 }
