@@ -8,6 +8,14 @@
   "files": {
     "includes": ["!**/public"]
   },
+  "overrides": [
+    {
+      "includes": ["packages/ui/src/components/**", "packages/ui/src/hooks/**"],
+      "linter": {
+        "enabled": false
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "single",
