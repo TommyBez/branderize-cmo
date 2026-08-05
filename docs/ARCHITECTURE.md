@@ -39,6 +39,7 @@ Architectural decisions are versioned normative objects in `adrs/` — the softw
 - [ADR-008 — Brain write-path rules, tool design, and model resolution](../adrs/008-brain-write-path-and-model-resolution.md)
 - [ADR-009 — The agent as its own deployment, and the console's data-surface discipline](../adrs/009-agent-deployment-and-console-data-surface.md)
 - [ADR-010 — The plan is a derivation, and other lessons from the Magister product](../adrs/010-plan-as-derivation.md)
+- [ADR-011 — Self-grilling: delegation guards, the CMO's job list, closing the verification loop, budget hierarchy, proposal shape, one schedule, human roles](../adrs/011-self-grilling-closing-the-gaps.md)
 
 ## From the ADE grammar to eve primitives
 
@@ -100,11 +101,13 @@ Three invariants pay the provenance debt (Git would give these properties for fr
 2. **`actions` is append-only; Objects are never mutated, they are superseded.** A Decision is an Object with `type='decision'` and status active/superseded; supersession is a new Object pointing at the previous one. History is never rewritten; revocation is always ex nunc.
 3. **A single write path.** `packages/brain` exposes typed functions (`declareIntent`, `produceObject`, `recordDecision`, `scheduleRecheck`, …) that, in one transaction, evaluate the Policy, persist the `policy_snapshot`, and write Action + Object. The agents' eve tools and the console routes all go through it. No direct writes anywhere else.
 
-Current state (e.g. a brand's active brand context) is a **projection**: a materialized view over the latest non-superseded Object of that type. Pending approvals are Actions with status `pending`: the console's approval inbox is a query, not a feature of its own.
+Current state (e.g. a brand's active brand context) is a **projection**: a materialized view over the latest non-superseded Object of that type. Pending approvals are Actions with status `pending`: the console's approval inbox is a query, not a feature of its own. Binary artifacts (images, video, PDFs) live in content-addressed blob storage — the key carries the byte hash, so re-runs are idempotent; the Object holds metadata plus the blob key, and the console renders via short-lived signed URLs (ADR-011).
 
 ## The agent team
 
 One lead — the **CMO** — and seven specialists (ADR-004). The lead loads the brand context and preferences, structures the incoming intent, writes a self-contained brief for exactly one specialist, and hands back the work without rewriting it. Every specialist call is a fresh session that inherits nothing: the brief carries everything. Delegation is one level deep: specialists do their own research and their own review pass, they do not spawn further agents.
+
+The CMO's job list is explicit (ADR-011): transduction of human chat into structured intents, routing with self-contained briefs, synthesis of specialist outputs back to the human, proposing roadmap-input Decisions, and the daily brief narrative. It does not author plans (ADR-010) and owns no special schedule — the daily brief is a task kind dispatched to the CMO root agent like any other.
 
 ### Two activation paths (ADR-006)
 
@@ -114,6 +117,8 @@ Every specialist is declared twice from one shared definition in `packages/agent
 - **Deterministic path** — as a named root agent in the same agent deployment (multi-agent mount, `/eve/agents/<name>` prefix): own schedules, activatable by the tasks-queue dispatcher with typed payloads validated at enqueue time.
 
 Actor identity is a build-time constant of the definition (`actorKey`), not a runtime session property: both declarations write the same `actions.actor_id`, while `intents.author_actor_id` records who authorized the work (the human, or the originating Decision). Autonomous credit spend is capped by a global per-plan Policy; Decisions may only restrict it further.
+
+Both doors dedup (ADR-011): the CMO's delegation tool checks the tasks table for in-flight work on `(specialist, brand_id)` before delegating — if a run is hot, it waits and reuses the output, or enqueues an interactive-priority task, instead of paying for a second overlapping session.
 
 | Agent | Owns | Skills (from marketingskills) |
 | --- | --- | --- |
@@ -148,7 +153,7 @@ Risk is not classified semantically but by **effect signature**, from a closed v
   → allowed | requires-verification | requires-human-approval | denied
 ```
 
-eve connections enforce the result: per-connection tool allowlists (the precedent is Resend cut from ~85 to 47 tools in the template) and approval gates where the function prescribes them. Approval semantics are principal-aware (ADR-007, from the trycompai/crm precedent): interactive sessions park at the gate, while automated sessions are denied with an instruction and leave a ready-to-execute proposal Object instead. The `policy_snapshot` persisted on every Action turns "why are you asking me to approve this?" into a query with a mechanical answer. Determinism covers the gate, not the judgment inside the gate: the outcome of a verification still belongs to the actors.
+eve connections enforce the result: per-connection tool allowlists (the precedent is Resend cut from ~85 to 47 tools in the template) and approval gates where the function prescribes them. Approval semantics are principal-aware (ADR-007, from the trycompai/crm precedent): interactive sessions park at the gate, while automated sessions are denied with an instruction and leave a ready-to-execute proposal Object instead. The `policy_snapshot` persisted on every Action turns "why are you asking me to approve this?" into a query with a mechanical answer. Determinism covers the gate, not the judgment inside the gate: the outcome of a verification still belongs to the actors. Human roles are part of the Actor the function reads (ADR-011): owner/admin approve everything, members approve the non-financial, viewers are read-only — overridable per org via a Decision.
 
 Two refinements from the Magister product (ADR-010): the console renders the policy as per-category ask/auto switches whose toggles write `policy-override` Decisions — the UI stays trivial, the state stays versioned. And connectors make the dangerous thing **structurally impossible** rather than merely gated: draft and publish are separate tools, ad campaigns are created paused (activation is the explicit money step), PRs never target the default branch, and the safe direction (pause, unpublish, close) is always allowed without a gate.
 
@@ -156,9 +161,9 @@ Two refinements from the Magister product (ADR-010): the console renders the pol
 
 The web console (`apps/app`) is the primary surface (ADR-003) and it is **a view over the graph, not the foundation of the system**:
 
-1. **Approval inbox** — the main surface: what awaits human judgment
+1. **Approval inbox** — the main surface: what awaits human judgment. Proposals carry `{ render_hint, payload, base_state_ref }` and each type has a console renderer (email preview, social card, diff against current state). Edit-before-approve is supported with dual provenance — the agent's draft and the human's delta are separate Actions, and the edited payload is what executes. `execute-proposal` re-reads external state when the connector allows and reopens the proposal on drift instead of executing a stale payload (ADR-011)
 2. **Open questions** — what awaits information: a projection over low-structure intents; every answer is a Decision that unlocks autonomy (ADR-010)
-3. **Digest with citations** — a narrative of what happened on your intents, where every rendered claim carries a reference to the canonical objects backing it
+3. **Digest with citations** — a narrative of what happened on your intents: a mechanical skeleton (actions, pending items, due rechecks) plus CMO narrative whose citations are validated against the graph — the renderer rejects references to objects that do not exist (ADR-011)
 4. **Graph browser** — backward traversal: from any object to the Intents and Decisions that justify it
 5. **Chat** — only natural-language intent entry (transduction), never a place of truth
 
@@ -184,15 +189,17 @@ self-serve signup → org + brand with website_url
 
 ## Schedules and the feedback loop
 
-The agent books its own follow-ups: `scheduleRecheck` writes a row in `tasks` with `due_at` and a **rationale shown to the human** — an agent that cannot say why it will be back in fourteen days does not have a reason, it has a default. eve schedules (e.g. daily brief, weekly SEO audit) lease due rows and start one session per row; two dispatchers take disjoint work thanks to the lease.
+The agent books its own follow-ups: `scheduleRecheck` writes a row in `tasks` with `due_at` and a **rationale shown to the human** — an agent that cannot say why it will be back in fourteen days does not have a reason, it has a default. There is exactly one eve schedule — the dispatcher tick — and it decides nothing (ADR-011): every cadence (the daily brief at 9 in the brand's timezone, the weekly SEO audit) lives in `tasks.due_at` rows, because per-brand cadences are data, not code. Two dispatchers take disjoint work thanks to the lease.
 
 Queue mechanics (ADR-007, after the CRM): dedup at enqueue per `(kind, brand_id, subject)`; bounded leases with `FOR UPDATE SKIP LOCKED`; max attempts with retirement; retries resume the prior thread instead of restarting. Two lanes: agent tasks (the dispatcher starts a specialist session) and `execute-proposal` tasks (deterministic code, no LLM, running exactly the approved boundary call). Autonomous runs never park: boundary actions are denied with an instruction, and the work product up to the gate is saved as a proposal Object awaiting human settlement.
 
-The analytics feedback loop is a Verification: measured metrics are compared against what the authorizing Decision claimed, and the outcome re-enters the graph as a judgment. This is the compounding byproduct: the judgment dataset.
+The analytics feedback loop is a Verification: measured metrics are compared against what the authorizing Decision claimed, and the outcome re-enters the graph as a judgment. The loop closes into work, not just data (ADR-011): every measurable Decision declares its verification plan at creation (metric, baseline, horizon — a Decision without one is a low-structure object and surfaces in open questions), and a negative judgment marks the Decision contested and enqueues a CMO task to propose a motivated supersession. This is the compounding byproduct: the judgment dataset.
 
 ## Credits
 
 The Magister model: a monthly credit pool per plan, consumption metered at the AI Gateway and by action type, overage at a unit price. The `credit_ledger` is append-only: even billing speaks the grammar.
+
+Three nested budgets (ADR-011): the plan cap (hard, billing) contains the brand's monthly pool (from the subscription), which contains each session's budget (set by the policy at dispatch — autonomous runs get less). The dispatcher checks the brand pool before leasing agent tasks; at zero, tasks stay queued and the console shows the work waiting on credits — credits are a capability like any other. Running out mid-session is a normal ending: the specialist saves the partial work as an Object and exits.
 
 ## Integrity metrics (CI)
 
