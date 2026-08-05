@@ -42,6 +42,7 @@ Architectural decisions are versioned normative objects in `adrs/` — the softw
 - [ADR-011 — Self-grilling: delegation guards, the CMO's job list, closing the verification loop, budget hierarchy, proposal shape, one schedule, human roles](../adrs/011-self-grilling-closing-the-gaps.md)
 - [ADR-012 — Contracts: one approval source, the brief schema, the intent lifecycle, plan-compiler inputs](../adrs/012-contracts-approval-brief-intents-compiler.md)
 - [ADR-013 — The policy matrix, typed lateral edges, and sandbox rules on eve's real trust model](../adrs/013-policy-matrix-lateral-edges-sandbox.md)
+- [ADR-014 — Schema: singleton keys, deterministic session tokens, derived structure, two streams, ledger granularity, content shape](../adrs/014-schema-singletons-sessions-streams-ledger.md)
 
 ## From the ADE grammar to eve primitives
 
@@ -90,12 +91,14 @@ Postgres is the only canonical store (ADR-002). Two layers:
 
 | Table | Contents |
 | --- | --- |
-| `actors` | Humans and agents in the same table: `type`, handle, capabilities |
-| `intents` | Statement, author, `structure_level`, status, `parent_intent_id` |
-| `objects` | `type` (brand_context, decision, evidence, artifact, proposal, report…), content, `produced_by`, `superseded_by`, lifecycle `status` (active / proposed / superseded / dismissed — ADR-008) |
-| `actions` | Append-only: `actor_id`, `type`, `rationale`, `intent_id`, `effect_class`, `policy_snapshot` |
-| `tasks` | Work queue: `kind`, `payload`, `due_at`, `leased_until`, `lease_owner` — leased with `FOR UPDATE SKIP LOCKED` |
-| `credit_ledger` | Append-only: credit consumption and grants per brand |
+| `actors` | Humans and agents in the same table: `type`, handle, role, capabilities |
+| `intents` | Statement, author, status (`draft → active → settled \| abandoned`), `parent_intent_id`; `structure_level` is **derived**, never stored (ADR-014) |
+| `objects` | `type` (brand_context, decision, evidence, artifact, proposal, move_candidate, report…), `content` JSONB + `content_text` (FTS) + `blob_key`, `singleton_key` with a partial unique index for singleton types, `produced_by`, `superseded_by`, lifecycle `status` (active / proposed / superseded / dismissed — ADR-008, ADR-014) |
+| `actions` | Append-only grammar log: `actor_id`, `type`, `rationale`, `intent_id`, `effect_class`, `policy_snapshot`, `session_id`/`call_id` link to telemetry |
+| `session_events` | Telemetry stream: every eve event ingested by the audit hook, keyed on eve's `meta.id` (`ON CONFLICT DO NOTHING`); monthly partitions; retention is a policy knob (ADR-014) |
+| `chat_messages` | Permanent brand-scoped projection of `message.*` events — the console renders chat from our DB, not from eve (ADR-014) |
+| `tasks` | Work queue: `kind`, `payload`, `subject_key` (dedup via partial unique index), `due_at`, `leased_until`, `lease_owner` — leased with `FOR UPDATE SKIP LOCKED` |
+| `credit_ledger` | Append-only: `grant` / `session_charge` / `action_charge` rows with unique idempotency keys (ADR-014) |
 
 Three invariants pay the provenance debt (Git would give these properties for free; here they are discipline):
 
@@ -185,7 +188,7 @@ The web console (`apps/app`) is the primary surface (ADR-003) and it is **a view
 2. **Open questions** — what awaits information: a projection over low-structure intents; every answer is a Decision that unlocks autonomy (ADR-010)
 3. **Digest with citations** — a narrative of what happened on your intents: a mechanical skeleton (actions, pending items, due rechecks) plus CMO narrative whose citations are validated against the graph — the renderer rejects references to objects that do not exist (ADR-011)
 4. **Graph browser** — backward traversal: from any object to the Intents and Decisions that justify it
-5. **Chat** — only natural-language intent entry (transduction), never a place of truth
+5. **Chat** — only natural-language intent entry (transduction), never a place of truth. One standing, multi-user thread per brand, bound by the deterministic continuation token `cmo:<brand_id>` (specialist runs bind as `task:<id>`, so retries resume for free — the CRM's computed-token trick, ADR-014). eve session state is working memory, never a system of record: Vercel's workflow retention (7–30 days by plan) can evict it under any token, so the CMO cold-starts by rehydrating from the graph and from `chat_messages`, exactly the fresh-session-plus-brief discipline of the specialists
 
 A carved-in-stone rule (from the CRM): **no intelligence in the console routes** — and it is enforced physically: the agent is its own deployment (`apps/agent`), reachable only through an authenticated same-origin proxy that mints short-lived user-principal tokens (ADR-009). Console routes read projections and write only intents and approvals through `packages/brain`; Biome restricted imports make the line mechanical inside the app as well. The anti-metric is explicit: human time in the console must trend down at constant work output. A console that creates engagement is failing.
 
