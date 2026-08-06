@@ -40,7 +40,7 @@ The model is a resolver, not a constant. Their entire mechanism is 15 lines: `de
 
 ### 4. Operational traps recorded for Phase 0/1 (from their post-mortems)
 
-- eve **namespaces continuation tokens with the channel name** (`task:<id>` comes back as `crm:task:<id>`): a channel handler must parse for its own marker, never assume the token is byte-identical to the one it sent.
+- In eve 0.30.8, `ClientSession` owns and advances `{ continuationToken, sessionId, streamIndex }`. `task:<id>` is our lookup key for the saved state, not a token to send or parse. Only the eve adapter reads or persists that version-specific `SessionState` (ADR-016).
 - **`eve dev` never fires schedules.** The poke pattern (write the task row → fire-and-forget poke to the dispatch route → drain; cron as backstop) makes dev behave like production. *"An agent that is down costs sixty seconds, not the work."*
 - eve's `jwtHmac()` resolves to `principalType: "service"`: any bridge carrying a human must remap the principal, or principal-aware approvals (ADR-007) refuse a human sitting there watching.
 - **Machine routes fail closed**: an unset shared secret means the route *refuses* rather than opens (their `AGENT_BRIDGE_SECRET` rule) — the absence of an optional capability must never widen access.

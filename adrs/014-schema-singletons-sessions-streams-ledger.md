@@ -2,6 +2,7 @@
 
 **Status:** Accepted — 2026-08-05
 **Amends:** ADR-002 (schema concreteness), ADR-008 (the audit hook's target tables), ADR-012 (chat history home)
+**Amended by:** [ADR-016](016-eve-session-state-persistence.md) (D2: persist eve `SessionState` behind Branderize logical keys)
 **Refs:** ADR-007, ADR-011, ADR-013; trycompai/crm `channels/crm.ts` (deterministic continuation tokens); eve bundled docs (`concepts/sessions-runs-and-streaming.md`, `concepts/execution-model-and-durability.mdx`); Vercel Workflows pricing/retention docs
 
 ## Context
@@ -25,6 +26,8 @@ CREATE UNIQUE INDEX objects_singleton_active
 The unlikely-but-possible double-write (lease expiry re-running a live task, admin intervention, a future bug) becomes a loud constraint violation instead of silent ambiguity in every downstream "load the brand context". Invariants live in the substrate where the substrate can hold them.
 
 ### D2 — Session binding is computed, not stored; eve state is working memory
+
+> **Amended by ADR-016.** The text below records the historical decision. The current contract keeps the deterministic values as Branderize-owned logical keys and stores the latest complete eve `SessionState` for each key in `agent_session_states`. ADR-016 changes only this binding and terminology; the working-memory and cold-start rules below remain unchanged.
 
 From the CRM's `channels/crm.ts`: the continuation token is a **deterministic function of the work**, so no sessions mapping table is needed:
 

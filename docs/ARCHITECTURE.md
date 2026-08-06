@@ -7,7 +7,7 @@ This document maps how branderize-cmo is put together, for humans and AI agents 
 - **Name:** `branderize-cmo`
 - **Maintainer:** Tommaso
 - **License:** TBD
-- **Last updated:** 2026-08-05
+- **Last updated:** 2026-08-06
 
 ## Overview
 
@@ -44,6 +44,7 @@ Architectural decisions are versioned normative objects in `adrs/` — the softw
 - [ADR-013 — The policy matrix, typed lateral edges, and sandbox rules on eve's real trust model](../adrs/013-policy-matrix-lateral-edges-sandbox.md)
 - [ADR-014 — Schema: singleton keys, deterministic session tokens, derived structure, two streams, ledger granularity, content shape](../adrs/014-schema-singletons-sessions-streams-ledger.md)
 - [ADR-015 — The registry: uniform agent shape, two-declaration deltas, self-copies, tool composition, task kinds, capability gating, the console as consumer](../adrs/015-the-registry.md)
+- [ADR-016 — eve SessionState persistence behind Branderize logical keys](../adrs/016-eve-session-state-persistence.md)
 
 ## From the ADE grammar to eve primitives
 
@@ -98,6 +99,7 @@ Postgres is the only canonical store (ADR-002). Two layers:
 | `actions` | Append-only grammar log: `actor_id`, `type`, `rationale`, `intent_id`, `effect_class`, `policy_snapshot`, `session_id`/`call_id` link to telemetry |
 | `session_events` | Telemetry stream: every eve event ingested by the audit hook, keyed on eve's `meta.id` (`ON CONFLICT DO NOTHING`); monthly partitions; retention is a policy knob (ADR-014) |
 | `chat_messages` | Permanent brand-scoped projection of `message.*` events — the console renders chat from our DB, not from eve (ADR-014) |
+| `agent_session_states` | One current adapter-owned eve `SessionState` per Branderize logical key (`cmo:<brand_id>` or `task:<task_id>`), stored as versioned opaque JSON; a client cursor, never conversation history (ADR-016) |
 | `tasks` | Work queue: `kind`, `payload`, `subject_key` (dedup via partial unique index), `due_at`, `leased_until`, `lease_owner` — leased with `FOR UPDATE SKIP LOCKED` |
 | `credit_ledger` | Append-only: `grant` / `session_charge` / `action_charge` rows with unique idempotency keys (ADR-014) |
 
@@ -191,7 +193,7 @@ The web console (`apps/app`) is the primary surface (ADR-003) and it is **a view
 2. **Open questions** — what awaits information: a projection over low-structure intents; every answer is a Decision that unlocks autonomy (ADR-010)
 3. **Digest with citations** — a narrative of what happened on your intents: a mechanical skeleton (actions, pending items, due rechecks) plus CMO narrative whose citations are validated against the graph — the renderer rejects references to objects that do not exist (ADR-011)
 4. **Graph browser** — backward traversal: from any object to the Intents and Decisions that justify it
-5. **Chat** — only natural-language intent entry (transduction), never a place of truth. One standing, multi-user thread per brand, bound by the deterministic continuation token `cmo:<brand_id>` (specialist runs bind as `task:<id>`, so retries resume for free — the CRM's computed-token trick, ADR-014). eve session state is working memory, never a system of record: Vercel's workflow retention (7–30 days by plan) can evict it under any token, so the CMO cold-starts by rehydrating from the graph and from `chat_messages`, exactly the fresh-session-plus-brief discipline of the specialists
+5. **Chat** — only natural-language intent entry (transduction), never a place of truth. Branderize identifies the standing multi-user conversation with `cmo:<brand_id>` and specialist work with `task:<task_id>`; these are lookup keys, not eve tokens. `agent_session_states` stores the latest opaque client `SessionState` for each key. The eve 0.30.8 adapter loads that state before a send and persists the fully advanced state after the turn; only the adapter knows that the current shape includes `continuationToken`, `sessionId`, and `streamIndex` (ADR-016). eve state remains working memory, never a system of record: the console renders `chat_messages`, and the CMO's existing cold-start procedure reads the graph and conversation projection (ADR-014)
 
 A carved-in-stone rule (from the CRM): **no intelligence in the console routes** — and it is enforced physically: the agent is its own deployment (`apps/agent`), reachable only through an authenticated same-origin proxy that mints short-lived user-principal tokens (ADR-009). Console routes read projections and write only intents and approvals through `packages/brain`; Biome restricted imports make the line mechanical inside the app as well. The anti-metric is explicit: human time in the console must trend down at constant work output. A console that creates engagement is failing.
 
@@ -219,7 +221,7 @@ self-serve signup → org + brand with website_url
 
 The agent books its own follow-ups: `scheduleRecheck` writes a row in `tasks` with `due_at` and a **rationale shown to the human** — an agent that cannot say why it will be back in fourteen days does not have a reason, it has a default. There is exactly one eve schedule — the dispatcher tick — and it decides nothing (ADR-011): every cadence (the daily brief at 9 in the brand's timezone, the weekly SEO audit) lives in `tasks.due_at` rows, because per-brand cadences are data, not code. Two dispatchers take disjoint work thanks to the lease.
 
-Queue mechanics (ADR-007, after the CRM): dedup at enqueue per `(kind, brand_id, subject)`; bounded leases with `FOR UPDATE SKIP LOCKED`; max attempts with retirement; retries resume the prior thread instead of restarting. Two lanes: agent tasks (the dispatcher starts a specialist session) and `execute-proposal` tasks (deterministic code, no LLM, running exactly the approved boundary call). Autonomous runs never park: boundary actions are denied with an instruction, and the work product up to the gate is saved as a proposal Object awaiting human settlement.
+Queue mechanics (ADR-007, after the CRM): dedup at enqueue per `(kind, brand_id, subject)`; bounded leases with `FOR UPDATE SKIP LOCKED`; max attempts with retirement; retries reuse the same task identity and prior artifacts. Two lanes: agent tasks (the dispatcher starts a specialist session) and `execute-proposal` tasks (deterministic code, no LLM, running exactly the approved boundary call). Autonomous runs never park: boundary actions are denied with an instruction, and the work product up to the gate is saved as a proposal Object awaiting human settlement.
 
 The analytics feedback loop is a Verification: measured metrics are compared against what the authorizing Decision claimed, and the outcome re-enters the graph as a judgment. The loop closes into work, not just data (ADR-011): every measurable Decision declares its verification plan at creation (metric, baseline, horizon — a Decision without one is a low-structure object and surfaces in open questions), and a negative judgment marks the Decision contested and enqueues a CMO task to propose a motivated supersession. This is the compounding byproduct: the judgment dataset.
 

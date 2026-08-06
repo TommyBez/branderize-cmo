@@ -2,7 +2,7 @@
 
 **Status:** Accepted — 2026-08-05
 **Amends:** ADR-007 (the inbox's single source), ADR-010 (compiler inputs)
-**Refs:** ADR-002, ADR-006, ADR-011; trycompai/crm (continuation tokens); Magister (impact baselines); context.dev (onboarding data)
+**Refs:** ADR-002, ADR-006, ADR-011, ADR-016; trycompai/crm (session continuation); Magister (impact baselines); context.dev (onboarding data)
 
 ## Context
 
@@ -14,7 +14,7 @@ Second self-grilling round, aimed one level down: not "do the ADRs compose?" but
 
 ADR-007 left two places where pending human judgment could live: eve session state (interactive parks) and proposal Objects (autonomous path). That would make the approval inbox a union of two stores — a query with two semantics.
 
-Rule: when an interactive session parks at a gate, the write path **still materializes a proposal Object** (`status='proposed'`), and the eve approval references it. The inbox is `objects WHERE status='proposed'` — one store, one semantics. Approving from the inbox or from the chat is the same Action on the same Object; the parked session resumes when the proposal settles (the CRM's continuation-token pattern).
+Rule: when an interactive session parks at a gate, the write path **still materializes a proposal Object** (`status='proposed'`), and the eve approval references it. The inbox is `objects WHERE status='proposed'` — one store, one semantics. Approving from the inbox or from the chat is the same Action on the same Object; the parked session resumes when the proposal settles using the adapter-owned saved `SessionState` (ADR-016).
 
 ### D2 — The brief contract, and the return contract
 

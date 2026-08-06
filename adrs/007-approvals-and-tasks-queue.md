@@ -16,7 +16,7 @@ Code analysis of [trycompai/crm](https://github.com/trycompai/crm) (`apps/agent/
 
 - `approval.ts` — principal-aware gates: automated sessions get boundary writes **denied** with an "instead" instruction (`"Not something to do unattended."`); interactive sessions get `user-approval`. Automated sessions never park, so leases stay bounded (10/30 min) and the park-vs-lease conflict cannot exist.
 - `tasks.ts` — `scheduleTask` **upserts per (kind, subject)**: duplicate follow-ups cannot be enqueued. `claimDue` leases with `FOR UPDATE SKIP LOCKED`; `MAX_ATTEMPTS = 3` with `retireExhausted` for poison tasks.
-- `dispatch.ts` — **two lanes**: `DIRECT_KINDS` are executed deterministically inside the dispatcher (plain code, no LLM); research kinds become agent sessions via channel `receive`. Retry briefs say *"carry on from what is already in this thread"* — retries resume, not restart.
+- `dispatch.ts` — **two lanes**: `DIRECT_KINDS` are executed deterministically inside the dispatcher (plain code, no LLM); research kinds become agent sessions via channel `receive`. Retry briefs say *"carry on from what is already in this thread"* and the channel dispatches the same task-derived key.
 - `evidence.ts` — writes are **weighted by evidence kind**; a `contradiction` caps the score and the fact degrades to a human-settled suggestion. The write path arbitrates conflicts, not locks.
 - `pool.ts` — `collapsing()` prevents overlapping dispatcher runs.
 
@@ -33,7 +33,7 @@ Code analysis of [trycompai/crm](https://github.com/trycompai/crm) (`apps/agent/
 
 - Dedup at enqueue: upsert per `(kind, brand_id, subject)` — duplicate follow-ups cannot exist
 - Lease with `FOR UPDATE SKIP LOCKED`; bounded leases; max attempts with retirement
-- Retry continuity: the retry brief references the prior thread and artifacts instead of restarting
+- Retry continuity: the retry reuses the same task identity and references prior artifacts instead of treating the attempt as unrelated work
 - Two lanes: agent tasks (the dispatcher starts a specialist session) and `execute-proposal` tasks (deterministic code)
 
 **Concurrency on writes is optimistic, on the supersession chain.** `produceObject` declares which Object version it intends to supersede; if the head has moved meanwhile, the write becomes a branch requiring human resolution (a Verification). Single-owner Objects (brand context → product-marketer) plus enqueue dedup make the dangerous case rare by construction. Claim grading (`proven / plausible / assumption`) plays the role of the CRM's evidence weighting: conflicts degrade to human review instead of corrupting state.
