@@ -43,6 +43,7 @@ Architectural decisions are versioned normative objects in `adrs/` — the softw
 - [ADR-012 — Contracts: one approval source, the brief schema, the intent lifecycle, plan-compiler inputs](../adrs/012-contracts-approval-brief-intents-compiler.md)
 - [ADR-013 — The policy matrix, typed lateral edges, and sandbox rules on eve's real trust model](../adrs/013-policy-matrix-lateral-edges-sandbox.md)
 - [ADR-014 — Schema: singleton keys, deterministic session tokens, derived structure, two streams, ledger granularity, content shape](../adrs/014-schema-singletons-sessions-streams-ledger.md)
+- [ADR-015 — The registry: uniform agent shape, two-declaration deltas, self-copies, tool composition, task kinds, capability gating, the console as consumer](../adrs/015-the-registry.md)
 
 ## From the ADE grammar to eve primitives
 
@@ -75,7 +76,7 @@ branderize-cmo/
     db/                   # Drizzle schema, migrations, shared Neon Postgres client (ADR-005)
     brain/                # the ONLY write path of the work graph + projection reads (rules: ADR-008)
     policy/               # effect signatures → approval matrix as a pure function
-    agents/               # shared specialist registry: definitions, actor keys, task kinds, model defaults + resolver (ADR-006, ADR-008)
+    agents/               # the registry: uniform agent definitions (lead included), task kinds with brief schemas, tool/connection composition, lateral edges, egress, model defaults + resolver; isomorphic — imported by the console too (ADR-006, ADR-008, ADR-015)
     marketing-skills/     # submodule of coreyhaines31/marketingskills + materialization script
     env/                  # shared root .env loading
     typescript-config/
@@ -122,6 +123,8 @@ Every specialist is declared twice from one shared definition in `packages/agent
 
 - **Interactive path** — as a declared subagent of the CMO: in-process delegation, native control-plane events, proxied approval prompts. Humans only ever talk to the CMO; specialist routes are machine-only (dispatcher principal `eve:app`).
 - **Deterministic path** — as a named root agent in the same agent deployment (multi-agent mount, `/eve/agents/<name>` prefix): own schedules, activatable by the tasks-queue dispatcher with typed payloads validated at enqueue time.
+
+The two declarations share one registry entry and differ in three declared deltas (ADR-015): the subagent returns through eve's `outputSchema` task mode (the return contract is framework-enforced), the root returns via brain writes and task completion, and each gets a short instruction addendum for its stance. eve's built-in self-copy `agent` tool stays on the CMO (parallel research and the marketing-council skill need it, guarded by budget checks and non-overlapping write scopes) and is disabled on every specialist root — specialist parallelism lives in the tasks queue. Capability gating never disables a whole agent: task kinds declare `requires[]` (checked at lease) and capability-bound tools are dynamically omitted per session, with eve's OAuth challenge doubling as the connect link.
 
 Actor identity is a build-time constant of the definition (`actorKey`), not a runtime session property: both declarations write the same `actions.actor_id`, while `intents.author_actor_id` records who authorized the work (the human, or the originating Decision). Autonomous credit spend is capped by a global per-plan Policy; Decisions may only restrict it further.
 
