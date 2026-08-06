@@ -30,14 +30,15 @@ The CMO has task kinds like anyone else (the daily brief, ADR-011 D2). One loade
 
 The materialization script generates both directories from one entry.
 
-### D3 — Self-copies: kept on the CMO, disabled on specialist roots
+### D3 — Self-copies are intra-session parallelism, enabled uniformly
 
-eve's built-in `agent` tool (fresh copies of the root) serves one of the two kinds of parallelism we have:
+The built-in `agent` tool does not spawn independent agents — it is a tool the agent calls inside its own session, and the copy runs as a child of an already-dispatched, already-budgeted, already-traced session. There is no queue to bypass: **the queue governs parallelism across work items** (N tasks → N dispatched sessions), while **self-copies govern parallelism within one work item** (a specialist analyzing ten URLs in parallel during one audit; the CMO running research fan-out or a `marketing-council` deliberation).
 
-- **Specialist parallelism needs no copies** — the CMO emits multiple declared-subagent calls in one response and eve runs them concurrently.
-- **CMO-brain parallelism does** — parallel research, weekly-review synthesis, and the `marketing-council` skill (a council of perspectives *is* parallel self-deliberation).
-
-So: `agent` stays on the CMO; `agent/tools/agent.ts` = `disableTool()` in every specialist root (their parallelism lives in the tasks queue, with dedup and budget classes — not in queue-bypassing self-copies). Guardrails on CMO copies: the copy tool checks remaining session budget before spawning; copies share the CMO's sandbox, so instructions require non-overlapping write scopes (eve's own warning); depth is mechanically bounded — eve rejects copies calling `agent`, so the maximum chain is CMO → copy → specialist. The ADR-011 in-flight guard applies to delegations made by copies too.
+- Enabled on the CMO and on specialist roots alike — one rule, no special cases.
+- eve's mechanical bounds apply everywhere: copies cannot call `agent` (no recursion), and copies share the parent's sandbox, so every agent's instructions require non-overlapping write scopes.
+- Specialist copies are **leaf parallelism by construction**: no nested subagents are authored, so a specialist copy has nothing to delegate to.
+- CMO copies inherit the declared-specialist tool surface; their delegations pass the ADR-011 in-flight guard like any other.
+- Budget attribution rolls up the session tree: child sessions are metered to the same brand pool (`session_charge` per session, ADR-014 D5), and the pool check gates new work at dispatch (ADR-011 D4).
 
 ### D4 — Tool composition is mechanical from the registry
 
