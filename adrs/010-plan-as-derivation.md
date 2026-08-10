@@ -4,6 +4,7 @@
 - **Date:** 2026-08-05
 - **Deciders:** Tommaso (human), grilling session on the authenticated [Magister](https://magistermarketing.com) product (Chat, Plan, Permissions, Workflows, Briefs, MCP reference)
 - **Builds on:** [ADR-002](002-postgres-work-graph.md) (projections), [ADR-004](004-extended-roster.md) (CMO role), [ADR-007](007-approvals-and-tasks-queue.md) (approvals), [ADR-008](008-brain-write-path-and-model-resolution.md) (capabilities), [ADR-009](009-agent-deployment-and-console-data-surface.md) (console)
+- **Amended by:** [ADR-019](019-human-approved-external-commitments.md) — the UI cannot enable unattended external commitments; every direction uses the human-task gate
 
 ## Context
 
@@ -22,15 +23,15 @@ The LLM writes the **ingredients** (move candidates with evidence citations, eff
 
 ### 2. The policy UI writes Decisions (Q2)
 
-The console renders the policy as per-category ask/auto switches (their seven: email, social publishing, content publishing, paid ads, code/PRs, destructive, other external — default: ask). Toggling a switch writes a Decision (`type: policy-override`, scoped brand × effect class) that `packages/policy` reads. The UI stays as simple as Magister's; the state it edits is versioned with provenance instead of being a settings row. The four policy outcomes stay internal; the user sees a binary per category.
+The original Magister-derived design exposed per-category ask/auto switches. ADR-019 narrows that autonomy boundary: external preparation may be enabled or restricted, but the UI cannot turn any external commitment into an unattended operation. Any policy controls remain Decisions with provenance and may tighten access; they never lower the human-button floor for schedule, publish, send, activate, spend, merge, pause, unpublish, cancel, or close.
 
 ### 3. The dangerous thing is impossible at the connector, not just gated (Q3)
 
-Draft and publish are **separate tools** (their `content:write` vs `content:publish` scope split); ad campaigns are **created paused** — activation is the explicit money step; PRs never target the default branch; and the safe direction (pause, unpublish, close) is **always allowed**, no gate. Approval gates live only on publish/activate tools. This hardens ADR-007: the write tool must be structurally unable to do the dangerous thing.
+Preparation and commitment are **separate capabilities**. Durable roots may receive only registered, create-only staging operations, such as creating a private draft or a paused campaign. They never receive generic update/delete/publish tools. Schedule, publish, send, activate, spend, merge, pause, unpublish, cancel, and close are human-activation direct task kinds executed later by deterministic code. The “safe direction” is not an authority exception: it uses the same button.
 
 ### 4. MCP server channel + agent-native signup, in the roadmap (Q4)
 
-Phase 3/4: expose the product as an MCP server — read tools by default; writes behind opt-in scopes; approval polling via a `get_action_approval` equivalent (redacted receipt); a missing integration returns a **one-click connect link** from the tool result itself (the capability degradation of ADR-008 with the UX attached); billing never bypassable via MCP. Plus agent-native signup (a single POST an agent can make) — cheap to build, markets itself.
+Phase 3/4: expose the product as an MCP server — read tools by default; writes behind opt-in scopes; approval polling via a `get_action_approval` equivalent (redacted receipt); a missing integration returns a **one-click link to the authenticated `apps/app` brand-scoped onboarding flow** (the capability degradation of ADR-008 with the UX attached), never a user-owned Eve grant; billing is never bypassable via MCP. Plus agent-native signup (a single POST an agent can make) — cheap to build, markets itself.
 
 ### 5. Open questions as a first-class projection (Q5)
 
@@ -44,8 +45,8 @@ ADR-009's topology (agent as its own deployment behind a proxy) makes per-brand 
 
 - `packages/db`: `objects` gain the `evidence` type with citation keys; plan Objects pin their input set.
 - `packages/brain`: `compilePlan(brandId)` — a pure derivation, no LLM; the `openQuestions` projection.
-- `packages/policy`: reads `policy-override` Decisions; safe-direction actions are always allowed.
-- Connectors: write/publish tool split; created-paused; no default-branch pushes.
+- `packages/policy`: reads `policy-override` Decisions, but never lowers the external-commitment approval floor.
+- Connectors: create-only preparation and deterministic post-approval commitment are separate registered operations; no generic mutation tool or automatic safe-direction path.
 - Console: policy switches UI, the open-questions surface, the plan page with Rebuild.
 - Roadmap: MCP channel + agent-native signup (Phase 4); enterprise isolation stays open.
 - ADR-004 amended in role: the CMO proposes Decisions and curates evidence ingredients; plans compile.
@@ -54,4 +55,4 @@ ADR-009's topology (agent as its own deployment behind a proxy) makes per-brand 
 
 - **CMO-authored plan Objects** — rejected: not rebuildable, inputs have no mechanical effect, and "why this item?" is answered with prose instead of data.
 - **Policy as a settings table rendered as switches** — rejected: no provenance; switches write Decisions instead.
-- **Approval gates on the write tool itself** — rejected: gates belong on publish/activate; the write tool must be unable to do the dangerous thing.
+- **Let the agent call a commitment tool and park it at an approval gate** — rejected by ADR-019: the agent lacks that tool. It creates a pending direct task, and the deterministic worker becomes the sole executor after the human click.
