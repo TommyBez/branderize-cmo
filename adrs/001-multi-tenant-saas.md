@@ -3,6 +3,7 @@
 - **Status:** active
 - **Date:** 2026-08-05
 - **Deciders:** Tommaso (human), with assisted analysis
+- **Amended by:** [ADR-019](019-human-approved-external-commitments.md) — real tenant foreign keys cascade every internal brand-scoped row on brand deletion; provider resources may remain orphaned
 
 ## Context
 
@@ -27,10 +28,10 @@ Dogfooding remains the wedge: the first tenant is branderize itself, and `apps/w
 ## Consequences
 
 - **Auth is real work from day one.** Sessions, org membership, roles. The CRM's "one env var is the whole authorization model" is not available to us.
-- **Tenant isolation is a schema concern.** `brand_id` on every grammar-layer table, enforced in `packages/brain` — the single write path is also the single tenancy boundary.
+- **Tenant isolation and deletion are schema concerns.** Every internal brand-scoped row has a real foreign-key path to `brands` with cascading delete, while `packages/brain` remains the scoped read/write boundary. External provider resources are not part of that database graph.
 - **The single-confidentiality-domain regime of the ADE document is exited on day zero.** Per-object (per-tenant) confidentiality is a requirement from the start, which pulls the migration trigger named in §15 of the document. This directly motivates ADR-002.
 - **The "single owner of shared state" rule becomes per-brand.** The product-marketer owns the brand context *of each brand*, not of the installation.
-- **A credit ledger is required**, and it is append-only like everything else (see ADR-002).
+- **A credit ledger is required**, and it is append-only during the brand's lifetime like the Action log; brand deletion cascades its brand-scoped rows (see ADR-002, ADR-019).
 
 ## Alternatives considered
 

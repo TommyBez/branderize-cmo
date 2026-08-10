@@ -1,9 +1,10 @@
-# ADR-004: Extended roster of seven specialists, modeled on marketingskills
+# ADR-004: Extended roster of six specialists, modeled on marketingskills
 
 - **Status:** active
 - **Date:** 2026-08-05
 - **Deciders:** Tommaso (human), with assisted analysis
-- **Amended by:** [ADR-006](006-dual-declaration.md) — specialists are dual-declared (subagent + named root agent) from a shared registry, not single directories under `agent/subagents/`
+- **Amended by:** [ADR-006](006-dual-declaration.md) — specialists are dual-materialized (consultative subagent + standalone durable root) from a shared registry, not single directories under `agent/subagents/`
+- **Amended by:** [ADR-009](009-agent-deployment-and-console-data-surface.md) — the CMO and all six specialist durable roots are standalone eve apps/deployments from the beginning
 - **Amended by:** [ADR-010](010-plan-as-derivation.md) — the CMO does not author plans: it produces evidence ingredients and proposes roadmap-input Decisions; the plan is a mechanical derivation
 
 ## Context
@@ -17,7 +18,7 @@ A key structural insight reconciles them: 44 skills ≠ 44 agents. Skills are lo
 
 ## Decision
 
-**Seven specialists plus the lead, with the lead acting as the CMO and holding the strategy skills.**
+**Six specialists plus the lead, with the lead acting as the CMO and holding the strategy skills.**
 
 | Agent | Owns | Skills |
 | --- | --- | --- |
@@ -31,17 +32,17 @@ A key structural insight reconciles them: 44 skills ≠ 44 agents. Skills are lo
 
 Design rules carried over from the template and extended:
 
-- **One level of delegation**: the lead briefs, specialists execute and self-review, nobody spawns further agents.
+- **No hidden cross-specialist nesting**: the lead consults locally or requests durable root work; durable roots may use eve self-copies within their current task and request separate specialist work only through typed lateral tasks (ADR-013, ADR-017).
 - **Non-overlap by job, not by artifact**: the product-marketer decides what the team claims; content writes words; seo-discovery decides which pages exist; distribution and lifecycle are the two that reach an audience. Cross-channel work (a newsletter) is chained by the lead via artifact ids.
 - **The brand context has a single owner per brand** (the product-marketer) and is read by every specialist at the start of every task — the marketingskills `product-marketing` foundation pattern, enforced by tooling rather than convention.
-- **Skills are vendored, not copied by hand**: `packages/marketing-skills` is a git submodule of the upstream repo plus a materialization script that copies the right subset into each subagent's `skills/` directory and rewrites context-file references (`.agents/product-marketing.md` → the `get_brand_context` tool backed by the brain). Cross-cutting skills (writing-quality, banned words) use the `defineSkill` factory pattern.
+- **Skills are vendored, not copied by hand**: `packages/marketing-skills` is a git submodule of the upstream repo. A workspace eve extension packages the selected, rewritten skills and other reusable contributions; generated root and subagent wrappers mount the appropriate namespaced extension rather than carrying hand-maintained copies. The extension build rewrites context-file references (`.agents/product-marketing.md` → the `get_brand_context` tool backed by the brain). Cross-cutting skills (writing-quality, banned words) use the `defineSkill` factory pattern. Agent config, sandboxes, schedules, and custom channels remain local because eve extensions cannot provide them.
 
 ## Consequences
 
 - **A build step exists**: skill materialization runs before `eve build`/`eve dev`, and `npx eve info` is the discovery diagnostic that verifies the resulting surface.
 - **Connections arrive in phases**, not with the roster: Notion/Typefully in Phase 1, Resend in Phase 3, analytics in Phase 3, ad platforms in Phase 4. A specialist without its connections still works — it recommends instead of operating, and says so (the CRM's "plan around what you actually have" rule).
-- **`growth` is the designated first remote agent** (Phase 4): ad-platform credentials and release cycle live outside this repo, reached via `defineRemoteAgent`.
-- **The roster is data, not dogma**: adding a specialist is adding a directory under `agent/subagents/`; this ADR is superseded the day empirical routing failures show a boundary is wrong.
+- **Every durable root is standalone from the beginning**: `growth` is not a special Phase-4 graduation. The CMO and all six specialists each have their own eve application and Vercel deployment; the six specialist definitions are also materialized locally as consultative CMO subagents from the shared registry.
+- **The roster is data, not dogma**: adding a specialist means adding one registry entry plus its generated standalone root app; hand-maintained copies of its consultative and durable definitions are forbidden. This ADR is superseded the day empirical routing failures show a boundary is wrong.
 
 ## Alternatives considered
 

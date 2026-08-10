@@ -4,6 +4,8 @@
 - **Date:** 2026-08-05
 - **Deciders:** Tommaso (human), with assisted analysis
 - **Supersedes:** nothing — first substrate decision
+- **Amended by:** [ADR-018](018-one-shot-durable-agent-tasks.md) — agent work uses an atomic one-shot status claim; bounded queue leases remain direct-lane only
+- **Amended by:** [ADR-019](019-human-approved-external-commitments.md) — executable proposals are task state, provider commitments are human-approved one-shot direct work, and tenant deletion cascades internal rows
 
 ## Context
 
@@ -22,11 +24,12 @@ The options on the table:
 
 **Postgres is the only canonical store.** The work graph is a schema, not a filesystem:
 
-- `actors`, `intents`, `objects`, `actions` (append-only), `tasks` (queue leased with `FOR UPDATE SKIP LOCKED`), `credit_ledger` (append-only)
+- `actors`, `intents`, `objects`, `actions` (append-only during brand lifetime), `tasks` (one-shot agent runs; bounded retry only for retry-safe direct/automatic work, namely transactional internal operations or side-effect-free idempotent external reads; human-approved one-shot external commitments), `credit_ledger` (append-only during brand lifetime)
 - `objects.produced_by → actions.id` is NOT NULL: provenance completeness is a schema constraint, 100% by construction
 - Objects are never mutated; supersession is a new Object with `superseded_by` pointing at the previous one
 - Current state is a **projection** (materialized view) over the Action log; projections are rebuildable caches, never canonical
 - **A single write path**: `packages/brain` exposes typed functions that evaluate Policy, persist the `policy_snapshot`, and write Action + Object in one transaction. Agent tools and console routes all go through it
+- Every internal brand-scoped row has a real foreign-key path to `brands` with `ON DELETE CASCADE`. Tenant deletion is the lifecycle boundary for the otherwise append-only log; third-party resources are not deleted by that transaction
 
 ## Consequences
 
