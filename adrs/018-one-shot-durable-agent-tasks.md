@@ -171,6 +171,8 @@ The explicit status mirrors that existing lifecycle without changing its mechani
 - successful deterministic completion changes `running → succeeded` only in the same transaction as its local effect or observation and Result Action;
 - exhaustion retirement changes `running → failed` and clears `next_*`. For a provider Verification poll, the retirement transaction also appends the terminal provider-outcome Verification Action `unverified(technical_exhaustion)` required by ADR-019.
 
+For every provider-outcome terminal branch, that settlement transaction commits before any Plan wake-up. A separate best-effort ADR-021 creator receives only the immutable Verification Action id, derives and validates the originating commitment through the poll and accepted Result Action, and may create/observe an origin-free `advance-marketing-plan(evaluate)` under a Verification-scoped key. `pending` never invokes it. No enqueue failure, replay conflict, stale Plan, or invalid causal chain can roll back the poll task or Verification Action.
+
 Only retry-safe direct/automatic rows consult `MAX_ATTEMPTS` or use `leased_until`. Generic claim and retirement helpers must branch on both `execution_mode` and `activation` before reading either field.
 
 ### D7 — Database checks hold the shared-table state machine
@@ -257,6 +259,7 @@ The implementation is invalid if any of these are possible:
 - a generic direct-task retry helper can reclaim an agent row or a human external commitment;
 - a retry-safe direct/automatic task loses its separately accepted bounded behavior, performs an external write, commits a local effect or external-read observation separately from its Result Action and guarded success settlement, preserves any of those writes when the terminal compare-and-swap returns zero rows, or lets lease-overlap/replay create a second stable-key effect or Result Action; or a human commitment acquires that bounded behavior despite ADR-019;
 - a provider Verification poll exhausts its retries without atomically failing the poll task and recording `unverified(technical_exhaustion)` with no successor.
+- a provider Verification terminal branch signals before its settlement commits, a pending branch signals, the signal derives Plan ancestry from the origin-free poll instead of its commitment, reuses the commitment terminal key, or an enqueue failure rolls back the terminal Verification;
 - a measurable Decision can commit without its exact future origin-free Growth task or vice versa; Decision-impact work bypasses Eve or the agent-credit gate, pins a measurement provider/query, uses `next_*`, or creates a schedule;
 - Decision-impact success can commit without exactly one linked Growth-authored Verification Action and guarded task settlement, a conclusive judgment can omit current same-task Evidence, technical failure can fabricate `inconclusive`/`not_supported`, non-null `intent_acceptance` can be staged, any Intent can change state, or a negative observation can create reconsideration for an inactive Decision or directly supersede a human head.
 - a Strategy can commit without its initial `rebuild-marketing-plan` task, a Plan rebuild bypasses Eve or the credit gate, the console runs model intelligence instead of enqueueing that kind, or concurrent active rebuilds for the same Strategy do not coalesce;
