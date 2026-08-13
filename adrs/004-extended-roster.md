@@ -5,7 +5,8 @@
 - **Deciders:** Tommaso (human), with assisted analysis
 - **Amended by:** [ADR-006](006-dual-declaration.md) — specialists are dual-materialized (consultative subagent + standalone durable root) from a shared registry, not single directories under `agent/subagents/`
 - **Amended by:** [ADR-009](009-agent-deployment-and-console-data-surface.md) — the CMO and all six specialist durable roots are standalone eve apps/deployments from the beginning
-- **Amended by:** [ADR-010](010-plan-as-derivation.md) — the CMO does not author plans: it produces evidence ingredients and proposes roadmap-input Decisions; the plan is a mechanical derivation
+- **Amended by:** [ADR-010](010-plan-as-derivation.md) — the CMO generates structured Marketing Plans from an exact Strategy, may record the Evidence and Move Candidates needed by that synthesis, and leaves validation, provenance and supersession to the application
+- **Amended by:** [ADR-020](020-typed-decisions-and-impact-verification.md) — active v1 Decisions are recorded by humans; Growth owns agentic impact measurement and the CMO owns reconsideration recommendations
 
 ## Context
 
@@ -33,8 +34,8 @@ A key structural insight reconciles them: 44 skills ≠ 44 agents. Skills are lo
 Design rules carried over from the template and extended:
 
 - **No hidden cross-specialist nesting**: the lead consults locally or requests durable root work; durable roots may use eve self-copies within their current task and request separate specialist work only through typed lateral tasks (ADR-013, ADR-017).
-- **Non-overlap by job, not by artifact**: the product-marketer decides what the team claims; content writes words; seo-discovery decides which pages exist; distribution and lifecycle are the two that reach an audience. Cross-channel work (a newsletter) is chained by the lead via artifact ids.
-- **The brand context has a single owner per brand** (the product-marketer) and is read by every specialist at the start of every task — the marketingskills `product-marketing` foundation pattern, enforced by tooling rather than convention.
+- **Non-overlap by job, not by artifact**: the product-marketer decides what the team claims; content writes words; seo-discovery decides which pages exist; distribution and lifecycle are the two that reach an audience. For cross-channel work such as a newsletter, the lead routes the initial hop; after producing the Artifact, that durable specialist root requests the registered lateral hop with the Artifact id.
+- **The brand context has a single responsible steward per brand** (the product-marketer) and is read by every specialist at the start of every task. Stewardship means responsibility for agentic refinement and quality, not false authorship of deterministic v0 produced by `system:context-dev` — the marketingskills `product-marketing` foundation pattern, enforced by tooling rather than convention.
 - **Skills are vendored, not copied by hand**: `packages/marketing-skills` is a git submodule of the upstream repo. A workspace eve extension packages the selected, rewritten skills and other reusable contributions; generated root and subagent wrappers mount the appropriate namespaced extension rather than carrying hand-maintained copies. The extension build rewrites context-file references (`.agents/product-marketing.md` → the `get_brand_context` tool backed by the brain). Cross-cutting skills (writing-quality, banned words) use the `defineSkill` factory pattern. Agent config, sandboxes, schedules, and custom channels remain local because eve extensions cannot provide them.
 
 ## Consequences
