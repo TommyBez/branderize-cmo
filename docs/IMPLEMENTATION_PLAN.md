@@ -222,7 +222,7 @@ Every phase also requires the following evidence.
 
 | Phase | Product increment | Journey that closes the phase |
 | --- | --- | --- |
-| 0 | Foundations and the first usable canonical state | sign in -> brand -> Intent -> Brand Context -> CMO refinement -> Object provenance |
+| 0 | Foundations and the first usable canonical state | sign in -> brand -> Intent -> Brand Context -> CMO declaration/refinement -> Object provenance |
 | 1 | A team that delivers and the first human commitment | request work -> task/lateral -> Artifact -> approval -> one provider call -> Result |
 | 2 | A habitable graph with Strategy and Plan | Strategy -> Decision -> rebuild -> Plan -> wave -> answer -> digest |
 | 3 | Measurable feedback and economics | commitment -> outcome -> metric -> Verification -> credits/billing |
@@ -352,8 +352,16 @@ earlier, separate "UI phase."
   CMO conversation; this is not restricted to the original task requester. A
   `task_questions_resolved` receipt closes the immutable bundle without resuming
   or rerunning the old task. The aggregated inbox arrives in Phase 2;
-- mount read-only Product Marketer consultation and the `refineIntent` boundary
-  in the CMO;
+- implement receipt-first `declareIntent` through both trusted Phase 0 entry
+  points: an authenticated human product mutation and the top-level CMO acting
+  on the current non-viewer human's explicit, unambiguous objective. Both create
+  a human-authored active revision-1 Intent; the direct Action Actor is the human
+  while chat transduction uses the CMO Action Actor. Trusted context derives
+  tenant, author, branch, request identity, and conversation/turn provenance,
+  and exact replay returns the first receipt without another write. Phase 0
+  accepts only root declarations with `parentIntentId = null`;
+- mount read-only Product Marketer consultation and the trusted top-level-CMO
+  `refineIntent` wrapper;
 - expose `request_specialist_work` only in the top-level CMO and only for the
   Product Marketer kind. The current human turn must identify one active Intent
   without ambiguity; trusted code constructs the snapshot;
@@ -383,8 +391,15 @@ earlier, separate "UI phase."
    - preview/download the mirrored binary through the authenticated Blob-delivery
      route, while an unauthenticated or cross-brand request fails closed;
    - traverse from the browser to the exact Actor and provenance.
-2. **CMO refinement**
+2. **CMO declaration and refinement**
    - the owner opens their own conversation;
+   - in one explicit top-level turn, the human asks the CMO to declare a second
+     root Intent and request Product Marketer work for it;
+   - the CMO creates the human-authored active revision-1 Intent with the CMO as
+     producing Action Actor; a repeated declaration call returns the exact
+     receipt, and the separate `request_specialist_work` call may target that
+     returned Intent only after the ordinary active/same-brand, Policy,
+     capability, and credit guards pass;
    - the CMO consults Product Marketer and asks a question;
    - an unambiguous answer refines the Intent;
    - reload and reconnect preserve canonical state and transcript;
@@ -481,6 +496,8 @@ canonical Result.
 
 - implement allowlisted `proposeIntent` for CMO/durable roots, inserting an
   agent-authored revision-1 `draft` and `intent_proposed` Action atomically;
+- keep Phase 1 proposals root-level with `parentIntentId = null`; decomposition
+  remains fail-closed until the Phase 2 lifecycle boundary is available;
 - add the separate **Intent proposals** projection; drafts cannot authorize
   tasks, Policy, preauthorization, acceptance, or external work;
 - implement human-only `adoptIntent` with revision CAS and `intent_adopted`;
@@ -648,6 +665,16 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 - complete Intent list/detail/history for `draft | active | settled | abandoned`;
 - expose the already-implemented `adoptIntent`/`abandonIntent` boundaries in the
   full lifecycle surface and add the explicit human-only `settleIntent` path;
+- enable decomposition only through the existing receipt-first creator
+  boundaries. A current human product action or top-level CMO acting on that
+  human's explicit request may `declareIntent` an active child; an allowlisted
+  autonomous CMO or durable root may `proposeIntent` a draft child;
+- for non-null `parentIntentId`, require an exact same-brand parent and non-empty
+  rationale, then commit immutable `parent_intent_id` plus that rationale in the
+  same `intent_declared` or `intent_proposed` Action transaction. There is no
+  mutable parent setter or generic decomposition capability; consultative
+  subagents and System Actors write nothing, and a draft child cannot originate
+  work before adoption;
 - make active-to-settled and active-to-abandoned changes contribute to
   `plan_needs_rebuild`, while never cancelling or reinterpreting accepted tasks;
 - keep automatic acceptance disabled for every Phase 0-2 kind even though the
@@ -740,9 +767,14 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 - Decision/Strategy cards that state scope and consequences;
 - Plan detail with Moves, Evidence, dependencies, Rebuild, Recheck, and Start
   anyway;
-- live task queue, cited digest, Intent proposals/lifecycle, and Open questions;
+- live task queue, cited digest, Intent proposals/lifecycle, parent/child links,
+  decomposition rationale, Intent author, producing Action Actor, and Open
+  questions;
 - registered model-profile override and resolution-chain provenance;
 - Schedules with closed templates, timezone, and next-run status;
+- recheck due time, rationale, origin, and source provenance only when a shipped
+  kind declares `recheckKind`; otherwise no production recheck state or control
+  is exposed;
 - current, rebuilding, stale, no-ready-moves, and blocked Plan states;
 - provider-pending/final Plan states only when a shipped commitment kind declares
   a durable `verificationPoll` and accepts/preserves Plan-route origin; otherwise
@@ -765,9 +797,16 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
      merged non-destructively and trusted Gateway attribution applied;
    - supersession updates only later sessions, exact provenance remains visible,
      and an unknown profile cannot be recorded or resolved.
-3. **Plan recovery and Intent lifecycle**
+3. **Plan recovery, Intent lifecycle, and decomposition**
    - a Strategy change, Intent refinement, `settleIntent`, or `abandonIntent`
      makes the Plan stale;
+   - a current non-viewer declares an active child from Intent detail and sees
+     its parent, rationale, human author, and producing Action provenance;
+   - an explicit top-level CMO request creates another active child with the
+     current human as Intent author and the CMO as Action Actor;
+   - an allowlisted durable root proposes a draft child that cannot originate
+     work until adoption, while cross-brand, consultative, and System attempts
+     commit neither Intent nor Action;
    - Recheck and Start anyway are blocked while Rebuild remains available;
    - Rebuild publishes a new current head without cancelling accepted work;
    - a lost best-effort signal is recoverable with human Recheck.
@@ -791,11 +830,13 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
    - the answer does not rerun the task;
    - the resolution Action hides the card and replay converges.
 6. **Agent-authored recheck**
-   - a production-registered immediate kind schedules its sole registered
-     cross-kind recheck, which remains visible with due time, rationale, origin,
-     and source provenance after the originating Task later fails;
-   - a running recheck schedules itself twice, leaving one complete `next_*`
-     tuple from the last valid database write and no second active booking;
+   - when a shipped Phase 1-2 immediate kind declares `recheckKind`, that
+     production kind schedules its sole registered cross-kind recheck, which
+     remains visible with due time, rationale, origin, and source provenance
+     after the originating Task later fails;
+   - in that positive branch, a running recheck schedules itself twice, leaving
+     one complete `next_*` tuple from the last valid database write and no second
+     active booking;
    - successful settlement creates or observes exactly one successor, clears
      `next_*`, and replay or a concurrent booking preserves the winning row's
      existing origin and parent;
@@ -804,7 +845,12 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
      Plan-routed fixture preserves null Intent plus the exact Plan/Move pair;
    - failed, cancelled, and exhausted settlement produces no successor, while a
      scheduling call that loses to terminalization returns `task_closed` with no
-     fallback write.
+     fallback write;
+   - the `scheduleRecheck`, registry-compatibility, and settlement contract suites
+     remain mandatory through a closed server-side fixture;
+   - when no shipped immediate kind declares `recheckKind`, registry/compile
+     tests prove that absence and generated production root manifests expose no
+     runnable recheck capability or production UI.
 7. **Cadence**
    - a human enables daily brief with a timezone;
    - a controlled clock reaches the slot;
@@ -814,19 +860,23 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 
 ### Exit gate
 
-Phase 2 is complete when all seven journeys pass on real PostgreSQL and Eve with
-scripted inference, including one Content/Distribution/SEO path from Phase 1 and
-one genuine production-registered immediate/recheck pair. The recheck suite must
-prove registry uniqueness and compatibility, trusted identity derivation,
-cross-kind write durability, the conditional self-recheck update,
-absence of cached origin or parent data in `next_*`, success-coupled
-materialization, current-Intent eligibility, Plan/Move preservation, and
-scheduling-versus-settlement races; a fixture-only kind does not close the
-phase. The dedicated provider-final creator contract suite remains mandatory. A
-browser/staging
-provider-final journey is additionally mandatory when a shipped commitment can
-produce a terminal provider-outcome Verification for a Plan-derived instance;
-otherwise the gate requires the negative registry/compile proof above. In
+Phase 2 is complete when all seven journeys pass their applicable positive or
+negative branch on real PostgreSQL and Eve with scripted inference, including
+one Content/Distribution/SEO path from Phase 1. The `scheduleRecheck` mechanism
+and closed-fixture suite are always mandatory and must prove registry uniqueness
+and compatibility, trusted identity derivation, cross-kind write durability,
+the conditional self-recheck update, absence of cached origin or parent data in
+`next_*`, success-coupled materialization, current-Intent eligibility, Plan/Move
+preservation, and scheduling-versus-settlement races. A browser/staging recheck
+journey with a genuine production-registered immediate/recheck pair is
+additionally mandatory when a shipped immediate kind declares `recheckKind`; a
+fixture-only kind cannot satisfy that positive branch. Otherwise the gate
+requires the negative registry/compile and production-manifest proof above. The
+dedicated provider-final creator contract suite remains mandatory. A
+browser/staging provider-final journey is additionally mandatory when a shipped
+commitment can produce a terminal provider-outcome Verification for a
+Plan-derived instance; otherwise the gate requires the negative registry/compile
+proof above. In
 staging, a real model must complete presentation, Decision, rebuild, and Plan
 evaluation. A real Cron must materialize daily brief for a staging brand without
 performing an unapproved external commitment. No Phase 0-2 kind may persist
@@ -880,9 +930,9 @@ inference.
   atomically by `recordDecision`;
 - implement provider-outcome, Intent-acceptance, and Decision-impact
   Verification Actions;
-- explicitly allow `intent_acceptance` only for registered Intent-bound kinds
-  with the complete acceptance schema and settlement boundary; all other kinds
-  remain fail-closed;
+- explicitly allow `intent_acceptance` only for the product-decision-selected
+  registered Intent-bound kind with the complete acceptance schema and
+  settlement boundary; all other kinds remain fail-closed;
 - implement pending/final provider states, deadlines, and technical exhaustion;
 - retain the provider-final Plan wake-up delivered in Phase 2 and extend its
   tests to Lifecycle providers rather than introducing a second mechanism;
@@ -937,8 +987,8 @@ inference.
    - a qualifying Plan gets the distinct terminal wake-up from Phase 2;
    - the poll remains origin-free and grants no authority.
 2. **Intent acceptance and Decision impact**
-   - an eligible Intent-bound kind produces validated acceptance Evidence and
-     the exact acceptance Verification/settlement path;
+   - the product-decision-selected eligible Intent-bound kind produces validated
+     acceptance Evidence and the exact acceptance Verification/settlement path;
    - an ineligible kind's non-null `intent_acceptance` is rejected;
    - a measurable Decision creates its future Growth task;
    - Growth reads metrics, creates Evidence and Verification;
@@ -1103,7 +1153,7 @@ successful deployment, or the first CMO message is not sufficient.
 | --- | --- | --- |
 | Toolchain, CI, test harness, visual system | 0 | every phase |
 | Better Auth, organization, Member, brand, Actor | 0 | 4 for public self-service/offboarding |
-| Intent, Action, Object, Brain, Policy | 0 | all; draft proposals in 1, full lifecycle in 2 |
+| Intent, Action, Object, Brain, Policy | 0 | interactive declaration in 0, draft proposals in 1, full lifecycle and decomposition in 2 |
 | Context.dev, Blob, Brand Context | 0 | 1-4 for new Artifacts |
 | Model resolver, Gateway attribution, endpoint lookup | 0 | model overrides in 2, endpoint overrides in 4 |
 | Eve CMO, Product Marketer, private sessions | 0 | 2-4 |
@@ -1135,6 +1185,11 @@ required before the corresponding code or exit gate:
   kind and, for each serialized kind, its trusted target, conflict-key
   derivation, and provider ordering or conditional-transition guarantee;
 - the analytics source and minimum metric set for Phase 3;
+- the first production Intent-bound task kind eligible to emit non-null
+  `intent_acceptance`, including its acceptance Evidence Object types,
+  same-task production path, and `satisfied | not_satisfied | inconclusive`
+  contract; this decision blocks the Phase 3 Intent-acceptance journey and exit
+  gate;
 - price catalog, allowance, billing provider, and invoice lifecycle;
 - the exact financial effect classes governed by four-eyes, recorded in the
   Phase 3 ADR amendment to ADR-011 and ADR-013;
