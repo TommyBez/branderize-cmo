@@ -1,134 +1,165 @@
-# Piano di implementazione end-to-end di Magister
+# Magister end-to-end implementation plan
 
-## Scopo
+## Purpose
 
-Questo è il piano di implementazione dell'intera applicazione, non della sola
-console. Copre insieme:
+This is the implementation plan for the whole application, not only for the
+console. It covers, as one coordinated delivery stream:
 
-- schema dati e migrazioni;
-- autenticazione, tenancy e Policy;
-- work graph e boundary di scrittura;
-- runtime Eve, agenti, dispatcher e sessioni;
-- connessioni e operazioni verso provider esterni;
-- console, sito pubblico e flussi self-service;
-- crediti, billing, osservabilità e operazioni di produzione;
-- test automatici, canary reali e prove di ripristino.
+- database schema and migrations;
+- authentication, tenancy, and Policy;
+- the canonical work graph and all write boundaries;
+- Eve runtimes, agents, dispatch, and sessions;
+- provider connections and external operations;
+- the product console, public website, and self-service journeys;
+- credits, billing, observability, and production operations;
+- automated tests, real canaries, backup, and recovery exercises.
 
-Il frontend è un workstream di ogni fase. Non ha una roadmap parallela: ogni
-capability è completa soltanto quando il suo dato canonico, il boundary server, il
-runtime, la superficie utente e la verifica end-to-end arrivano insieme.
+The frontend is a workstream inside every phase. It does not have a parallel
+roadmap: a capability is complete only when its canonical data, server boundary,
+runtime, user surface, and end-to-end verification ship together.
 
-Le cinque macro-fasi estendono la roadmap di
-[ARCHITECTURE.md](./ARCHITECTURE.md#roadmap). Possono contenere più PR e più
-work package, ma una fase non è conclusa finché il viaggio utente indicato non è
-interamente testabile.
+The five macro-phases extend the roadmap in
+[ARCHITECTURE.md](./ARCHITECTURE.md#roadmap). A phase may contain several pull
+requests and work packages, but it is not complete until every mandatory journey
+for that phase is independently testable from the browser down to the canonical
+data or external receipt.
 
-## Baseline reale
+## Verified baseline
 
-Al momento della stesura il repository è una specifica architetturale avanzata
-sopra uno scaffold, non un'applicazione parzialmente implementata:
+At the time of writing, the repository is an advanced architectural
+specification on top of a scaffold, not a partially implemented product:
 
-- `apps/app` e `apps/web` sono ancora scaffold Next.js 16;
-- `apps/agent` dichiara Eve 0.31.3 ma non contiene ancora un agente;
-- `packages/ui` contiene le primitive shadcn, non componenti di prodotto;
-- non esistono ancora `packages/db`, `packages/brain`, `packages/policy`,
-  `packages/connections`, `packages/agents`, `packages/marketing-skills` o
-  `packages/env`;
-- non sono implementati Better Auth, Neon/Drizzle, Vercel Blob, Context.dev,
-  Vercel Connect, AI Gateway, provider marketing o billing;
-- non esistono test runner, migration test, browser E2E o workflow CI;
-- i comandi correnti compilano soltanto le due app Next e verificano i tipi di
-  `app`, `web` e `ui`; nessun agente viene ancora costruito o verificato;
-- la root dichiara Node `>=18`, mentre Eve richiede Node 24 nel suo package.
+- `apps/app` and `apps/web` are still Next.js 16 scaffolds;
+- `apps/agent` declares Eve 0.31.3 but does not contain a working agent;
+- `packages/ui` contains shadcn primitives, not product components;
+- `packages/db`, `packages/brain`, `packages/policy`, `packages/connections`,
+  `packages/agents`, `packages/marketing-skills`, and `packages/env` do not exist;
+- Better Auth, Neon/Drizzle, Vercel Blob, Context.dev, Vercel Connect, AI Gateway,
+  marketing providers, and billing are not implemented;
+- there is no test runner, migration suite, browser E2E suite, or CI workflow;
+- current commands build only the two Next.js apps and type-check `app`, `web`,
+  and `ui`; no agent is built or verified;
+- the root package declares Node `>=18`, while Eve requires Node 24.
 
-I [wireframe](./design/branderize-cmo-wireframe.png) e
-[rendering](./design/branderize-cmo-realistic-render.png) approvati restano
-riferimenti trasversali per gerarchia e art direction. Non sono una fase né una
-fonte di verità per il dominio.
+The approved [wireframe](./design/branderize-cmo-wireframe.png) and
+[realistic rendering](./design/branderize-cmo-realistic-render.png) remain
+cross-phase references for information hierarchy and art direction. They are not
+a phase and they are not a source of domain truth.
 
-## Fonti normative
+## Normative sources
 
-Questo documento ordina il lavoro ma non riscrive i contratti. In caso di dubbio
-prevalgono:
+This document sequences the work but does not redefine the contracts. When a
+detail is ambiguous, the following sources take precedence:
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md), per la mappa complessiva;
-- [ADR-001](../adrs/001-multi-tenant-saas.md), per tenancy e ruoli;
+- [ARCHITECTURE.md](./ARCHITECTURE.md), for the system map;
+- [ADR-001](../adrs/001-multi-tenant-saas.md), for tenancy and roles;
 - [ADR-002](../adrs/002-postgres-work-graph.md),
-  [ADR-008](../adrs/008-brain-write-path-and-model-resolution.md) e
-  [ADR-014](../adrs/014-schema-singletons-sessions-streams-ledger.md), per grafo,
-  schema e write path;
+  [ADR-008](../adrs/008-brain-write-path-and-model-resolution.md), and
+  [ADR-014](../adrs/014-schema-singletons-sessions-streams-ledger.md), for the
+  graph, schema, model resolver, and write path;
+- [ADR-011](../adrs/011-operational-invariants-for-agent-work.md) and
+  [ADR-012](../adrs/012-contracts-approval-brief-intents-compiler.md), for
+  operational invariants, shared task contracts, Intent lifecycle, and atomic
+  Plan publication;
 - [ADR-009](../adrs/009-agent-deployment-and-console-data-surface.md),
   [ADR-015](../adrs/015-the-registry.md),
-  [ADR-017](../adrs/017-consultative-subagents-durable-root-work.md) e
-  [ADR-018](../adrs/018-one-shot-durable-agent-tasks.md), per agenti, registry e
-  task durevoli;
-- [ADR-013](../adrs/013-policy-matrix-lateral-edges-sandbox.md) e
-  [ADR-019](../adrs/019-human-approved-external-commitments.md), per Policy ed
-  effetti esterni;
+  [ADR-017](../adrs/017-consultative-subagents-durable-root-work.md), and
+  [ADR-018](../adrs/018-one-shot-durable-agent-tasks.md), for deployments,
+  agents, the registry, and durable tasks;
+- [ADR-013](../adrs/013-policy-matrix-lateral-edges-sandbox.md) and
+  [ADR-019](../adrs/019-human-approved-external-commitments.md), for Policy,
+  lateral work, and external effects;
 - [ADR-010](../adrs/010-plan-as-derivation.md),
-  [ADR-020](../adrs/020-typed-decisions-and-impact-verification.md) e
-  [ADR-021](../adrs/021-plan-advancement-and-human-readiness-override.md), per
-  Strategy, Plan, Verification e avanzamento;
-- [ADR-016](../adrs/016-eve-session-state-persistence.md), per privacy,
-  persistenza e recovery delle conversazioni.
+  [ADR-020](../adrs/020-typed-decisions-and-impact-verification.md), and
+  [ADR-021](../adrs/021-plan-advancement-and-human-readiness-override.md), for
+  Strategy, Plan, Verification, and advancement;
+- [ADR-016](../adrs/016-eve-session-state-persistence.md), for conversation
+  privacy, persistence, and recovery.
 
-## Regole di esecuzione
+## Execution rules
 
-### Le fasi sono vertical slice
+### Every phase is a vertical slice
 
-Ogni feature attraversa sempre, nello stesso workstream:
+Every feature crosses the following layers in one workstream:
 
-1. schema, migrazione e contratto tipizzato;
-2. regole Policy, tenancy, replay e concorrenza;
-3. boundary di `packages/brain` e proiezioni;
-4. registry, runtime o adapter esterno quando necessari;
-5. superficie utente con stati happy, empty, loading, error, stale e permission;
-6. test dal browser fino al dato o receipt canonico;
-7. telemetria, runbook e rollback proporzionati al rischio.
+1. schema, migration, and closed typed contract;
+2. Policy, tenancy, replay, and concurrency rules;
+3. `packages/brain` boundary and read projections;
+4. registry, runtime, or external adapter when required;
+5. product UI with happy, empty, loading, error, stale, and permission states;
+6. verification from the browser to the canonical row or provider receipt;
+7. telemetry, runbook, and rollback proportional to the risk.
 
-Uno schema senza viaggio utente e una UI alimentata soltanto da fixture non
-chiudono una macro-fase. Le fixture restano un banco prova interno.
+A schema without a user journey and a UI powered only by fixtures do not close a
+macro-phase. Fixtures remain an internal development harness.
 
-### Dipendenze tra package
+### Package dependency direction
 
-La direzione delle dipendenze è stabile:
+The dependency direction remains fixed:
 
 ```text
 packages/db + packages/policy + packages/agents registry
   -> packages/brain
-  -> apps/app e adapter deterministici
-  -> agent root e dispatcher
+  -> apps/app and deterministic adapters
+  -> agent roots and dispatcher
 
 packages/connections
-  -> tool di lettura autenticati e handler diretti
-  -> mai token nel graph, nei task o nelle sessioni
+  -> authenticated read tools and direct handlers
+  -> never tokens in the graph, tasks, or sessions
 ```
 
-- `packages/brain` è l'unico write path del grafo.
-- Le app possono dipendere da `brain`; `brain` non dipende dalle app.
-- Ogni root Eve monta wrapper sottili generati dal registry condiviso.
-- Il sito pubblico non importa runtime agentico o accesso diretto al grafo.
-- Le variabili d'ambiente sono validate per deployment; non esiste un `.env`
-  implicitamente condiviso tra tutti i progetti.
-- Le task di test/build sono dichiarate prima nei package proprietari e poi
-  orchestrate dalla root con `turbo run`.
+- `packages/brain` is the only canonical graph write path.
+- Applications may depend on `brain`; `brain` never depends on an application.
+- Every Eve root mounts thin local wrappers generated from the shared registry.
+- The public website does not import the agent runtime or direct graph access.
+- Environment variables are validated per deployment; there is no implicitly
+  shared `.env` across projects.
+- Package owners declare their own test and build tasks; the root orchestrates
+  them with `turbo run`.
 
-### Nessuna falsa capability
+### Cross-phase sequencing invariants
 
-- Un bottone compare soltanto quando il relativo boundary reale è attivo.
-- Un adapter finto, un provider di inferenza scripted o un clock controllato sono
-  selezionabili solo da una build di test server-side.
-- Una build production fallisce se contiene o può risolvere un test provider.
-- Il laboratorio mostra sempre `Dati sintetici`, è `noindex` e non può essere
-  attivato da query string, cookie, header o input del browser.
-- Il modello non è mai usato come authorization boundary.
-- Ogni publish, send, activate, spend, pause, unpublish, cancel o close esterno
-  mantiene il bottone umano previsto da ADR-019.
+Some foundations must exist before their customer-facing configuration exists:
 
-## Definition of done comune
+- Every brand-addressed proxy or client resolves `brand -> agent endpoint`
+  through a lookup from Phase 0. Phase 0 may return the same compiled default for
+  every brand; Phase 4 adds per-brand overrides without changing the call path.
+  The shared Cron remains a payload-free fleet poke and never resolves a task or
+  brand from request input.
+- Phase 0 creates the deterministic marketing-skill materialization slot and
+  makes it part of `eve build`. The Phase 0 Product Marketer uses core
+  instructions only. Phase 1 installs, rewrites, and mounts the selected
+  `packages/marketing-skills` corpus before enabling the wider roster.
+- The shared model-resolution and AI Gateway attribution factory exists before
+  the first model call or `model_charge`. Later `model_override` Decisions only
+  add a new input to that already-shared resolver.
+- The common `TaskCompletion` schema includes `intent_acceptance` in Phase 0,
+  but every Phase 0-2 kind declares that it cannot emit it. `finishTask` rejects
+  a non-null value fail-closed until Phase 3 introduces the complete Verification
+  and settlement path and explicitly enables eligible kinds.
+- Phase 1 may persist a terminal provider-outcome Verification. Once Plan routes
+  exist, Phase 2 must also deliver the distinct provider-final Plan wake-up
+  creator; a Plan-derived asynchronous commitment may not ship without it.
+- Credit admission applies only to new agent-lane claims. It never blocks a CMO
+  conversation, whether new, idle, streaming, or resumed, and it never revokes a
+  direct commitment already approved by a human.
 
-La Fase 0 introduce una convenzione uniforme di script. Da quel momento ogni
-fase deve passare dalla root:
+### No false capability
+
+- A control appears only when its real boundary is active.
+- A fake adapter, scripted inference provider, or controlled clock can be
+  selected only by a server-side test build.
+- A production build fails if it contains or can resolve a test provider.
+- The fixture lab is always labelled `Synthetic data`, is `noindex`, and cannot
+  be enabled by a query string, cookie, header, or browser input.
+- The model is never an authorization boundary.
+- Every external publish, send, activate, spend, pause, unpublish, cancel, or
+  close keeps the human button required by ADR-019.
+
+## Common definition of done
+
+Phase 0 establishes one script convention. From then on, every phase must pass
+from the repository root:
 
 ```text
 pnpm check
@@ -139,649 +170,866 @@ pnpm test:e2e
 pnpm build
 ```
 
-Gli script root delegano a Turbo; i package eseguono le proprie suite. Il gate di
-`main` esegue l'intero grafo, mentre le PR possono aggiungere una corsia
-`--affected` senza sostituire il gate completo.
+Root scripts delegate to Turbo; packages own their suites. The `main` gate runs
+the complete graph. Pull requests may add an `--affected` lane, but it never
+replaces the full gate.
 
-Ogni fase richiede inoltre:
+Every phase also requires the following evidence.
 
-### Contratti e database
+### Contracts and database
 
-- parsing positivo e negativo di tutti gli schema chiusi introdotti;
-- migrazione da database vuoto e migrazione dalla release precedente;
-- constraint, indici parziali, FK same-brand e cascade testati su Postgres reale;
-- replay, lost response e almeno le race normative degli ADR proprietari;
-- nessun test di dominio affidato a mock di Drizzle o a un database in memoria.
+- positive and negative parsing for every closed schema introduced;
+- migrations from an empty database and from the previous release;
+- constraints, partial indexes, same-brand foreign keys, and cascades tested on
+  real PostgreSQL;
+- replay, lost-response behavior, and the normative races owned by each ADR;
+- no domain test implemented only with a Drizzle mock or in-memory database.
 
-### Agenti e provider
+### Agents and providers
 
-- il vero runtime Eve, il vero proxy, i veri hook e i veri boundary `brain` in
-  test;
-- un provider di inferenza test-only scripted per rendere deterministiche tool
-  call, streaming, partial result, errori e retry;
-- `eve build`, health check e una sessione completa per ogni root modificato;
-- adapter provider test-only che registra chiamate e receipts senza uscire verso
-  internet;
-- un canary staging separato con modello e provider reali quando la fase li
-  introduce. Il canary non sostituisce la CI deterministica.
+- real Eve runtime, proxy, hooks, and `brain` boundaries in tests;
+- a test-only scripted inference provider for deterministic tool calls,
+  streaming, partial results, errors, and retries;
+- `eve build`, health check, and one complete session for every changed root;
+- test-only provider adapters that record calls and receipts without making an
+  external request;
+- a separate staging canary with a real model or provider when first introduced.
+  The canary supplements deterministic CI and never replaces it.
 
-### Browser e prodotto
+### Browser and product
 
-- un E2E che attraversa browser, Server Action o proxy, boundary, database e
-  risposta renderizzata;
-- assertions sul receipt o sulla riga canonica, non soltanto sul testo della UI;
-- matrice `owner | admin | member | viewer`, cross-tenant e removed Member;
-- WCAG 2.2 AA, navigazione tastiera, focus visibile, zoom 200%/400% e assenza di
-  scroll orizzontale a 320 px;
-- screenshot deterministici alle viewport principali e ai bordi dei breakpoint;
-- nessun transcript privato nelle proiezioni condivise e nessun secret in HTML,
-  log browser, task, Action o output modello.
+- one E2E that crosses browser, Server Action or proxy, boundary, database, and
+  rendered response;
+- assertions on canonical rows or receipts, not only on visible text;
+- the `owner | admin | member | viewer` matrix, removed Member, and cross-tenant
+  cases;
+- WCAG 2.2 AA, keyboard operation, visible focus, 200%/400% zoom, and no
+  horizontal scroll at 320 px;
+- deterministic screenshots at primary viewports and breakpoint edges;
+- no private transcript in shared projections and no secret in HTML, browser
+  logs, tasks, Actions, or model output.
 
-### Operazioni
+### Operations
 
-- env schema, deployment manifest e health check aggiornati;
-- logging con correlation id e redazione dei dati sensibili;
-- dashboard/alert sulle failure introdotte dalla fase;
-- procedura di rollback che non viola una migrazione, un receipt o una garanzia
-  mostrata dalla UI;
-- evidenze conservate in CI: test report, trace E2E, screenshot diff e migration
-  log. Un check verde da solo non prova il viaggio prodotto.
+- updated environment schema, deployment manifest, and health check;
+- correlation ids and sensitive-data redaction in logs;
+- dashboards and alerts for the failure modes introduced in the phase;
+- rollback procedures that preserve migrations, receipts, and UI promises;
+- CI evidence: test reports, E2E trace, screenshot diff, and migration log.
+  Green checks alone do not prove the product journey.
 
-## Riepilogo delle macro-fasi
+## Macro-phase summary
 
-| Fase | Incremento prodotto | Viaggio che chiude la fase |
+| Phase | Product increment | Journey that closes the phase |
 | --- | --- | --- |
-| 0 | Fondazioni e primo stato canonico utilizzabile | signup -> brand -> Intent -> Brand Context -> CMO refinement -> Object provenance |
-| 1 | Team che consegna e primo commitment umano | richiesta lavoro -> task -> Artifact -> approval -> una chiamata provider -> Result |
-| 2 | Grafo abitabile, Strategy e Plan | Strategy -> Decision -> rebuild -> Plan -> wave -> domanda/risposta -> digest |
-| 3 | Feedback misurabile ed economia | commitment -> outcome -> metriche -> Verification -> credits/billing |
-| 4 | Scale e self-service pubblico | signup pubblico o agent-native -> primo Plan -> commitment approvato -> verifica operativa |
+| 0 | Foundations and the first usable canonical state | sign in -> brand -> Intent -> Brand Context -> CMO refinement -> Object provenance |
+| 1 | A team that delivers and the first human commitment | request work -> task/lateral -> Artifact -> approval -> one provider call -> Result |
+| 2 | A habitable graph with Strategy and Plan | Strategy -> Decision -> rebuild -> Plan -> wave -> answer -> digest |
+| 3 | Measurable feedback and economics | commitment -> outcome -> metric -> Verification -> credits/billing |
+| 4 | Scale and public self-service | human or agent-native signup -> Plan -> approved commitment -> operational verification |
 
 ```mermaid
 flowchart LR
-  P0["0. Fondazioni e onboarding"] --> P1["1. Team e delivery"]
-  P1 --> P2["2. Strategy, Plan e cadenze"]
-  P2 --> P3["3. Feedback e billing"]
-  P3 --> P4["4. Scale e lancio pubblico"]
+  P0["0. Foundations and onboarding"] --> P1["1. Team and delivery"]
+  P1 --> P2["2. Strategy, Plan, and cadences"]
+  P2 --> P3["3. Feedback and billing"]
+  P3 --> P4["4. Scale and public launch"]
 ```
 
 ---
 
-## Fase 0 - Fondazioni e primo stato canonico utilizzabile
+## Phase 0 - Foundations and the first usable canonical state
 
-### Stato finale
+### End state
 
-Un utente può autenticarsi, creare organizzazione e brand, dichiarare il primo
-Intent, importare un Brand Context verificabile, parlare con il proprio CMO e
-raffinare l'Intent. Intent, Object e Action sono dati canonici e condivisi
-nell'organizzazione; la conversazione resta owner-private.
+A user can sign in, create an organization and brand, declare the first Intent,
+import a verifiable Brand Context, speak with their private CMO, and refine the
+Intent. Intents, Objects, and Actions are canonical and organization-readable;
+the conversation remains owner-private.
 
-Questa fase assorbe il design system e il banco prova frontend: non esiste una
-precedente “fase UI” separata.
+This phase includes the design system and frontend test harness. There is no
+earlier, separate "UI phase."
 
-### Work package inclusi
+### Included work packages
 
-#### Piattaforma e qualità
+#### Platform and quality
 
-- allineare repository e CI a pnpm 9, Node 24 e Turbo;
-- introdurre Vitest o runner equivalente per unit/contract test, Postgres reale
-  per integration test e Playwright + Axe per E2E;
-- aggiungere workflow CI, artefatti di failure e contratti env per ogni app;
-- fissare i server E2E multi-app: `apps/web` su 3000 e `apps/app` su 3001,
-  avviati come due `webServer` Playwright distinti;
-- creare fixture server-only, clock controllato e scripted inference provider;
-- fissare tema, tipografia, responsive shell e primitive di prodotto usando i due
-  riferimenti visuali approvati;
-- costruire in CI sia `apps/app` sia `apps/web` e tutti i root agentici presenti.
+- align the repository and CI on pnpm 9, Node 24, and Turbo;
+- introduce Vitest or an equivalent runner for unit/contract tests, real
+  PostgreSQL for integration tests, and Playwright plus Axe for E2E;
+- add CI workflows, failure artifacts, and environment contracts for every app;
+- run `apps/web` on port 3000 and `apps/app` on port 3001 as two distinct
+  Playwright `webServer` processes;
+- create server-only fixtures, a controlled clock, and a scripted inference
+  provider;
+- establish the theme, typography, responsive shell, accessibility primitives,
+  and visual-regression governance from the approved visual references;
+- build `apps/app`, `apps/web`, and every agent root present in CI.
 
-#### Dati, auth e dominio
+#### Data, authentication, and domain
 
-- creare `packages/env`, `packages/db`, `packages/policy`, `packages/brain` e il
-  nucleo di `packages/agents`;
-- configurare Drizzle, `pg.Pool` sul pooled Neon URL e connessione diretta per le
-  migrazioni;
-- implementare Better Auth con User, organizzazioni, Member e Google sign-in;
-- implementare brand, Human/System/Agent Actor, Intent, Action, Object, Blob
-  reference e operation receipt necessari al viaggio;
-- introdurre da subito `session_events` e il nucleo append-only di
-  `credit_ledger`: ogni primo step modello viene attribuito e deduplicato, anche
-  se pricing, fatturazione e UI commerciale arriveranno in Fase 3;
-- creare per l'alpha un grant iniziale deterministico e non commerciale, così il
-  primo task agentico attraversa già il vero admission check. Importo, pricing e
-  replenishment customer-facing non vengono dedotti da questo seed;
-- implementare le prime proiezioni tenant-safe e il pure Policy evaluator;
-- creare l'Actor umano in modo idempotente e derivare il ruolo soltanto dal
-  Member corrente;
-- introdurre tabella `schedules`, union registry `ScheduleTemplate` e
-  `reconcileBrandSchedules`; alla creazione del brand i template correnti
-  vengono inseriti in stato disabled, senza ancora esporre configurazione o
-  materializzazione.
+- create `packages/env`, `packages/db`, `packages/policy`, `packages/brain`, and
+  the registry core in `packages/agents`;
+- configure Drizzle and `pg.Pool` against the pooled Neon URL, with a direct
+  connection for migrations;
+- implement Better Auth User, organization, Member, and Google sign-in;
+- implement brand, Human/System/Agent Actor, active human Intent, Action, Object,
+  Blob reference, task, completion, and operation receipt needed by the phase;
+- introduce `session_events` and the append-only `credit_ledger` core from the
+  first model step. Pricing and billing UI arrive in Phase 3, but attribution and
+  idempotency do not wait;
+- seed a deterministic, non-commercial alpha grant so the first agent task uses
+  the real admission path. Customer pricing and replenishment are not inferred
+  from this seed;
+- implement initial tenant-safe projections and the pure Policy evaluator;
+- materialize the Human Actor idempotently and derive authorization only from
+  the current organization Member;
+- create the `schedules` table, the active/retired `ScheduleTemplate` registry
+  union, and `reconcileBrandSchedules`. Brand creation inserts current templates
+  disabled, without exposing configuration or materialization yet.
 
-#### Contesto iniziale
+#### Model resolution, attribution, and routing
 
-- implementare l'adapter server-side Context.dev per brand kit e crawl;
-- validare, hashare e caricare le varianti binarie in Vercel Blob prima del
-  commit canonico;
-- committare Brand Context v0 e Artifact tramite `packages/brain` con Actor
+- build one shared model-config factory in `packages/agents` and use it in every
+  generated model-bearing wrapper;
+- implement the fixed resolution order: global compiled fallback, then the
+  per-specialist registry default, then an active per-brand `model_override`
+  Decision selecting only a registered `model_profile_key`. In Phase 0 the third
+  level has no writable producer yet, but the resolver contract and lookup shape
+  already exist;
+- return the complete Eve selection object and merge existing model and provider
+  options rather than replacing them;
+- reserve trusted `gateway.user = brand_id` and registry-derived
+  agent/feature/lane/environment tags; browser, model, and task payload cannot
+  override them;
+- degrade resolver failure to the compiled fallback while still recording a
+  winning billable `step.completed` locally;
+- implement the `brand -> agent endpoint` resolver now, backed by a compiled
+  shared default. The CMO proxy must call this resolver rather than a hard-coded
+  URL;
+- create the deterministic marketing-skill materialization command, workspace
+  extension slot, dependency, and `eve build` ordering. It is empty or
+  core-instructions-only in this phase; Phase 1 supplies the selected skill
+  corpus.
+
+#### Initial context
+
+- implement the server-side Context.dev adapter for brand kit and crawl;
+- validate, hash, and upload binary variants to Vercel Blob before canonical
+  graph commit;
+- commit Brand Context v0 and its Artifact through `packages/brain` with Actor
   `system:context-dev`;
-- offrire retry esplicito e una proiezione di stato senza trasformare un errore
-  esterno in un Brand Context finto.
+- expose explicit retry and an import status projection without manufacturing a
+  Brand Context when the external import fails.
 
-#### Eve, task e CMO minimo
+#### Eve, task, and minimal CMO
 
-- sostituire lo scaffold generico `apps/agent` con i sette target root previsti e
-  farne compilare il manifest condiviso; in questa fase sono funzionali CMO e
-  Product Marketer, mentre gli altri possono esporre soltanto health/registry
-  senza task kind attivi;
-- implementare `agent-cmo`, il proxy autenticato di `apps/app`, la conversazione
-  application-owned, streaming/reconnect e audit hook;
-- proiettare dal winning `step.completed` il model usage della prima
-  conversazione/task e verificare che retry, replay e compaction seguano già il
-  contratto ADR-014;
-- implementare il primo task one-shot Product Marketer, claim, TaskCompletion e
-  Object prodotto;
-- implementare già per quel task queue, claim, Vercel Cron fan-out e dispatcher
-  payload-free. Le fasi successive estendono il registry e le lane, non
-  introducono un secondo meccanismo di dispatch;
-- conservare la completion `partial | blocked`, mostrare le sue domande nel
-  dettaglio task e permettere la risoluzione tramite un nuovo turno nel CMO del
-  caller più la receipt `task_questions_resolved`; la inbox aggregata arriverà
-  in Fase 2;
-- montare la consultazione Product Marketer read-only e il boundary
-  `refineIntent` nel CMO;
-- montare `request_specialist_work` soltanto nel top-level CMO e, in questa fase,
-  limitarlo ai kind Product Marketer: il turno umano deve identificare senza
-  ambiguità l'Intent attivo da cui trusted code costruisce lo snapshot;
-- mantenere deny-all nel sandbox locale quando non è disponibile un backend che
-  applichi l'allowlist di rete.
+- replace the generic `apps/agent` scaffold with the seven planned root targets
+  and compile one shared manifest. CMO and Product Marketer are functional in
+  this phase; other roots expose only health/registry and no active task kinds;
+- implement `agent-cmo`, the authenticated `apps/app` proxy, application-owned
+  conversations, streaming/reconnect, and the shared audit hook;
+- project model usage from the winning `step.completed` for the first
+  conversation and task, including replay and compaction behavior;
+- implement one Product Marketer task, claim, typed `TaskCompletion`, normalized
+  output, and a task-produced Object;
+- include `intent_acceptance` in the common completion schema, while every
+  Phase 0-2 kind is registered ineligible and `finishTask` rejects a non-null
+  value;
+- implement queue, claim, Vercel Cron fan-out, and payload-free dispatch for that
+  task. Later phases extend this mechanism and do not introduce another queue;
+- retain a `partial | blocked` completion and show its questions in task detail.
+  Any current non-viewer Member may answer them from that Member's own top-level
+  CMO conversation; this is not restricted to the original task requester. A
+  `task_questions_resolved` receipt closes the immutable bundle without resuming
+  or rerunning the old task. The aggregated inbox arrives in Phase 2;
+- mount read-only Product Marketer consultation and the `refineIntent` boundary
+  in the CMO;
+- expose `request_specialist_work` only in the top-level CMO and only for the
+  Product Marketer kind. The current human turn must identify one active Intent
+  without ambiguity; trusted code constructs the snapshot;
+- use a deny-all local sandbox when no backend can enforce the network allowlist.
 
-#### Superficie utente
+#### User surface
 
-- landing/sign-in minimo in `apps/web`;
-- onboarding org/brand, sito, Intent iniziale e stato import in `apps/app`;
-- console v0 con brand switcher, Intent detail, Object browser e provenance;
-- Work detail minimo per il task Product Marketer, inclusi output e domande;
-- CMO privato con send, stream, stop, reload e fallback read-only;
-- nessuna CTA Strategy, Plan, approval o schedule prima delle rispettive fasi.
+- minimal landing/sign-in in `apps/web`;
+- organization/brand onboarding, website, initial Intent, and import status in
+  `apps/app`;
+- console v0 with brand switcher, Intent detail, Object browser, and provenance;
+- minimal Work detail for the Product Marketer task, including outputs and open
+  questions;
+- private CMO with send, stream, stop, reload, and read-only fallback;
+- no Strategy, Plan, approval, proposal, or schedule controls before their real
+  boundaries exist.
 
-### Viaggi obbligatori
+### Mandatory journeys
 
-1. **Onboarding canonico**
-   - autenticazione;
-   - creazione organizzazione e brand con `website_url`;
-   - Intent umano active rev.1;
-   - adapter Context.dev;
-   - Brand Context e Artifact con producing Action;
-   - traversal browser fino all'Actor e alla provenienza.
-2. **Refinement tramite CMO**
-   - il proprietario apre la propria conversazione;
-   - il CMO consulta Product Marketer e pone una domanda;
-   - una risposta non ambigua raffina l'Intent;
-   - reload e reconnect mostrano lo stesso stato canonico e transcript.
-   - se il task Product Marketer termina partial/blocked, la domanda resta nel
-     task detail finché un successivo turno CMO risolve l'intero bundle; il
-     semplice click non la nasconde e non rilancia il task.
-3. **Privacy e tenancy**
-   - Bob, stesso org, legge Intent/Object di Alice;
-   - Bob non elenca né apre la conversazione di Alice, anche se admin;
-   - un utente di altra organizzazione non legge né muta il brand;
-   - il viewer proprietario legge la propria conversazione e può soltanto
-     fermare l'esatto turno osservato.
+1. **Canonical onboarding**
+   - authenticate;
+   - create organization and brand with `website_url`;
+   - declare human Intent active revision 1;
+   - run the Context.dev adapter;
+   - create Brand Context and Artifact with producing Action;
+   - traverse from the browser to the exact Actor and provenance.
+2. **CMO refinement**
+   - the owner opens their own conversation;
+   - the CMO consults Product Marketer and asks a question;
+   - an unambiguous answer refines the Intent;
+   - reload and reconnect preserve canonical state and transcript;
+   - a `partial | blocked` task question remains until a later CMO turn resolves
+     the bundle; opening it does not hide it or rerun work.
+3. **Privacy and tenancy**
+   - Bob, in the same organization, reads Alice's Intent/Object;
+   - Bob cannot list or open Alice's conversation even when Bob is an admin;
+   - another organization cannot read or mutate the brand;
+   - a viewer who owns the conversation can read it and stop only the exact
+     observed turn.
+4. **Model attribution and endpoint resolution**
+   - the brand-addressed CMO proxy resolves through the endpoint lookup;
+   - the payload-free Cron pokes the configured shared root endpoints without a
+     brand or task id;
+   - CMO and Product Marketer choose their registry defaults over the global
+     fallback through the same resolver factory;
+   - the generated Gateway user/tags identify the trusted brand and registry
+     actor/lane;
+   - an attempted runtime override fails, while resolver fallback still records
+     the winning local charge exactly once.
 
 ### Exit gate
 
-La fase è conclusa quando i tre viaggi passano in CI con Context.dev e inferenza
-scripted attraverso i boundary reali, poi in staging con Google auth, Context.dev,
-Blob, Neon e un modello AI Gateway reali. Il root Product Marketer deve produrre
-almeno un Object task-linked e ogni root deve superare build e health check. La
-console fixture-driven, da sola, non chiude la fase.
+Phase 0 is complete when all four journeys pass in CI through the real boundaries
+with scripted Context.dev and inference, then pass in staging with Google auth,
+Context.dev, Blob, Neon, and a real AI Gateway model. Product Marketer must create
+at least one task-linked Object. Every root must pass build and health checks,
+the endpoint resolver must be used by every brand-addressed proxy/client even
+though it returns one shared deployment, and the marketing-skill materialization
+slot must run before `eve build`. A fixture-only console does not close the
+phase.
 
-### Non ancora attivo
+### Not active yet
 
-- specialisti Content, Distribution, SEO, Lifecycle e Growth;
-- connessioni provider e commitment esterni;
-- Strategy, Plan, Decision amministrative e schedule configurabili;
-- crediti, billing, MCP e ads.
+- Content, Distribution, SEO, Lifecycle, and Growth work;
+- draft Intent proposals from autonomous roots;
+- provider connections and external commitments;
+- Strategy, Plan, administrative Decisions, and configurable schedules;
+- customer-facing credits, billing, MCP, and ads.
 
 ---
 
-## Fase 1 - Il team che consegna e il primo commitment umano
+## Phase 1 - A team that delivers and the first human commitment
 
-### Stato finale
+### End state
 
-Da un Intent attivo il CMO può richiedere lavoro specialistico durevole. Content,
-Distribution e SEO Discovery producono Artifact/Evidence tracciabili. Almeno un
-kind può preparare una proposta verso un provider reale; l'effetto esterno parte
-soltanto dopo review e click umano e genera un Result canonico.
+From an active Intent, the CMO can request durable specialist work. Content,
+Distribution, and SEO Discovery produce traceable Artifacts/Evidence and may
+hand work to an allowed lateral specialist. Autonomous roots can propose draft
+Intents for human adoption. At least one kind can prepare a proposal for a real
+provider; the external effect starts only after human review and produces a
+canonical Result.
 
-### Work package inclusi
+### Included work packages
 
-#### Registry, agenti e dispatcher
+#### Registry, agents, skills, and dispatch
 
-- completare il registry compilato per CMO, Product Marketer, Content,
-  Distribution e SEO Discovery;
-- integrare e materializzare `packages/marketing-skills` con build riproducibile;
-- generare wrapper locali, tool set, output contract, sandbox e supported kinds;
-- estendere queue, claim e dispatcher della Fase 0 ai nuovi root e kind,
-  completando settlement, cancel e task output inventory. La recovery può
-  riprovare soltanto un handoff non ancora provato; dopo il binding di una
-  sessione agentica non redispatcha, e un commitment umano resta one-shot con
-  outcome conservativo;
-- registrare step/session telemetry e model usage senza usare la telemetry come
+- complete compiled registry entries for CMO, Product Marketer, Content,
+  Distribution, and SEO Discovery;
+- install `packages/marketing-skills`, select and rewrite the approved upstream
+  skills, materialize them through the Phase 0 slot, and mount them through the
+  workspace extension before `eve build`;
+- generate thin local wrappers, tool sets, output contracts, sandboxes, model
+  config, and supported task kinds;
+- extend the Phase 0 queue, claim, and dispatcher to the new roots and kinds,
+  including settlement, cancel, and complete task output inventory. Recovery may
+  retry only an unproven handoff; after session binding there is no redispatch;
+- record session/step telemetry and model usage without using telemetry as
   product state.
 
-#### Connections e preparazione
+#### Lateral work
 
-- creare `packages/connections` e `brand_connections`;
-- implementare onboarding Vercel Connect per i primi slot Notion e Typefully;
-- usare sempre il subject app-scoped con installazione brand-scoped risolta da
+- implement registry-declared lateral edges and
+  `request_lateral_work({ kind, payload, rationale })` for durable roots;
+- derive source task, brand, parent, and common-origin branch from trusted task
+  context; model input cannot name them;
+- enforce exact source-worker to target-worker edge compatibility and preserve
+  the exact Intent or Plan/Move branch;
+- persist `parent_task_id = source_task_id` only for a newly inserted lateral;
+  observing an active equivalent neither reparents it nor creates an alias;
+- prove the Content-to-Distribution Artifact handoff without using chat output
+  or a blob/token payload as canonical transfer.
+
+#### Draft Intent proposals
+
+- implement allowlisted `proposeIntent` for CMO/durable roots, inserting an
+  agent-authored revision-1 `draft` and `intent_proposed` Action atomically;
+- add the separate **Intent proposals** projection; drafts cannot authorize
+  tasks, Policy, preauthorization, acceptance, or external work;
+- implement human-only `adoptIntent` with revision CAS and `intent_adopted`;
+- implement human-only `abandonIntent` for draft or active rows with revision
+  CAS and `intent_abandoned`; it preserves accepted task snapshots and Objects;
+- render Adopt/Abandon only for current `owner | admin | member` and test replay,
+  stale revision, cross-tenant, viewer, and concurrent refinement.
+
+#### Connections and preparation
+
+- create `packages/connections` and `brand_connections`;
+- implement Vercel Connect onboarding for the first Notion and Typefully slots;
+- always use an app-scoped subject and resolve the brand-scoped installation in
   trusted code;
-- introdurre soltanto operazioni di lettura e preparazione create-only dichiarate
-  dal registry;
-- salvare documenti e asset per id, senza passare blob o token tra agenti.
+- expose only registry-declared read or create-only preparation operations;
+- pass document and asset ids, never blobs or provider tokens, between agents.
 
-#### Commitment diretto
+#### Direct commitments, conflict, dismissal, and reopen
 
-- implementare task `direct/human`, renderer chiuso, edit, approve e cancel;
-- valutare current Member e Policy al click e congelare Approval, prezzo e
-  payload canonicalizzato;
-- eseguire la chiamata provider con TypeScript deterministico, senza modello;
-- appendere Result `accepted | rejected | unknown` e settlement nella transazione
-  prevista;
-- implementare provider-outcome poll soltanto per contratti che offrono lookup
-  durevole e cadenza limitata; se il primo kind lo usa, anche la relativa
-  provider-outcome Verification entra in questa fase;
-- congelare sempre il billing snapshot dell'Approval. Il primo kind può essere
-  dichiarato esplicitamente `non_billable`; un kind priced deve già produrre un
-  solo `action_charge` sul solo esito succeeded.
+- implement `direct/human` tasks, closed renderer, edit, approve, cancel, and the
+  one-shot deterministic direct handler;
+- evaluate the current Member and Policy at the click, then freeze Approval,
+  canonical payload, price, and provider/account identity;
+- append the Result and settlement under the exact ADR-019 transaction rules;
+- require every registered commitment kind to declare `independent` or
+  `serialized`. Independent kinds have no conflict key; serialized kinds derive
+  a trusted `commitment_conflict_key` and enforce the active partial unique
+  backstop;
+- derive and attempt the serialized conflict key inside `approveTask` from the
+  human-reviewed final task revision and payload, then rederive/revalidate it at
+  claim. Distinct proposals may coexist in `awaiting_approval`; only the losing
+  Approval click returns `target_busy`. It is a diagnostic, not a Task status:
+  the proposal remains `awaiting_approval`, no Approval Action or FIFO waiter is
+  created, and a human must click again after the blocker terminalizes;
+- restrict every Phase 1 commitment kind to non-financial effects. Financial
+  kinds cannot be registered until the Phase 3 four-eyes rule exists;
+- implement `dismissed` plus its Dismissal Action and exact remembered identity
+  `(brand, kind, canonical payload hash)`;
+- implement the Reopen Action and its authorization/replay path. Dismissal and
+  reopen change proposal eligibility but never rewrite the historical payload,
+  Approval, Result, or Action. Reopen never reactivates or approves the dismissed
+  Task; it only permits a new equivalent proposal that needs a fresh Approval;
+- implement provider-outcome polling only for contracts with a durable lookup
+  and bounded cadence. If the first kind uses it, terminal provider Verification
+  is delivered here as an origin-free fact; Plan wake-up is added in Phase 2;
+- freeze the billing snapshot at Approval. The first kind may be explicitly
+  `non_billable`; any priced kind already writes one `action_charge` only for a
+  validated `succeeded` Result.
 
-#### Superficie utente
+#### User surface
 
-- Today iniziale con “richiede il tuo giudizio”, lavori attivi e risultati;
-- Work list/detail con polling soltanto durante lavoro attivo;
-- Artifact/Evidence preview, download autenticato e provenance;
-- Connections con slot, account effettivo, capability gap e reconnect;
-- Approval inbox con CTA specifica, non “Approva tutto”;
-- stati stale, busy, queued, running, failed, unknown, expired e regeneration.
+- initial Today view with human-attention items, active work, and recent results;
+- Work list/detail with polling only while work is active;
+- Artifact/Evidence preview, authenticated download, and provenance;
+- Connections with slot, effective account, capability gap, and reconnect;
+- dedicated approval inbox with kind-specific CTA, never "Approve all";
+- separate Intent proposals inbox with Adopt/Abandon;
+- explicit stale, busy/`target_busy`, queued, running, failed,
+  `outcome_unknown`, expired, `needs_regeneration`, dismissed, superseded, and
+  reopened states.
 
-### Viaggi obbligatori
+### Mandatory journeys
 
-1. **Specialist work**
-   - l'utente chiede esplicitamente lavoro sull'Intent corrente;
-   - il CMO crea o osserva il task;
-   - il root corretto reclama la row, usa Eve e produce Artifact/Evidence;
-   - TaskCompletion, output e producing Actions sono visibili in console.
-2. **External delivery**
-   - il task prepara una proposta;
-   - la proposta compare in approval inbox;
-   - un Member autorizzato la rivede o modifica e approva;
-   - avviene esattamente una chiamata provider;
-   - receipt, Result e stato terminale restano leggibili dopo reload.
-3. **Replay e autorità**
-   - doppio click e lost response convergono;
-   - edit-vs-approve e cancel-vs-claim hanno un solo vincitore;
-   - viewer e ruolo rimosso non approvano;
-   - downgrade dopo Approval non riscrive il grant, mentre un cancel che vince
-     prima del claim impedisce la chiamata.
+1. **Specialist and lateral work**
+   - a human explicitly requests work for the current Intent;
+   - the CMO creates or observes the root task;
+   - Content claims it, creates an Artifact, and requests the registered
+     Distribution lateral by Artifact id;
+   - both completions, origin, parent edge, outputs, and producing Actions are
+     visible after reload.
+2. **Draft Intent**
+   - an allowlisted root proposes a draft;
+   - the draft appears only under Intent proposals and cannot start work;
+   - one human adopts it or abandons it through revision CAS;
+   - concurrent/replayed decisions converge and preserve the agent author.
+3. **External delivery**
+   - a task prepares a proposal;
+   - the proposal appears in the approval inbox;
+   - an authorized Member reviews or edits and approves it;
+   - exactly one provider call occurs;
+   - receipt, Result, optional terminal Verification, and terminal state remain
+     readable after reload.
+4. **Serialization, dismissal, and authority**
+   - two independent proposals may proceed concurrently;
+   - two serialized proposals for the same target coexist while awaiting human
+     review, then two Approval clicks produce one winner and one `target_busy`
+     diagnostic with no Approval Action or queued waiter;
+   - dismissal prevents the exact remembered proposal from silently returning;
+   - an explicit Reopen Action permits a new proposal without reactivating the
+     old Task or erasing history;
+   - double click and lost response converge; viewer/removed Member cannot
+     approve; edit-vs-approve and cancel-vs-claim have one winner.
 
 ### Exit gate
 
-La fase è conclusa quando i viaggi passano con provider finto deterministico in
-CI e con tutti i connector dichiarati per la v1 in workspace/account di staging.
-Il canary deve provare provider call, Result Action e read-back, non soltanto un
-`200`.
-Nessun secret deve apparire nel grafo o nello stream. Notion e Typefully non si
-considerano consegnati finché ciascuno non ha un journey e un canary dedicati. Se
-la v1 viene ridotta a un solo provider, la stessa modifica deve aggiornare
-roadmap, registry e superficie Connections: non si lascia il secondo come
-promessa incompleta.
+Phase 1 is complete when all four journeys pass with deterministic providers in
+CI and every connector declared for v1 passes in a staging workspace/account.
+The canary must prove provider call, Result Action, and read-back rather than only
+an HTTP 200. The Content-to-Distribution lateral, one draft Intent adoption, one
+serialized conflict, and dismissal/reopen must be browser-visible and verified
+against canonical rows. Secrets must never appear in graph or stream. Notion and
+Typefully are not delivered until each has a dedicated journey and canary. If v1
+is reduced to one provider, roadmap, registry, and Connections UI must change in
+the same commit; the second provider cannot remain a false promise.
 
-### Non ancora attivo
+### Not active yet
 
-- Plan e route automatiche;
-- schedule configurabili;
-- Lifecycle/Growth e misurazione;
-- billing e MCP.
+- Strategy, Plan, and automatic waves;
+- configurable product schedules;
+- automatic Intent-acceptance settlement;
+- Lifecycle/Growth measurement, commercial billing, and MCP.
 
 ---
 
-## Fase 2 - Il grafo abitabile, Strategy, Plan e cadenze
+## Phase 2 - A habitable graph with Strategy, Plan, and cadences
 
-### Stato finale
+### End state
 
-Il CMO coordina gli Intent attivi in una Strategy brand-wide e in un Marketing
-Plan versionato. Il lavoro specialistico della Fase 1 viene instradato in wave,
-il Piano si rivaluta, le domande incomplete tornano all'umano e la prima cadenza
-brand-wide può essere abilitata senza creare autorità implicita.
+The CMO coordinates all active Intents in one brand-wide Strategy and a versioned
+Marketing Plan. Phase 1 specialist work is routed in waves, the Plan reevaluates
+after ordinary and provider-final facts, incomplete questions return to humans,
+and the first brand-wide cadence can be enabled without manufacturing authority.
 
-### Work package inclusi
+### Included work packages
 
-#### Decision e Policy completa
+#### Decisions and complete Policy surface
 
-- implementare schema e read model dell'unione chiusa `roadmap_input |
-  policy_restriction | model_override | intent_preauthorization`;
-- abilitare in scrittura le varianti coperte dai kind disponibili nella fase. La
-  prima Strategy usa `impact.not_applicable`; una Decision misurabile resta
-  fail-closed e senza CTA finché Fase 3 non attiva atomicamente anche il task
-  Growth richiesto;
-- implementare presentation card read-only, report durevoli e `recordDecision`;
-- gestire head replacement, expected head/revision, receipt-first replay e
-  preauthorization legata all'esatta revisione Intent;
-- esporre needs-reconfirmation senza riattivare automaticamente un grant;
-- mantenere Strategy brand-wide con eventuale Intent soltanto causale.
+- implement the closed `roadmap_input | policy_restriction | model_override |
+  intent_preauthorization` schema and read model;
+- enable only variants whose complete downstream contract is available. The
+  first Strategy uses `impact.not_applicable`; measurable Decisions remain
+  fail-closed with no CTA until Phase 3 atomically creates the Growth task;
+- implement read-only presentation cards, durable recommendation reports, and
+  human `recordDecision`;
+- wire active `model_override` heads into the Phase 0 resolver. The Decision may
+  select only a registered `model_profile_key`; the resolver must preserve the
+  precedence global fallback -> specialist default -> active brand override and
+  expose exact Decision provenance without becoming an arbitrary model picker;
+- implement expected head/revision, receipt-first replay, supersession, and
+  preauthorization bound to the exact Intent revision;
+- display a stale positive preauthorization as **needs reconfirmation** without
+  restoring authority;
+- keep Strategy brand-wide; an optional Intent is causal provenance only.
 
-#### Plan e wave
+#### Intent lifecycle
 
-- implementare Evidence, Move Candidate e Marketing Plan con exact Object ids;
-- implementare `rebuild-marketing-plan`, snapshot di tutti gli Intent attivi,
-  `publishPlanAndRoute` atomico e dedup dei task;
-- implementare `advance-marketing-plan`, wave Actions, ancestry wake-up,
-  `Ricontrolla` e `Avvia comunque`;
-- calcolare `plan_needs_rebuild` da Strategy e planning Intent snapshots;
-- non usare `output_object_ids` o una terminal task come prova automatica di
-  readiness.
+- complete Intent list/detail/history for `draft | active | settled | abandoned`;
+- expose the already-implemented `adoptIntent`/`abandonIntent` boundaries in the
+  full lifecycle surface and add the explicit human-only `settleIntent` path;
+- make active-to-settled and active-to-abandoned changes contribute to
+  `plan_needs_rebuild`, while never cancelling or reinterpreting accepted tasks;
+- keep automatic acceptance disabled for every Phase 0-2 kind even though the
+  common completion field already exists.
 
-#### Open questions, digest e graph
+#### Plan, wave, and wake-up
 
-- estendere la risoluzione task-linked della Fase 0 alla proiezione aggregata di
-  tutte le completion partial/blocked;
-- implementare `Rispondi al CMO` con source task trusted e conversation del
-  caller;
-- chiudere il bundle soltanto con `task_questions_resolved` receipt-backed;
-- costruire digest meccanico + narrativa con citation refs validate;
-- completare graph browser, task queue, Intent lifecycle e Decision history.
+- implement Evidence, Move Candidate, and Marketing Plan with exact Object ids;
+- implement `rebuild-marketing-plan`, typed snapshots of all active Intents,
+  atomic `publishPlanAndRoute`, and task create/observe mappings;
+- implement `advance-marketing-plan`, wave Actions, ancestry wake-up,
+  human Recheck, and Start anyway;
+- compute `plan_needs_rebuild` from the current Strategy and active Intent
+  snapshots; never use `output_object_ids` or terminality as readiness proof;
+- implement the dedicated post-commit provider-final wake-up creator in the same
+  release as Plan advancement. It accepts only trusted terminal Verification id,
+  revalidates Verification -> poll -> accepted Result -> originating Plan-derived
+  commitment, and uses a creator key distinct from the acceptance signal;
+- keep pending polls origin-free and silent. A terminal Verification only wakes
+  evaluation; it never proves readiness, becomes a route, or imports Policy.
+
+#### Open questions, digest, and graph
+
+- extend Phase 0 task-linked resolution into the shared projection of every
+  `partial | blocked` completion with non-empty questions;
+- let any current non-viewer Member open the exact question in that Member's own
+  top-level CMO conversation, regardless of who originally requested the task;
+- supply the source task through trusted turn context and close the bundle only
+  with a receipt-backed `task_questions_resolved` Action;
+- never resume or automatically rerun the old task. New work still requires an
+  explicit human request and the ordinary guards;
+- build the mechanical digest plus narrative with validated citation refs;
+- complete graph browser, task queue, Intent lifecycle, and Decision history.
 
 #### Product cadence
 
-- estendere il registry active/retired introdotto in Fase 0 con i template
-  eseguibili della release;
-- per ogni nuovo template active, eseguire l'esplicito backfill
-  `reconcileBrandSchedules` su tutti i brand esistenti e verificare che non
-  sovrascriva configurazione o cursore delle row già presenti;
-- implementare `configureSchedule` come boundary umano con revision CAS;
-- usare un helper wall-clock/DST condiviso e versionato;
-- materializzare occurrence categoricamente origin-free, con current
-  restrictions e `structure_level = null`;
-- introdurre la prima cadenza daily brief, disabilitata di default;
-- implementare retirement e rollout/rollback root-first secondo ADR-009;
-- mantenere `scheduleRecheck` separato e task-bound.
+- extend the active/retired registry introduced in Phase 0 with executable
+  release templates;
+- for every new active template, run explicit `reconcileBrandSchedules` backfill
+  for existing brands and prove it does not overwrite configuration or cursor;
+- implement human `configureSchedule` with revision CAS;
+- use one shared, versioned wall-clock/DST helper;
+- materialize occurrences categorically origin-free with current restrictions
+  and `structure_level = null`;
+- introduce the first daily-brief cadence, disabled by default;
+- implement retirement and root-first rollout/rollback from ADR-009;
+- keep task-bound `scheduleRecheck` separate from product schedules.
 
-#### Superficie utente
+#### User surface
 
-- Today completo secondo la gerarchia del wireframe;
-- Decision/Strategy cards con scope e conseguenze esplicite;
-- Plan detail con Move, Evidence, dipendenze, Rebuild, Ricontrolla e Avvia
-  comunque;
-- live task queue, digest con citation traversal e Open questions;
-- Schedules con template chiusi, timezone e stato del prossimo run;
-- stati Plan current, rebuilding, stale, no-ready-moves e blocked.
+- complete Today according to the approved information hierarchy;
+- Decision/Strategy cards that state scope and consequences;
+- Plan detail with Moves, Evidence, dependencies, Rebuild, Recheck, and Start
+  anyway;
+- live task queue, cited digest, Intent proposals/lifecycle, and Open questions;
+- registered model-profile override and resolution-chain provenance;
+- Schedules with closed templates, timezone, and next-run status;
+- current, rebuilding, stale, no-ready-moves, blocked, and provider-pending/final
+  Plan states.
 
-### Viaggi obbligatori
+### Mandatory journeys
 
-1. **Strategy e Plan**
-   - CMO presenta una Strategy tipizzata;
-   - l'umano registra l'esatto payload;
-   - recordDecision crea atomicamente il rebuild;
-   - il CMO pubblica Plan, producing Action e route mapping;
-   - un task termina e genera o osserva una rivalutazione;
-   - il risultato è una nuova wave oppure `no_ready_moves`.
-2. **Recovery del Piano**
-   - un cambio Strategy/Intent rende il Plan stale;
-   - Ricontrolla e Avvia comunque restano bloccati;
-   - Ricostruisci resta disponibile e pubblica il nuovo head;
-   - un segnale best-effort perso è recuperabile da Ricontrolla.
-3. **Domande aperte**
-   - un task termina partial/blocked con domande;
-   - la card compare nella proiezione condivisa;
-   - un non-viewer la porta nel proprio CMO;
-   - la risposta non rilancia automaticamente il task;
-   - l'Action di resolution nasconde la card e il replay converge.
-4. **Cadenza**
-   - un umano abilita daily brief con timezone;
-   - il clock controllato raggiunge lo slot;
-   - nasce una sola occurrence origin-free;
-   - disable/materialize e duplicate dispatch linearizzano;
-   - re-enable non produce catch-up e gap/fold DST usano gli instant attesi.
+1. **Strategy and Plan**
+   - the CMO presents a typed Strategy;
+   - the human records the exact payload;
+   - `recordDecision` atomically creates the rebuild;
+   - the CMO publishes Plan, producing Action, and route mapping;
+   - a task terminalizes and creates or observes a reevaluation;
+   - the result is a new wave or `no_ready_moves`.
+2. **Registered model override**
+   - without an override, a new specialist session uses its registry default;
+   - a human records an override that selects a registered profile;
+   - a new session uses that profile while preserving context-window options,
+     provider options, and trusted Gateway attribution;
+   - supersession updates only later sessions, exact provenance remains visible,
+     and an unknown profile cannot be recorded or resolved.
+3. **Plan recovery and Intent lifecycle**
+   - a Strategy change, Intent refinement, `settleIntent`, or `abandonIntent`
+     makes the Plan stale;
+   - Recheck and Start anyway are blocked while Rebuild remains available;
+   - Rebuild publishes a new current head without cancelling accepted work;
+   - a lost best-effort signal is recoverable with human Recheck.
+4. **Asynchronous provider-final wake-up**
+   - a Plan-derived commitment is accepted and triggers the first evaluation;
+   - its poll records pending without waking the Plan;
+   - a terminal Verification uses a distinct key and requests a second
+     evaluation through the original commitment ancestry;
+   - replay converges, a stale/unmapped Plan produces no write, and the poll
+     remains origin-free.
+5. **Open questions**
+   - a task completes `partial | blocked` with questions;
+   - a shared card appears;
+   - a different current non-viewer Member can answer through their own CMO;
+   - the answer does not rerun the task;
+   - the resolution Action hides the card and replay converges.
+6. **Cadence**
+   - a human enables daily brief with a timezone;
+   - a controlled clock reaches the slot;
+   - exactly one origin-free occurrence is created;
+   - disable/materialize and duplicate dispatch linearize;
+   - re-enable causes no catch-up, and DST gap/fold use the expected instants.
 
 ### Exit gate
 
-La fase è conclusa quando tutti i viaggi passano su Postgres ed Eve reali con
-inferenza scripted, incluso almeno un percorso con task Content/Distribution/SEO
-della Fase 1. In staging un modello reale deve completare presentation, Decision,
-rebuild e una valutazione del Plan. Il daily brief deve materializzarsi da un Cron
-reale in un brand di staging senza effettuare alcun commitment non approvato.
+Phase 2 is complete when all six journeys pass on real PostgreSQL and Eve with
+scripted inference, including one Content/Distribution/SEO path from Phase 1 and
+one qualifying provider-final Verification. In staging, a real model must
+complete presentation, Decision, rebuild, and Plan evaluation. A real Cron must
+materialize daily brief for a staging brand without performing an unapproved
+external commitment. No Phase 0-2 kind may persist non-null `intent_acceptance`.
 
 ---
 
-## Fase 3 - Feedback misurabile, Lifecycle ed economia
+## Phase 3 - Measurable feedback, Lifecycle, and economics
 
-### Stato finale
+### End state
 
-Magister osserva gli esiti dei propri commitment, misura Decision verificabili e
-usa tali fatti per rivalutare il Piano. Lifecycle e Growth sono operativi. Modelli
-e azioni consumano un ledger crediti auditabile; il prodotto distingue admission
-agentica, costi reali e commitment già approvati.
+Magister observes provider outcomes, measures verifiable Decisions, and uses
+those facts to reevaluate the Plan. Lifecycle and Growth are operational. Models
+and successful priced actions consume an auditable credit ledger. Financial
+commitments enforce separation of duties before any such kind can ship.
 
-### Decisione preliminare obbligatoria
+### Mandatory preliminary decisions
 
-Gli ADR definiscono ledger, charge e overage ma non scelgono ancora il contratto
-di riscossione/invoicing. Prima di implementare la raccolta economica si deve
-approvare un ADR breve che fissi provider billing, catalogo prezzi, ciclo invoice,
-webhook, dispute/refund e relazione tra piano commerciale e `credit_ledger`.
-Questa decisione non può essere inventata nel componente Credits.
+The existing ADRs define ledger entries, charges, and overage but do not choose
+the collection/invoicing contract. Before implementing commercial collection, a
+short ADR must fix the billing provider, price catalog, invoice cycle, webhooks,
+dispute/refund behavior, and relationship between commercial plan and
+`credit_ledger`.
 
-### Work package inclusi
+Before registering the first `financial` effect, the Phase 3 implementation must
+also ratify the ADR-011 four-eyes rule in the closed Policy contract: the
+approving Human Actor cannot be the Intent author. This is segregation of duties,
+not a model judgment or an implied second provider call.
 
-#### Agent e connessioni
+ADR-011 defines that comparison for Intent-bound work but does not identify an
+author for Plan-routed or origin-free financial work. Those branches therefore
+remain fail-closed until a follow-up decision defines a trusted comparison
+subject. Phase 4 ads cannot enable such a financial kind by inference.
 
-- rendere funzionali Lifecycle e Growth;
-- introdurre Resend per lifecycle e una fonte analytics registrata;
-- aggiungere tool di sola lettura per metriche e preparazioni idempotenti;
-- mantenere ogni send esterno nella lane `direct/human`;
-- mostrare capability e data gaps anziché produrre metriche inventate.
+### Included work packages
 
-#### Verification e feedback
+#### Agents and connections
 
-- attivare la variante misurabile di `roadmap_input` insieme al relativo task
-  Growth creato atomicamente da `recordDecision`;
-- implementare provider-outcome, Intent-acceptance e Decision-impact
+- make Lifecycle and Growth functional;
+- add Resend for lifecycle and one registered analytics source;
+- add read-only metric tools and idempotent preparation operations;
+- keep every external send in the `direct/human` lane;
+- show capability/data gaps instead of inventing metrics.
+
+#### Verification and feedback
+
+- enable measurable `roadmap_input` together with its Growth task created
+  atomically by `recordDecision`;
+- implement provider-outcome, Intent-acceptance, and Decision-impact
   Verification Actions;
-- gestire poll pending/final, deadline ed exhaustion tecnica;
-- dopo una Verification provider finale, risalire al commitment Plan-derived e
-  fare il wake-up best-effort con key distinta dall'acceptance;
-- implementare `verify-roadmap-decision-impact` origin-free e i report di
-  reconsideration;
-- mantenere ogni mutazione Decision come click umano separato.
+- explicitly allow `intent_acceptance` only for registered Intent-bound kinds
+  with the complete acceptance schema and settlement boundary; all other kinds
+  remain fail-closed;
+- implement pending/final provider states, deadlines, and technical exhaustion;
+- retain the provider-final Plan wake-up delivered in Phase 2 and extend its
+  tests to Lifecycle providers rather than introducing a second mechanism;
+- implement origin-free `verify-roadmap-decision-impact` and reconsideration
+  reports;
+- keep every Decision mutation behind a separate human click.
 
-#### Credits e billing
+#### Four-eyes financial authority
 
-- completare e rendere commerciale il `credit_ledger` append-only introdotto con
-  il primo modello, includendo grant, model charge e action charge;
-- proiettare balance e admission senza reservation;
-- attribuire soltanto step billable vincenti, ignorando la compaction nel ledger;
-- registrare action charge soltanto su commitment billable succeeded;
-- bloccare nuovi agent task quando il balance è zero o negativo, non la CMO
-  conversation già attiva né le lane dirette previste dagli ADR;
-- implementare plan allowance, overage e invoicing secondo l'ADR economico;
-- confrontare AI Gateway Custom Reporting come diagnostica, mai come fonte di
-  addebito canonica.
+- extend the Policy matrix and renderer for `financial` commitments;
+- derive Intent author and approving current Human Actor from trusted canonical
+  rows and reject equality before Approval is written;
+- preserve current Member role checks and brand restrictions; four-eyes can
+  tighten authority but never widen it;
+- make same-author denial, different-author success, replay, removed Member,
+  cross-tenant, and concurrent approval explicit contract/E2E tests;
+- keep Plan-routed and origin-free financial commitments fail-closed until their
+  trusted four-eyes comparison subject is explicitly ratified;
+- keep all financial kinds disabled in the registry until this suite passes.
 
-#### Superficie utente
+#### Credits and billing
 
-- Lifecycle/analytics connection status e gap;
-- provider outcome e Verification nel dettaglio task e nel digest;
-- evidence metriche e Decision-impact history;
-- credits balance, consumo, overage, blocked-work explanation e billing documents;
-- nessun costo stimato presentato come addebito certo.
+- make the Phase 0 append-only `credit_ledger` commercial, including grant,
+  model charge, and action charge;
+- project balance and admission without reservations;
+- charge only winning billable steps and ignore compaction in the customer
+  ledger;
+- record an action charge only for a billable commitment that reaches
+  `succeeded` with a validated stable receipt;
+- block new agent-lane claims when balance is zero or negative. Never block any
+  CMO conversation, Approval/cancel boundary, or execution of an already
+  approved direct commitment;
+- implement allowance, overage, collection, and invoicing from the billing ADR;
+- compare AI Gateway Custom Reporting only as diagnostics, never as the
+  canonical debit source.
 
-### Viaggi obbligatori
+#### User surface
 
-1. **Feedback provider**
-   - un commitment asincrono viene accettato e il Plan si rivaluta;
-   - il poll registra prima pending e poi un esito finale;
-   - la final Verification usa una key diversa e risveglia di nuovo il Piano;
-   - il poll resta origin-free e non diventa route o autorità.
-2. **Decision impact**
-   - una Decision misurabile crea il task Growth futuro;
-   - Growth legge metriche, produce Evidence e Verification;
-   - una recommendation di reconsideration resta report finché l'umano non
-     registra la nuova Decision;
-   - la sostituzione avvia il normale rebuild globale.
-3. **Economia**
-   - un billable step crea esattamente un model charge;
-   - replay dello stesso event id non duplica l'addebito;
-   - un'azione riuscita crea un action charge, unknown/failed no;
-   - credito zero blocca un nuovo agent task ma non approve/cancel e non impedisce
-     l'esecuzione di un commitment già approvato;
-   - la UI e l'invoice riconciliano con il ledger canonico.
+- Lifecycle/analytics connection status and capability gaps;
+- provider outcome and Verification in task detail and digest;
+- metric Evidence and Decision-impact history;
+- financial four-eyes explanation and the eligible approver state;
+- credit balance, consumption, overage, blocked-work explanation, and billing
+  documents;
+- no estimated provider cost presented as a canonical charge.
+
+### Mandatory journeys
+
+1. **Provider feedback**
+   - an asynchronous commitment is accepted and later verified;
+   - pending and final states are canonical and visible;
+   - a qualifying Plan gets the distinct terminal wake-up from Phase 2;
+   - the poll remains origin-free and grants no authority.
+2. **Intent acceptance and Decision impact**
+   - an eligible Intent-bound kind produces validated acceptance Evidence and
+     the exact acceptance Verification/settlement path;
+   - an ineligible kind's non-null `intent_acceptance` is rejected;
+   - a measurable Decision creates its future Growth task;
+   - Growth reads metrics, creates Evidence and Verification;
+   - reconsideration remains a report until a human records a new Decision.
+3. **Four-eyes financial commitment**
+   - the Intent author cannot approve the financial proposal;
+   - another currently authorized Member can approve it;
+   - exactly one direct provider operation and Result occur;
+   - replay and concurrency do not bypass separation of duties.
+4. **Economics**
+   - a billable step creates exactly one model charge;
+   - replay of the same event id does not duplicate it;
+   - a successful priced action creates one action charge; unknown/failed do not;
+   - zero credit blocks a new agent task but not a CMO conversation,
+     approve/cancel, or an already approved direct execution;
+   - UI and invoice reconcile to the canonical ledger.
 
 ### Exit gate
 
-La fase è conclusa quando i tre viaggi passano con clock e provider deterministici
-in CI e con Resend, analytics, AI Gateway e billing sandbox reali in staging. Un
-report aggregato AI Gateway non può essere l'unica prova: test e canary devono
-mostrare session event, ledger row, Action/Verification e proiezione utente
-corrispondenti.
+Phase 3 is complete when all four journeys pass with deterministic clock and
+providers in CI and with Resend, analytics, AI Gateway, and billing sandbox in
+staging. At least one eligible Intent-acceptance path and one financial four-eyes
+path must be proven end to end. An aggregate AI Gateway report is insufficient:
+tests and canaries must show the corresponding session event, ledger row,
+Action/Verification, and user projection.
 
 ---
 
-## Fase 4 - Scale, canale MCP e self-service pubblico
+## Phase 4 - Scale, MCP channel, and public self-service
 
-### Stato finale
+### End state
 
-L'applicazione è utilizzabile self-service da un nuovo cliente e da un caller
-agent-native nei confini approvati. Growth può preparare lavoro ads, ma ogni
-commitment resta umano. Il sistema possiede deployment, sicurezza, osservabilità,
-supporto e recovery sufficienti per un lancio pubblico controllato.
+A new customer or agent-native caller can use the application self-service
+within the approved boundaries. Growth can prepare ads work, but every external
+commitment remains human-authorized. The system has the deployment, security,
+privacy export, observability, support, and recovery required for a controlled
+public launch.
 
-### Work package inclusi
+### Included work packages
 
-#### Prodotto pubblico
+#### Public product
 
-- completare `apps/web` con posizionamento, pricing reale, login/signup, privacy,
-  termini e stato servizio;
-- collegare signup a creazione org/brand e onboarding della Fase 0;
-- aggiungere gestione Member/ruoli e offboarding senza hard-delete dell'Actor;
-- rendere espliciti piano, allowance, overage e capability incluse;
-- verificare l'intero funnel su mobile e desktop, non soltanto la landing.
+- complete `apps/web` with truthful positioning/pricing, sign-in/sign-up,
+  privacy, terms, and service status;
+- connect sign-up to organization/brand creation and Phase 0 onboarding;
+- add Member/role management and offboarding without hard-deleting the Actor;
+- make plan, allowance, overage, and included capabilities explicit;
+- verify the complete funnel on mobile and desktop, not only the landing page.
 
-#### MCP e agent-native
+#### MCP and agent-native use
 
-- implementare MCP server read-by-default con tenant binding e scope chiusi;
-- consentire write soltanto tramite boundary già esistenti e typed receipts;
-- implementare signup/deep-link handoff quando manca organizzazione, brand o
-  connection;
-- offrire polling di task/approval/result senza rendere il caller MCP
-  l'approvatore;
-- testare caller malevoli, guessed ids e tentativi cross-tenant.
+- implement a read-by-default MCP server with tenant binding and closed scopes;
+- allow writes only through existing boundaries and typed receipts;
+- implement sign-up/deep-link handoff when organization, brand, or connection is
+  missing;
+- expose task/commitment status polling without making the MCP caller an
+  approver;
+- test malicious callers, guessed ids, and cross-tenant attempts.
 
-#### Growth e deployment scale
+#### Growth and deployment scale
 
-- aggiungere le connessioni ads registrate al root Growth;
-- mantenere prepare/commit separati e spend sempre dietro Approval;
-- completare i sette deployment Eve e il lookup opzionale brand -> endpoint
-  dedicato;
-- verificare OIDC, Connect links, env e manifest registry identici in ogni
-  progetto interessato;
-- implementare rollout e rollback compatibili con template retired e sessioni
-  già accettate.
+- add registered ads connections to the Growth root;
+- keep prepare/commit separate and every spend behind Approval and Phase 3
+  four-eyes when classified `financial`; a Plan-routed or origin-free financial
+  ads kind remains unavailable until its comparison-subject rule is ratified;
+- retain the Phase 0 brand-endpoint resolver and add optional per-brand dedicated
+  endpoint overrides; do not add a second routing path;
+- extend the payload-free fleet wake-up to the deduplicated inventory of shared
+  and dedicated root endpoints, without adding brand or task payload to
+  `/internal/dispatch`;
+- complete and verify all seven Eve deployments;
+- verify OIDC, Connect links, environment, and registry manifests in every
+  affected project;
+- implement rollout/rollback compatible with retired templates and accepted
+  sessions/tasks.
+
+#### Organization-wide GDPR export and retention
+
+- turn ADR-011's deferred export into an explicit implementation contract before
+  coding: eligible requester roles, included data classes, transcript treatment,
+  delivery method, expiry, audit, and billing-document retention;
+- implement an organization-wide export through a trusted human boundary with
+  tenant checks and an immutable audit receipt;
+- include canonical graph/account data required by the contract without turning
+  visible Action session locators into a transcript read capability;
+- preserve owner-private conversation rules in the live product while applying
+  the explicit legal export contract, and redact provider secrets/tokens;
+- test large exports, replay, expiry, removed Member, viewer, wrong organization,
+  and deletion/retention behavior;
+- keep provider-resource cleanup out of brand cascade unless a provider-specific
+  contract explicitly adds it.
 
 #### Production hardening
 
-- rate limit e abuse protection su signup, proxy, MCP e endpoint interni;
-- SLO, dashboard, alert, trace correlation e runbook incidenti;
-- backup e prova di restore Neon, verifica Blob references e recovery dei task;
-- load test su CMO stream, dispatcher, task claim, Plan publication e cron;
-- security review di auth, tenancy, SSRF/egress, provider payload e secret
+- rate limiting and abuse protection on sign-up, proxy, MCP, and internal
+  endpoints;
+- SLOs, dashboards, alerts, trace correlation, and incident runbooks;
+- Neon backup/restore exercise, Blob-reference verification, and task recovery;
+- load tests for CMO streaming, dispatch, task claim, Plan publication, and cron;
+- security review of auth, tenancy, SSRF/egress, provider payloads, and secret
   redaction;
-- browser support, performance budgets, visual regression, screen-reader smoke e
-  accessibility audit finale;
-- feature flag e rollout a coorti con rollback verificato;
-- support tooling che espone receipts e provenance senza mostrare transcript
-  privati a un altro Member o operatore non autorizzato.
+- browser support, performance budgets, visual regression, screen-reader smoke,
+  and final accessibility audit;
+- cohort feature flags with a verified rollback;
+- support tooling that exposes receipts/provenance without revealing another
+  Member's private transcript.
 
-### Viaggi obbligatori
+### Mandatory journeys
 
-1. **Self-service umano**
-   - visita `apps/web`;
-   - signup e creazione brand;
-   - onboarding/Context/Intent/CMO;
-   - Strategy e primo Plan;
-   - primo Artifact e commitment approvato;
-   - outcome, Verification e addebito leggibili.
-2. **Agent-native**
-   - un caller MCP autenticato legge il brand;
-   - una capability mancante restituisce un handoff brand-scoped;
-   - l'umano completa connection o approval in console;
-   - il caller osserva il receipt terminale senza poter approvare da solo.
-3. **Ads**
-   - Growth prepara una proposta su account di test;
-   - la preview mostra target, budget e conseguenza;
-   - il click umano crea una sola operazione esterna e Result verificabile;
-   - replay, stale revision e credito zero rispettano i boundary precedenti.
-4. **Recovery operativo**
-   - restore da backup in ambiente isolato;
-   - redeploy/rollback durante task e sessioni attive;
-   - Cron duplicato, provider timeout e root temporaneamente indisponibile;
-   - nessuna doppia commitment e recovery tramite receipt/recheck previsto.
+1. **Human self-service**
+   - visit `apps/web`;
+   - sign up and create a brand;
+   - complete Context/Intent/CMO onboarding;
+   - record Strategy and create the first Plan;
+   - produce an Artifact and approve one commitment;
+   - read its outcome, Verification, and charge.
+2. **Agent-native journey**
+   - an authenticated MCP caller reads a brand;
+   - a missing capability returns a brand-scoped handoff;
+   - a human completes connection or Approval in the console;
+   - the caller observes the terminal receipt without approving it.
+3. **Ads and dedicated endpoint**
+   - Growth prepares a proposal for a test account;
+   - preview states target, budget, and consequence;
+   - an eligible human approves exactly one external operation under four-eyes;
+   - one brand is routed through an endpoint override while another uses the
+     default, with identical tenant and receipt guarantees.
+4. **GDPR export**
+   - an eligible organization Member requests an export;
+   - the export contains exactly the ratified data classes and no secrets;
+   - replay returns the same job/receipt rather than duplicating work;
+   - an ineligible or cross-tenant requester receives no metadata or file;
+   - retention/expiry and audit behavior match the ratified contract.
+5. **Operational recovery**
+   - restore a backup in an isolated environment;
+   - redeploy/rollback during active tasks and sessions;
+   - exercise duplicate Cron, provider timeout, and temporary root outage;
+   - no commitment is duplicated and recovery uses the specified receipt/recheck
+     path.
 
 ### Exit gate
 
-La fase è conclusa quando tutti i viaggi passano in un ambiente production-like e
-un piccolo cohort reale completa il journey self-service con monitoraggio attivo.
-Prima della GA devono essere provati restore, rollback, isolamento tenant,
-approvazione esterna, riconciliazione economica e support escalation. “CI verde”,
-“deploy riuscito” o “primo messaggio del CMO” non sono criteri sufficienti.
+Phase 4 is complete when all five journeys pass in a production-like environment
+and a small real cohort completes self-service under active monitoring. Before
+GA, the team must prove restore, rollback, tenant isolation, external approval,
+economic reconciliation, GDPR export, and support escalation. Green CI, a
+successful deployment, or the first CMO message is not sufficient.
 
-## Matrice di copertura
+## Coverage matrix
 
-| Area | Fase proprietaria | Cresce nelle fasi successive |
+| Area | Owning phase | Extended later |
 | --- | --- | --- |
-| Toolchain, CI, test harness, visual system | 0 | tutte |
-| Better Auth, org, Member, brand, Actor | 0 | 4 per self-service/offboarding |
-| Intent, Action, Object, Brain, Policy | 0 | tutte |
-| Context.dev, Blob, Brand Context | 0 | 1-4 per nuovi Artifact |
-| Eve CMO, Product Marketer, sessioni private | 0 | 2-4 |
-| Task, registry, dispatcher, task completion | 0-1 | tutte |
-| Content, Distribution, SEO | 1 | 2-4 |
+| Toolchain, CI, test harness, visual system | 0 | every phase |
+| Better Auth, organization, Member, brand, Actor | 0 | 4 for public self-service/offboarding |
+| Intent, Action, Object, Brain, Policy | 0 | all; draft proposals in 1, full lifecycle in 2 |
+| Context.dev, Blob, Brand Context | 0 | 1-4 for new Artifacts |
+| Model resolver, Gateway attribution, endpoint lookup | 0 | model overrides in 2, endpoint overrides in 4 |
+| Eve CMO, Product Marketer, private sessions | 0 | 2-4 |
+| Task, registry, dispatcher, completion | 0 | all |
+| Marketing-skills materialization slot | 0 | selected corpus and agents in 1+ |
+| Content, Distribution, SEO, lateral edges | 1 | 2-4 |
+| Draft Intent proposal/adopt/abandon | 1 | lifecycle and Plan staleness in 2 |
 | Vercel Connect, Notion, Typefully | 1 | 3-4 |
-| Approval, direct handler, Result | 1 | 3-4 |
+| Approval, conflict keys, dismissal/reopen, Result | 1 | financial four-eyes in 3 |
 | Decision, Strategy, Plan, wave | 2 | 3-4 |
+| Provider-final Plan wake-up | 2 | more provider kinds in 3-4 |
 | Digest, graph, open questions | 2 | 3-4 |
-| Product cadence e scheduleRecheck | 2 | 3-4 |
+| Product cadence and `scheduleRecheck` | 2 | 3-4 |
 | Lifecycle, Growth, Resend, analytics | 3 | 4 |
-| Verification e feedback | 3 | 4 |
-| Credits, pricing, billing | 3 | 4 |
-| Apps/web self-service, MCP, ads | 4 | esercizio continuo |
-| Osservabilità, sicurezza, recovery | 0 | ogni fase, gate finale in 4 |
+| Intent acceptance and Decision impact | 3 | 4 |
+| Credits, pricing, billing, financial four-eyes | 3 | 4 |
+| Public web, MCP, ads, endpoint overrides | 4 | continuous operations |
+| GDPR export and billing-document retention | 4 | continuous compliance |
+| Observability, security, recovery | 0 | every phase, final gate in 4 |
 
-## Decisioni di prodotto da chiudere prima delle fasi proprietarie
+## Product decisions required before their owning phase exits
 
-Il piano non deve mascherare scelte ancora non fissate. Prima del codice relativo
-servono decisioni esplicite su:
+The plan must not hide choices that are still open. The following decisions are
+required before the corresponding code or exit gate:
 
-- operazione provider che costituisce il primo commitment reale della Fase 1 e
-  contratto credenziali/connector effettivamente disponibile per Notion e
-  Typefully;
-- fonte analytics e set minimo di metriche della Fase 3;
-- catalogo prezzi, plan allowance, provider billing e invoice lifecycle;
-- provider/account sandbox usati dai canary esterni;
-- scope esatto di ads e capability MCP offerte al lancio;
-- SLO, retention operativa e procedura di supporto per il cohort iniziale.
+- the real provider operation used for the first Phase 1 commitment and the
+  actual credential/connector contract available for Notion and Typefully;
+- the first serialized commitment target and conflict-key derivation;
+- the analytics source and minimum metric set for Phase 3;
+- price catalog, allowance, billing provider, and invoice lifecycle;
+- the exact financial effect classes governed by four-eyes;
+- provider/account sandboxes used by external canaries;
+- launch scope for ads and MCP capabilities;
+- requester roles, included data, transcript treatment, delivery, and retention
+  for the Phase 4 GDPR export;
+- SLOs, operational retention, and support process for the initial cohort.
 
-Queste scelte non impediscono di lavorare alle dipendenze precedenti, ma bloccano
-l'exit gate della fase che le possiede.
+These decisions do not block work on earlier dependencies, but they block the
+exit gate of the phase that owns them.
 
-## Strategia di rilascio
+## Release strategy
 
-- **Dopo Fase 0:** alpha fondazionale interna, con onboarding e CMO reali ma
-  nessuna promessa di delivery esterna.
-- **Dopo Fase 1:** beta operativa limitata sul primo connector reale.
-- **Dopo Fase 2:** beta del loop di prodotto completo Strategy -> Plan -> lavoro.
-- **Dopo Fase 3:** beta misurabile e commercialmente contabilizzata.
-- **Dopo Fase 4:** lancio pubblico a coorti, poi GA soltanto dopo evidenza
-  operativa.
+- **After Phase 0:** internal foundational alpha with real onboarding and CMO,
+  but no external-delivery promise.
+- **After Phase 1:** limited operational beta on the first real connector.
+- **After Phase 2:** beta of the complete Strategy -> Plan -> work loop.
+- **After Phase 3:** measurable, economically accounted beta.
+- **After Phase 4:** cohort-based public launch, then GA only after operational
+  evidence.
 
-Ogni rilascio abilita esclusivamente capability che hanno superato il proprio
-exit gate. Le fasi successive non vengono anticipate con CTA morte, dati mock o
-fallback che fingono successo.
+Each release exposes only capabilities that have passed its exit gate. Later
+phases are not previewed through dead controls, mock data, or fallbacks that
+pretend success.
