@@ -255,6 +255,12 @@ earlier, separate "UI phase."
 #### Platform and quality
 
 - align the repository and CI on pnpm 9, Node 24, and Turbo;
+- pin `apps/app` and `agent-cmo` to the same exact Eve version, with no semver
+  range, and fail CI on manifest or resolved-version drift;
+- add an Eve-upgrade gate that replays representative ordered persisted root
+  event-stream fixtures through the candidate version's
+  `defaultMessageReducer()` and compares the resulting `EveMessageData` with
+  the approved projection before either dependency may move;
 - introduce Vitest or an equivalent runner for unit/contract tests, real
   PostgreSQL for integration tests, and Playwright plus Axe for E2E;
 - add CI workflows, failure artifacts, and environment contracts for every app;
@@ -317,6 +323,9 @@ earlier, separate "UI phase."
 - implement the server-side Context.dev adapter for brand kit and crawl;
 - validate, hash, and upload binary variants to Vercel Blob before canonical
   graph commit;
+- implement the authenticated, brand-scoped Blob-delivery boundary: authorize
+  the current organization Member through the Artifact's exact brand path and
+  serve only its canonical `blob_key`; upstream URLs remain provenance only;
 - commit Brand Context v0 and its Artifact through `packages/brain` with Actor
   `system:context-dev`;
 - expose explicit retry and an import status projection without manufacturing a
@@ -355,7 +364,8 @@ earlier, separate "UI phase."
 - minimal landing/sign-in in `apps/web`;
 - organization/brand onboarding, website, initial Intent, and import status in
   `apps/app`;
-- console v0 with brand switcher, Intent detail, Object browser, and provenance;
+- console v0 with brand switcher, Intent detail, Object browser, authenticated
+  preview/download for canonical Brand Context binaries, and provenance;
 - minimal Work detail for the Product Marketer task, including outputs and open
   questions;
 - private CMO with send, stream, stop, reload, and read-only fallback;
@@ -370,6 +380,8 @@ earlier, separate "UI phase."
    - declare human Intent active revision 1;
    - run the Context.dev adapter;
    - create Brand Context and Artifact with producing Action;
+   - preview/download the mirrored binary through the authenticated Blob-delivery
+     route, while an unauthenticated or cross-brand request fails closed;
    - traverse from the browser to the exact Actor and provenance.
 2. **CMO refinement**
    - the owner opens their own conversation;
@@ -403,8 +415,10 @@ Context.dev, Blob, Neon, and a real AI Gateway model. Product Marketer must crea
 at least one task-linked Object. Every root must pass build and health checks,
 the endpoint resolver must be used by every brand-addressed proxy/client even
 though it returns one shared deployment, and the marketing-skill materialization
-slot must run before `eve build`. A fixture-only console does not close the
-phase.
+slot must run before `eve build`. CI must also prove exact `apps/app`/`agent-cmo`
+Eve-version parity and pass the persisted-stream reducer-compatibility fixture
+against the installed candidate version. A fixture-only console does not close
+the phase.
 
 ### Not active yet
 
@@ -528,7 +542,8 @@ canonical Result.
 
 - initial Today view with human-attention items, active work, and recent results;
 - Work list/detail with polling only while work is active;
-- Artifact/Evidence preview, authenticated download, and provenance;
+- extend the Phase 0 authenticated Blob-delivery path to Phase 1 Artifact
+  previews/downloads and Evidence detail, with provenance;
 - Connections with slot, effective account, capability gap, and reconnect;
 - dedicated approval inbox with kind-specific CTA, never "Approve all";
 - separate Intent proposals inbox with Adopt/Abandon;
@@ -667,6 +682,45 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 - build the mechanical digest plus narrative with validated citation refs;
 - complete graph browser, task queue, Intent lifecycle, and Decision history.
 
+#### Agent-authored rechecks
+
+- implement the durable-root-only `scheduleRecheck` tool. Every shipped
+  immediate kind that permits a follow-up declares exactly one deterministic
+  registered `recheckKind`, owned by the same root and using a distinct queue
+  identity. If the source accepts Plan-route origin, the target also declares
+  `acceptsPlanRouteOrigin: true`; a recheck kind may point back to itself;
+- accept from the model only the registry-validated payload, `due_at`, and
+  human-visible rationale. Derive the current Task, target kind, brand, worker,
+  subject, parent, and common-origin branch from trusted Eve/task context and
+  the registry;
+- commit the first cross-kind booking during the tool call through the canonical
+  create-or-reschedule boundary. An Intent-bound booking requires the current
+  Intent to remain active and captures its latest immutable snapshot; a
+  Plan-routed booking preserves null Intent and the exact Plan/Move pair. An
+  origin conflict writes nothing, and a committed booking survives a later
+  source-task failure;
+- when an equivalent running recheck targets itself, atomically replace its one
+  `next_due_at`, `next_payload`, and `next_rationale` tuple with the single
+  `UPDATE ... WHERE id = current_task_id AND status = 'running' RETURNING`
+  transition. A zero-row result returns `task_closed` and never falls back to an
+  insert or reschedule;
+- store only the validated target-kind payload template, `due_at`, and rationale
+  in that staged tuple; never cache a common-origin envelope, Intent snapshot, or
+  parent in `next_*`. Settlement derives the successor origin from canonical
+  source/current-Intent state and its parent from the completed occurrence;
+- process the staged tuple only in terminal settlement. Success creates or
+  observes at most one successor under a source-derived stable key, then clears
+  `next_*`; an Intent-bound successor requires the Intent still be active and
+  captures its then-current revision, while an inactive Intent suppresses the
+  successor without rolling back source success. A Plan-routed successor keeps
+  null Intent and the exact Plan/Move pair. Observing an existing compatible
+  booking preserves that row's origin and parent;
+- failure, cancellation, or direct/automatic exhaustion clears `next_*` and
+  creates no successor. Keep acceptance-first ordering covered by contract
+  tests while every Phase 0-2 kind still rejects non-null `intent_acceptance`;
+- keep this authored mechanism completely separate from registered,
+  human-configured product schedules.
+
 #### Product cadence
 
 - extend the active/retired registry introduced in Phase 0 with executable
@@ -678,8 +732,7 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 - materialize occurrences categorically origin-free with current restrictions
   and `structure_level = null`;
 - introduce the first daily-brief cadence, disabled by default;
-- implement retirement and root-first rollout/rollback from ADR-009;
-- keep task-bound `scheduleRecheck` separate from product schedules.
+- implement retirement and root-first rollout/rollback from ADR-009.
 
 #### User surface
 
@@ -690,8 +743,10 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 - live task queue, cited digest, Intent proposals/lifecycle, and Open questions;
 - registered model-profile override and resolution-chain provenance;
 - Schedules with closed templates, timezone, and next-run status;
-- current, rebuilding, stale, no-ready-moves, blocked, and provider-pending/final
-  Plan states.
+- current, rebuilding, stale, no-ready-moves, and blocked Plan states;
+- provider-pending/final Plan states only when a shipped commitment kind declares
+  a durable `verificationPoll` and accepts/preserves Plan-route origin; otherwise
+  no production provider-final UI is exposed.
 
 ### Mandatory journeys
 
@@ -735,7 +790,22 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
    - a different current non-viewer Member can answer through their own CMO;
    - the answer does not rerun the task;
    - the resolution Action hides the card and replay converges.
-6. **Cadence**
+6. **Agent-authored recheck**
+   - a production-registered immediate kind schedules its sole registered
+     cross-kind recheck, which remains visible with due time, rationale, origin,
+     and source provenance after the originating Task later fails;
+   - a running recheck schedules itself twice, leaving one complete `next_*`
+     tuple from the last valid database write and no second active booking;
+   - successful settlement creates or observes exactly one successor, clears
+     `next_*`, and replay or a concurrent booking preserves the winning row's
+     existing origin and parent;
+   - an active refined Intent produces a successor with its latest revision, an
+     inactive Intent produces no successor without undoing source success, and a
+     Plan-routed fixture preserves null Intent plus the exact Plan/Move pair;
+   - failed, cancelled, and exhausted settlement produces no successor, while a
+     scheduling call that loses to terminalization returns `task_closed` with no
+     fallback write.
+7. **Cadence**
    - a human enables daily brief with a timezone;
    - a controlled clock reaches the slot;
    - exactly one origin-free occurrence is created;
@@ -744,9 +814,16 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 
 ### Exit gate
 
-Phase 2 is complete when all six journeys pass on real PostgreSQL and Eve with
+Phase 2 is complete when all seven journeys pass on real PostgreSQL and Eve with
 scripted inference, including one Content/Distribution/SEO path from Phase 1 and
-the dedicated provider-final creator contract suite. A browser/staging
+one genuine production-registered immediate/recheck pair. The recheck suite must
+prove registry uniqueness and compatibility, trusted identity derivation,
+cross-kind write durability, the conditional self-recheck update,
+absence of cached origin or parent data in `next_*`, success-coupled
+materialization, current-Intent eligibility, Plan/Move preservation, and
+scheduling-versus-settlement races; a fixture-only kind does not close the
+phase. The dedicated provider-final creator contract suite remains mandatory. A
+browser/staging
 provider-final journey is additionally mandatory when a shipped commitment can
 produce a terminal provider-outcome Verification for a Plan-derived instance;
 otherwise the gate requires the negative registry/compile proof above. In
@@ -775,15 +852,17 @@ short ADR must fix the billing provider, price catalog, invoice cycle, webhooks,
 dispute/refund behavior, and relationship between commercial plan and
 `credit_ledger`.
 
-Before registering the first `financial` effect, the Phase 3 implementation must
-also ratify the ADR-011 four-eyes rule in the closed Policy contract: the
-approving Human Actor cannot be the Intent author. This is segregation of duties,
-not a model judgment or an implied second provider call.
+Before registering the first `financial` effect, a short ADR amending ADR-011
+and ADR-013 must ratify the four-eyes rule and its closed Policy representation.
+For Intent-bound work, the approving Human Actor cannot be the Intent author.
+The Phase 3 implementation must encode that ratified rule; this is segregation
+of duties, not a model judgment or an implied second provider call.
 
 ADR-011 defines that comparison for Intent-bound work but does not identify an
 author for Plan-routed or origin-free financial work. Those branches therefore
-remain fail-closed until a follow-up decision defines a trusted comparison
-subject. Phase 4 ads cannot enable such a financial kind by inference.
+remain fail-closed until a later short ADR amendment defines and ratifies a
+trusted comparison subject. Phase 4 ads cannot enable such a financial kind by
+inference.
 
 ### Included work packages
 
@@ -821,7 +900,7 @@ subject. Phase 4 ads cannot enable such a financial kind by inference.
 - make same-author denial, different-author success, replay, removed Member,
   cross-tenant, and concurrent approval explicit contract/E2E tests;
 - keep Plan-routed and origin-free financial commitments fail-closed until their
-  trusted four-eyes comparison subject is explicitly ratified;
+  trusted four-eyes comparison subject is ratified by the required ADR amendment;
 - keep all financial kinds disabled in the registry until this suite passes.
 
 #### Credits and billing
@@ -900,12 +979,12 @@ public launch.
 
 ### Mandatory preliminary decision
 
-Before registering a financial ads kind, Phase 4 must ratify its actual origin
-branch. If it is Plan-routed or origin-free, the decision must define the trusted
-four-eyes comparison subject, how trusted code derives it, and which evidence is
-frozen at Approval. Until then, the kind and its controls remain unavailable.
-Because the ads journey is mandatory, this unresolved decision blocks the Phase
-4 exit gate.
+Before registering a financial ads kind, a short ADR amendment must ratify its
+actual origin branch. If it is Plan-routed or origin-free, the amendment must
+define the trusted four-eyes comparison subject, how trusted code derives it,
+and which evidence is frozen at Approval. Until that amendment is implemented,
+the kind and its controls remain unavailable. Because the ads journey is
+mandatory, the unresolved amendment blocks the Phase 4 exit gate.
 
 ### Included work packages
 
@@ -933,7 +1012,8 @@ Because the ads journey is mandatory, this unresolved decision blocks the Phase
 - add registered ads connections to the Growth root;
 - keep prepare/commit separate and every spend behind Approval and Phase 3
   four-eyes when classified `financial`; a Plan-routed or origin-free financial
-  ads kind remains unavailable until its comparison-subject rule is ratified;
+  ads kind remains unavailable until its comparison-subject rule is ratified in
+  the required ADR amendment and implemented;
 - retain the Phase 0 brand-endpoint resolver and add optional per-brand dedicated
   endpoint overrides; do not add a second routing path;
 - extend the payload-free fleet wake-up to the deduplicated inventory of shared
@@ -1056,10 +1136,12 @@ required before the corresponding code or exit gate:
   derivation, and provider ordering or conditional-transition guarantee;
 - the analytics source and minimum metric set for Phase 3;
 - price catalog, allowance, billing provider, and invoice lifecycle;
-- the exact financial effect classes governed by four-eyes;
+- the exact financial effect classes governed by four-eyes, recorded in the
+  Phase 3 ADR amendment to ADR-011 and ADR-013;
 - the actual origin branch of every financial ads kind and, for Plan-routed or
   origin-free work, its trusted four-eyes comparison subject, derivation, and
-  Approval-time evidence; this decision blocks the Phase 4 ads journey;
+  Approval-time evidence, recorded in the Phase 4 ADR amendment; this decision
+  blocks the Phase 4 ads journey;
 - provider/account sandboxes used by external canaries;
 - launch scope for ads and MCP capabilities;
 - requester roles, included data, transcript treatment, delivery, and retention
