@@ -24,7 +24,7 @@ requests and work packages, but it is not complete until every mandatory journey
 for that phase is independently testable from the browser down to the canonical
 data or external receipt.
 
-## Verified baseline
+## Verified repository baseline (pre-implementation, 2026-08-14)
 
 At the time of writing, the repository is an advanced architectural
 specification on top of a scaffold, not a partially implemented product:
@@ -75,6 +75,111 @@ detail is ambiguous, the following sources take precedence:
   Strategy, Plan, Verification, and advancement;
 - [ADR-016](../adrs/016-eve-session-state-persistence.md), for conversation
   privacy, persistence, and recovery.
+
+## Fixed technology baseline
+
+These are implementation choices, not open product capabilities. A later change
+that alters a structural contract must follow the ADR amendment rules above.
+
+### Runtime, hosting, and release path
+
+- Pin Node.js to `24.x` in the root engine contract, CI, local tooling, and every
+  Vercel project. Patch releases may advance within that major.
+- Use Vercel Git integration with Turborepo's normal per-project build and
+  unaffected-project skipping. A push to `main` follows the ordinary Vercel
+  production path; v1 adds no custom multi-project release coordinator.
+- Run `apps/app` and all seven database-bound agent roots in `fra1`. Keep
+  `apps/web` globally static; any database-bound Function it later adds also
+  runs in `fra1`. V1 has no multi-region compute. This is a compute/data-locality
+  choice, not a claim that every external provider or model inference stays in
+  the EU.
+- Configure one payload-free Vercel Cron on `apps/app` at `* * * * *`. Immediate
+  post-commit pokes remain the normal dispatch path and the minute Cron is only
+  recovery; it introduces no second queue or lock.
+- Production and non-production runtime projects require Vercel Pro or higher;
+  deployment verification fails if the minute Cron or the uncustomized
+  300-second Fluid Compute maximum duration assumed by ADR-009 is unavailable.
+- Use expand/contract database migrations. The schedule-template retirement
+  sequence required by ADR-009 remains the one exceptional root-first,
+  quiescence, then console rollout/rollback path.
+
+### Database, storage, and calendar
+
+- Run PostgreSQL 17 integration evidence against Docker Compose locally, a
+  `postgres:17` service in GitHub Actions, and a limited Neon canary. Neon
+  branching remains the ordinary per-developer database path.
+- Keep one production Neon project and one non-production Neon project, both in
+  `aws-eu-central-1`. The non-production default branch is the shared
+  development/canary base; there is no separately named persistent Neon staging
+  branch. Every pull-request preview branch is created only from this
+  non-production project.
+- Create an ephemeral Neon branch for each pull-request preview. An idempotent
+  GitHub Action using `neondatabase/delete-branch-action` on
+  `pull_request.closed` deletes that exact preview branch after either merge or
+  closure and must refuse production or default-branch targets.
+- Run `db:migrate` only from the `apps/app` Vercel deployment, using its
+  environment's `DIRECT_DATABASE_URL`. Every other database consumer receives
+  pooled `DATABASE_URL` access only and can never run migrations;
+  `drizzle-kit push` is limited to disposable local databases.
+- Use separate production and non-production private Vercel Blob stores in
+  `fra1`. Hosted store access uses Vercel OIDC instead of a long-lived
+  `BLOB_READ_WRITE_TOKEN`; Better Auth authorizes every user-facing delivery
+  through the server boundary. Browsers never receive a general Blob credential
+  or canonical upstream URL.
+- Use direct, version-pinned `date-fns` and `@date-fns/tz` dependencies in
+  `packages/brain` for one shared configure/dispatch calendar helper. Do not add
+  a Temporal polyfill in v1; a nonexistent spring wall-clock slot is skipped and
+  an autumn fold selects its first occurrence.
+
+### Models and AI Gateway
+
+- Register one Phase 0 model profile shared by the CMO and Product Marketer. Its
+  complete Eve selection uses Vercel AI Gateway model
+  `deepseek/deepseek-v4-pro-0813` and
+  `modelContextWindowTokens: 1_000_000`, matching the public catalog entry. The
+  global compiled fallback and both functional roots' registry defaults resolve
+  to this same versioned profile; resolver failure never changes the model id.
+- Generate every Phase 0 model-bearing wrapper with Eve `reasoning: "high"`.
+  Instructions, tools, and output contracts distinguish the agents; neither the
+  model id nor reasoning setting does. A deterministic boundary fixture must
+  prove that Eve 0.31.3 and the installed AI SDK forward that setting. A deployed
+  canary must prove that the exact snapshot accepts it and returns a reasoning
+  signal without a warning or remap. Failure blocks Phase 0 rather than silently
+  weakening the wrapper.
+- Let AI Gateway use its default provider routing only among providers serving
+  that exact model id. Leave Gateway `models`, `order`, `only`, and `sort`
+  options unset; do not add cross-model fallback or enable team-level model
+  rewrite rules. Record the actual provider and attempt metadata diagnostically.
+  If no route for the exact model succeeds, fail visibly and use the ordinary
+  retry path.
+- Resolve the complete Eve selection once at `session.started`, not at every
+  step. Do not set `compaction.thresholdPercent`; a version-pinned fixture must
+  assert that Eve 0.31.3's effective default remains `0.9`. Process the model's
+  canonical textual representation; native multimodal input is not a Phase 0
+  requirement.
+- Use Vercel OIDC for hosted Gateway authentication and `vercel env pull` for
+  local development. CI uses scripted inference; the deployed canary uses the
+  real model. Phase 0 imposes no ZDR or no-training procurement requirement.
+
+### Tests and observability
+
+- Use Vitest as the only unit, contract, and integration runner. Pure units may
+  use fakes; domain contracts, migrations, concurrency, replay, and integration
+  suites run against real PostgreSQL. Playwright remains the browser E2E runner
+  and Axe supplies automated accessibility checks. Do not add Jest,
+  Testcontainers, Vitest Browser Mode, or Storybook in v1.
+- Integrate PostHog Product Analytics and Error Tracking manually with its
+  official wizard and review the generated diff. Add a separate version-pinned
+  OpenTelemetry exporter for OTLP logs. Enable both only in production against
+  EU Cloud at `https://eu.i.posthog.com` as best-effort operational/product
+  telemetry. Vercel Runtime Logs remain platform diagnostics and PostgreSQL
+  remains canonical product/audit state; PostHog cannot write Evidence or
+  replace `session_events`, `credit_ledger`, Actions, or receipts.
+- PostHog must never receive prompts, model outputs, private CMO transcripts,
+  request bodies, provider secrets, or sensitive canonical payloads. Session
+  Replay is disabled. Use an explicit event/property allowlist, pre-export
+  redaction, and production source-map upload. Do not introduce feature-flag
+  infrastructure in the current plan.
 
 ## Execution rules
 
@@ -193,7 +298,8 @@ Every phase also requires the following evidence.
 - `eve build`, health check, and one complete session for every changed root;
 - test-only provider adapters that record calls and receipts without making an
   external request;
-- a separate staging canary with a real model or provider when first introduced.
+- a separate non-production canary with a real model or provider when first
+  introduced.
   The canary supplements deterministic CI and never replaces it.
 
 ### Browser and product
@@ -254,16 +360,24 @@ earlier, separate "UI phase."
 
 #### Platform and quality
 
-- align the repository and CI on pnpm 9, Node 24, and Turbo;
+- align the repository, local tooling, CI, and every Vercel project on pnpm 9,
+  Node `24.x`, and Turbo;
 - pin `apps/app` and `agent-cmo` to the same exact Eve version, with no semver
   range, and fail CI on manifest or resolved-version drift;
 - add an Eve-upgrade gate that replays representative ordered persisted root
   event-stream fixtures through the candidate version's
   `defaultMessageReducer()` and compares the resulting `EveMessageData` with
   the approved projection before either dependency may move;
-- introduce Vitest or an equivalent runner for unit/contract tests, real
-  PostgreSQL for integration tests, and Playwright plus Axe for E2E;
+- introduce Vitest for unit, contract, and real-PostgreSQL integration tests,
+  with Playwright plus Axe reserved for browser E2E;
+- provide PostgreSQL 17 for integration suites through Docker Compose locally
+  and a `postgres:17` service in GitHub Actions; keep limited hosted Neon
+  canaries separate from the deterministic integration suite;
 - add CI workflows, failure artifacts, and environment contracts for every app;
+- integrate production-only PostHog EU Product Analytics/Error Tracking through
+  the reviewed official-wizard output and OTLP logs through the pinned exporter.
+  Add event/property allowlist and redaction tests, assert zero PostHog network
+  emission in CI and non-production, and keep Session Replay disabled;
 - run `apps/web` on port 3000 and `apps/app` on port 3001 as two distinct
   Playwright `webServer` processes;
 - create server-only fixtures, a controlled clock, and a scripted inference
@@ -276,8 +390,12 @@ earlier, separate "UI phase."
 
 - create `packages/env`, `packages/db`, `packages/policy`, `packages/brain`, and
   the registry core in `packages/agents`;
-- configure Drizzle and `pg.Pool` against the pooled Neon URL, with a direct
-  connection for migrations;
+- configure Drizzle and `pg.Pool` against the pooled Neon URL. Provision the
+  production and non-production projects plus per-PR preview branches described
+  in the fixed baseline;
+- add `db:migrate` to the `apps/app` Vercel deployment only, using
+  `DIRECT_DATABASE_URL`, and add idempotent `pull_request.closed` cleanup for the
+  exact Neon preview branch. Agent roots never receive the direct URL;
 - implement Better Auth User, organization, Member, and Google sign-in;
 - implement brand, Human/System/Agent Actor, active human Intent, Action, Object,
   Blob reference, task, completion, and operation receipt needed by the phase;
@@ -298,6 +416,10 @@ earlier, separate "UI phase."
 
 - build one shared model-config factory in `packages/agents` and use it in every
   generated model-bearing wrapper;
+- register the single Phase 0 `deepseek/deepseek-v4-pro-0813` selection with a
+  `1_000_000`-token context window as both functional roots' default and the
+  global fallback. Generate both wrappers with Eve `reasoning: "high"`, and
+  block the phase unless the boundary fixture and deployed canary pass;
 - implement the fixed resolution order: global compiled fallback, then the
   per-specialist registry default, then an active per-brand `model_override`
   Decision selecting only a registered `model_profile_key`. In Phase 0 the third
@@ -305,6 +427,10 @@ earlier, separate "UI phase."
   already exist;
 - return the complete Eve selection object and merge existing model and provider
   options rather than replacing them;
+- resolve that selection once at `session.started`, leave the compaction
+  threshold unset while asserting Eve's version-pinned `0.9` default, and use
+  Gateway default provider routing for the exact model only, with no cross-model
+  fallback or model rewrite rule;
 - reserve trusted `gateway.user = brand_id` and registry-derived
   agent/feature/lane/environment tags; browser, model, and task payload cannot
   override them;
@@ -323,6 +449,8 @@ earlier, separate "UI phase."
 - implement the server-side Context.dev adapter for brand kit and crawl;
 - validate, hash, and upload binary variants to Vercel Blob before canonical
   graph commit;
+- bind hosted uploads to separate production/non-production private `fra1` Blob
+  stores through Vercel OIDC;
 - implement the authenticated, brand-scoped Blob-delivery boundary: authorize
   the current organization Member through the Artifact's exact brand path and
   serve only its canonical `blob_key`; upstream URLs remain provenance only;
@@ -345,8 +473,9 @@ earlier, separate "UI phase."
 - include `intent_acceptance` in the common completion schema, while every
   Phase 0-2 kind is registered ineligible and `finishTask` rejects a non-null
   value;
-- implement queue, claim, Vercel Cron fan-out, and payload-free dispatch for that
-  task. Later phases extend this mechanism and do not introduce another queue;
+- implement queue, claim, and payload-free dispatch for that task. Configure the
+  sole Vercel Cron on `apps/app` at `* * * * *` as recovery for missed immediate
+  pokes. Later phases extend this mechanism and do not introduce another queue;
 - retain a `partial | blocked` completion and show its questions in task detail.
   Any current non-viewer Member may answer them from that Member's own top-level
   CMO conversation; this is not restricted to the original task requester. A
@@ -425,15 +554,23 @@ earlier, separate "UI phase."
 ### Exit gate
 
 Phase 0 is complete when all four journeys pass in CI through the real boundaries
-with scripted Context.dev and inference, then pass in staging with Google auth,
-Context.dev, Blob, Neon, and a real AI Gateway model. Product Marketer must create
+with scripted Context.dev and inference, then pass in the non-production canary
+with Google auth, Context.dev, Blob, Neon, and the exact real AI Gateway profile.
+The canary must also prove that the exact snapshot accepts `high`, returns a
+reasoning signal, and reports no warning or remap. Product Marketer must create
 at least one task-linked Object. Every root must pass build and health checks,
 the endpoint resolver must be used by every brand-addressed proxy/client even
 though it returns one shared deployment, and the marketing-skill materialization
 slot must run before `eve build`. CI must also prove exact `apps/app`/`agent-cmo`
 Eve-version parity and pass the persisted-stream reducer-compatibility fixture
-against the installed candidate version. A fixture-only console does not close
-the phase.
+against the installed candidate version. Deployment-manifest checks must prove
+Node `24.x`, `fra1` for database-bound compute, exactly one minute Cron in
+`apps/app`, correct environment-specific Neon and Blob bindings, no production
+secret in previews, and zero non-production PostHog emission. After the
+production deployment, a sanitized smoke must deliver one allowlisted Product
+Analytics event, one handled client error, one handled server error, and one
+redacted OTLP log without using real prompts, bodies, or transcripts. A
+fixture-only console does not close the phase.
 
 ### Not active yet
 
@@ -608,7 +745,8 @@ canonical Result.
 ### Exit gate
 
 Phase 1 is complete when all four journeys pass with deterministic providers in
-CI and every connector declared for v1 passes in a staging workspace/account.
+CI and every connector declared for v1 passes in a non-production
+workspace/account.
 The canary must prove provider call, Result Action, and read-back rather than only
 an HTTP 200. The Content-to-Distribution lateral, one draft Intent adoption, one
 dismissal/reopen flow must be browser-visible and verified against canonical
@@ -755,7 +893,10 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 - for every new active template, run explicit `reconcileBrandSchedules` backfill
   for existing brands and prove it does not overwrite configuration or cursor;
 - implement human `configureSchedule` with revision CAS;
-- use one shared, versioned wall-clock/DST helper;
+- implement the one shared configure/dispatch wall-clock helper in
+  `packages/brain` with direct, version-pinned `date-fns` and `@date-fns/tz`
+  dependencies. Skip a nonexistent spring slot and choose the first instant in
+  an autumn fold;
 - materialize occurrences categorically origin-free with current restrictions
   and `structure_level = null`;
 - introduce the first daily-brief cadence, disabled by default;
@@ -867,20 +1008,21 @@ and closed-fixture suite are always mandatory and must prove registry uniqueness
 and compatibility, trusted identity derivation, cross-kind write durability,
 the conditional self-recheck update, absence of cached origin or parent data in
 `next_*`, success-coupled materialization, current-Intent eligibility, Plan/Move
-preservation, and scheduling-versus-settlement races. A browser/staging recheck
-journey with a genuine production-registered immediate/recheck pair is
+preservation, and scheduling-versus-settlement races. A browser/non-production
+recheck journey with a genuine production-registered immediate/recheck pair is
 additionally mandatory when a shipped immediate kind declares `recheckKind`; a
 fixture-only kind cannot satisfy that positive branch. Otherwise the gate
 requires the negative registry/compile and production-manifest proof above. The
 dedicated provider-final creator contract suite remains mandatory. A
-browser/staging provider-final journey is additionally mandatory when a shipped
-commitment can produce a terminal provider-outcome Verification for a
+browser/non-production provider-final journey is additionally mandatory when a
+shipped commitment can produce a terminal provider-outcome Verification for a
 Plan-derived instance; otherwise the gate requires the negative registry/compile
-proof above. In
-staging, a real model must complete presentation, Decision, rebuild, and Plan
-evaluation. A real Cron must materialize daily brief for a staging brand without
-performing an unapproved external commitment. No Phase 0-2 kind may persist
-non-null `intent_acceptance`.
+proof above. In the non-production canary, a real model must complete
+presentation, Decision, rebuild, and Plan evaluation. Preview and CI coverage
+invokes the authenticated Cron route deterministically; after production deploy,
+the actual minute schedule must materialize daily brief for a dedicated canary
+brand without performing an unapproved external commitment. No Phase 0-2 kind
+may persist non-null `intent_acceptance`.
 
 ---
 
@@ -919,7 +1061,8 @@ inference.
 #### Agents and connections
 
 - make Lifecycle and Growth functional;
-- add Resend for lifecycle and one registered analytics source;
+- add Resend for lifecycle and one registered brand-owned measurement source;
+  internal PostHog telemetry cannot satisfy this Growth capability;
 - add read-only metric tools and idempotent preparation operations;
 - keep every external send in the `direct/human` lane;
 - show capability/data gaps instead of inventing metrics.
@@ -1009,9 +1152,10 @@ inference.
 ### Exit gate
 
 Phase 3 is complete when all four journeys pass with deterministic clock and
-providers in CI and with Resend, analytics, AI Gateway, and billing sandbox in
-staging. At least one eligible Intent-acceptance path and one financial four-eyes
-path must be proven end to end. An aggregate AI Gateway report is insufficient:
+providers in CI and with Resend, analytics, AI Gateway, and billing sandboxes in
+the non-production environment. At least one eligible Intent-acceptance path and
+one financial four-eyes path must be proven end to end. An aggregate AI Gateway
+report is insufficient:
 tests and canaries must show the corresponding session event, ledger row,
 Action/Verification, and user projection.
 
@@ -1102,7 +1246,6 @@ mandatory, the unresolved amendment blocks the Phase 4 exit gate.
   redaction;
 - browser support, performance budgets, visual regression, screen-reader smoke,
   and final accessibility audit;
-- cohort feature flags with a verified rollback;
 - support tooling that exposes receipts/provenance without revealing another
   Member's private transcript.
 
@@ -1184,7 +1327,8 @@ required before the corresponding code or exit gate:
 - the `independent | serialized` classification of every shipped commitment
   kind and, for each serialized kind, its trusted target, conflict-key
   derivation, and provider ordering or conditional-transition guarantee;
-- the analytics source and minimum metric set for Phase 3;
+- the first brand-owned connected measurement source and minimum metric set for
+  Phase 3; internal PostHog telemetry cannot satisfy this product capability;
 - the first production Intent-bound task kind eligible to emit non-null
   `intent_acceptance`, including its acceptance Evidence Object types,
   same-task production path, and `satisfied | not_satisfied | inconclusive`
@@ -1207,6 +1351,13 @@ These decisions do not block work on earlier dependencies, but they block the
 exit gate of the phase that owns them.
 
 ## Release strategy
+
+Ordinary releases use Vercel Git integration and Turborepo's project graph;
+`main` deploys through the standard production path and unaffected projects may
+be skipped. The plan does not add a custom promotion coordinator or a separate
+persistent Neon staging branch. Database changes remain expand/contract. Only
+the explicit schedule-template retirement protocol overrides the ordinary
+deployment order.
 
 - **After Phase 0:** internal foundational alpha with real onboarding and CMO,
   but no external-delivery promise.
