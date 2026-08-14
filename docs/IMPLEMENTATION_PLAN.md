@@ -1,4 +1,4 @@
-# Magister end-to-end implementation plan
+# branderize-cmo end-to-end implementation plan
 
 ## Purpose
 
@@ -438,6 +438,12 @@ canonical Result.
   workspace extension before `eve build`;
 - generate thin local wrappers, tool sets, output contracts, sandboxes, model
   config, and supported task kinds;
+- extend the top-level CMO `request_specialist_work` allowlist from the Phase 0
+  Product Marketer kind to the enabled Content, Distribution, and SEO Discovery
+  kinds. The same current-human, unambiguous-active-Intent, Policy, capability,
+  and credit guards continue to apply; the CMO gains no raw origin selector.
+  Root-to-root creation remains available only through the separately registered
+  `request_lateral_work` edges;
 - extend the Phase 0 queue, claim, and dispatcher to the new roots and kinds,
   including settlement, cancel, and complete task output inventory. Recovery may
   retry only an unproven handoff; after session binding there is no redispatch;
@@ -483,7 +489,14 @@ canonical Result.
 - implement `direct/human` tasks, closed renderer, edit, approve, cancel, and the
   one-shot deterministic direct handler;
 - evaluate the current Member and Policy at the click, then freeze Approval,
-  canonical payload, price, and provider/account identity;
+  exact task id/revision, final payload hash, effect signature, authorized
+  external-effect cost bound, Policy snapshot, resolved billing snapshot, and
+  the conflict key when the kind is serialized;
+- resolve the brand-owned current active provider connection at execution time,
+  and record the effective provider/account identity only in the Result receipt.
+  Provider kind/slot and connector operation remain registry-fixed and are
+  validated at Approval and claim, but v1 does not pin a provider account or
+  connection id in the Approval Action;
 - append the Result and settlement under the exact ADR-019 transaction rules;
 - require every registered commitment kind to declare `independent` or
   `serialized`. Independent kinds have no conflict key; serialized kinds derive
@@ -494,7 +507,8 @@ canonical Result.
   claim. Distinct proposals may coexist in `awaiting_approval`; only the losing
   Approval click returns `target_busy`. It is a diagnostic, not a Task status:
   the proposal remains `awaiting_approval`, no Approval Action or FIFO waiter is
-  created, and a human must click again after the blocker terminalizes;
+  created, and a human must click again after the blocker terminalizes. Conflict
+  derivation never depends on the execution-time connection id;
 - restrict every Phase 1 commitment kind to non-financial effects. Financial
   kinds cannot be registered until the Phase 3 four-eyes rule exists;
 - implement `dismissed` plus its Dismissal Action and exact remembered identity
@@ -518,9 +532,10 @@ canonical Result.
 - Connections with slot, effective account, capability gap, and reconnect;
 - dedicated approval inbox with kind-specific CTA, never "Approve all";
 - separate Intent proposals inbox with Adopt/Abandon;
-- explicit stale, busy/`target_busy`, queued, running, failed,
+- explicit stale, queued, running, failed,
   `outcome_unknown`, expired, `needs_regeneration`, dismissed, superseded, and
-  reopened states.
+  reopened states, plus busy/`target_busy` only when an enabled kind declares
+  serialized concurrency.
 
 ### Mandatory journeys
 
@@ -545,9 +560,13 @@ canonical Result.
      readable after reload.
 4. **Serialization, dismissal, and authority**
    - two independent proposals may proceed concurrently;
-   - two serialized proposals for the same target coexist while awaiting human
-     review, then two Approval clicks produce one winner and one `target_busy`
-     diagnostic with no Approval Action or queued waiter;
+   - if any shipped kind is `serialized`, two proposals for the same target
+     coexist while awaiting human review, then two Approval clicks produce one
+     winner and one `target_busy` diagnostic with no Approval Action or queued
+     waiter;
+   - otherwise registry/compile tests prove every shipped kind is explicitly
+     `independent`, the serialized mechanism still passes its closed server-side
+     contract fixture, and no `target_busy` control or state is rendered;
    - dismissal prevents the exact remembered proposal from silently returning;
    - an explicit Reopen Action permits a new proposal without reactivating the
      old Task or erasing history;
@@ -560,8 +579,12 @@ Phase 1 is complete when all four journeys pass with deterministic providers in
 CI and every connector declared for v1 passes in a staging workspace/account.
 The canary must prove provider call, Result Action, and read-back rather than only
 an HTTP 200. The Content-to-Distribution lateral, one draft Intent adoption, one
-serialized conflict, and dismissal/reopen must be browser-visible and verified
-against canonical rows. Secrets must never appear in graph or stream. Notion and
+dismissal/reopen flow must be browser-visible and verified against canonical
+rows. The serialized conflict mechanism and its concurrency contract tests are
+always mandatory. Its `target_busy` branch is browser-visible only when a shipped
+Phase 1 kind is registered as `serialized`; otherwise registry/compile tests must
+prove every shipped kind is explicitly `independent` and the UI must expose no
+conflict capability. Secrets must never appear in graph or stream. Notion and
 Typefully are not delivered until each has a dedicated journey and canary. If v1
 is reduced to one provider, roadmap, registry, and Connections UI must change in
 the same commit; the second provider cannot remain a false promise.
@@ -682,8 +705,9 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 2. **Registered model override**
    - without an override, a new specialist session uses its registry default;
    - a human records an override that selects a registered profile;
-   - a new session uses that profile while preserving context-window options,
-     provider options, and trusted Gateway attribution;
+   - a new session returns that profile's complete selection object
+     `{ model, modelContextWindowTokens, modelOptions }`, with provider options
+     merged non-destructively and trusted Gateway attribution applied;
    - supersession updates only later sessions, exact provenance remains visible,
      and an unknown profile cannot be recorded or resolved.
 3. **Plan recovery and Intent lifecycle**
@@ -693,12 +717,18 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
    - Rebuild publishes a new current head without cancelling accepted work;
    - a lost best-effort signal is recoverable with human Recheck.
 4. **Asynchronous provider-final wake-up**
-   - a Plan-derived commitment is accepted and triggers the first evaluation;
+   - when a shipped Phase 1-2 commitment declares eventual Verification through
+     a durable `verificationPoll` and accepts/preserves Plan-route origin, a
+     Plan-derived instance is accepted and triggers the first evaluation;
    - its poll records pending without waking the Plan;
    - a terminal Verification uses a distinct key and requests a second
      evaluation through the original commitment ancestry;
    - replay converges, a stale/unmapped Plan produces no write, and the poll
-     remains origin-free.
+     remains origin-free;
+   - the dedicated creator and its pending/non-Plan/stale/broken-chain contract
+     tests are always mandatory through a closed server-side fixture;
+   - when no shipped commitment declares that capability, registry/compile tests
+     prove the absence and no production provider-final UI is exposed.
 5. **Open questions**
    - a task completes `partial | blocked` with questions;
    - a shared card appears;
@@ -716,10 +746,14 @@ and the first brand-wide cadence can be enabled without manufacturing authority.
 
 Phase 2 is complete when all six journeys pass on real PostgreSQL and Eve with
 scripted inference, including one Content/Distribution/SEO path from Phase 1 and
-one qualifying provider-final Verification. In staging, a real model must
-complete presentation, Decision, rebuild, and Plan evaluation. A real Cron must
-materialize daily brief for a staging brand without performing an unapproved
-external commitment. No Phase 0-2 kind may persist non-null `intent_acceptance`.
+the dedicated provider-final creator contract suite. A browser/staging
+provider-final journey is additionally mandatory when a shipped commitment can
+produce a terminal provider-outcome Verification for a Plan-derived instance;
+otherwise the gate requires the negative registry/compile proof above. In
+staging, a real model must complete presentation, Decision, rebuild, and Plan
+evaluation. A real Cron must materialize daily brief for a staging brand without
+performing an unapproved external commitment. No Phase 0-2 kind may persist
+non-null `intent_acceptance`.
 
 ---
 
@@ -727,10 +761,11 @@ external commitment. No Phase 0-2 kind may persist non-null `intent_acceptance`.
 
 ### End state
 
-Magister observes provider outcomes, measures verifiable Decisions, and uses
-those facts to reevaluate the Plan. Lifecycle and Growth are operational. Models
-and successful priced actions consume an auditable credit ledger. Financial
-commitments enforce separation of duties before any such kind can ship.
+The application observes provider outcomes, measures verifiable Decisions, and
+uses those facts to reevaluate the Plan. Lifecycle and Growth are operational.
+Models and successful priced actions consume an auditable credit ledger.
+Financial commitments enforce separation of duties before any such kind can
+ship.
 
 ### Mandatory preliminary decisions
 
@@ -862,6 +897,15 @@ within the approved boundaries. Growth can prepare ads work, but every external
 commitment remains human-authorized. The system has the deployment, security,
 privacy export, observability, support, and recovery required for a controlled
 public launch.
+
+### Mandatory preliminary decision
+
+Before registering a financial ads kind, Phase 4 must ratify its actual origin
+branch. If it is Plan-routed or origin-free, the decision must define the trusted
+four-eyes comparison subject, how trusted code derives it, and which evidence is
+frozen at Approval. Until then, the kind and its controls remain unavailable.
+Because the ads journey is mandatory, this unresolved decision blocks the Phase
+4 exit gate.
 
 ### Included work packages
 
@@ -1007,10 +1051,15 @@ required before the corresponding code or exit gate:
 
 - the real provider operation used for the first Phase 1 commitment and the
   actual credential/connector contract available for Notion and Typefully;
-- the first serialized commitment target and conflict-key derivation;
+- the `independent | serialized` classification of every shipped commitment
+  kind and, for each serialized kind, its trusted target, conflict-key
+  derivation, and provider ordering or conditional-transition guarantee;
 - the analytics source and minimum metric set for Phase 3;
 - price catalog, allowance, billing provider, and invoice lifecycle;
 - the exact financial effect classes governed by four-eyes;
+- the actual origin branch of every financial ads kind and, for Plan-routed or
+  origin-free work, its trusted four-eyes comparison subject, derivation, and
+  Approval-time evidence; this decision blocks the Phase 4 ads journey;
 - provider/account sandboxes used by external canaries;
 - launch scope for ads and MCP capabilities;
 - requester roles, included data, transcript treatment, delivery, and retention
