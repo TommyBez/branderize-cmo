@@ -298,6 +298,10 @@ Detailed positive, negative, replay, and race fixtures remain normative in those
 
 ## Roadmap
 
+Queste cinque macro-fasi sono sviluppate come vertical slice end-to-end nel
+[piano di implementazione](./IMPLEMENTATION_PLAN.md). Il frontend è un workstream
+di ogni fase, non una roadmap separata.
+
 - **Phase 0 — Product foundations**: `packages/db` + `packages/brain` + `packages/policy`; auth (Better Auth, Google) with orgs/brands; server-side Context.dev ingestion in `apps/app`; `agent-cmo` plus the six standalone specialist root apps, shared registry materialization, CMO-only console proxy, and the Next.js cron fan-out; CMO-guided product-marketer refinement after the deterministic baseline; console v0 = intent entry + object browser
 - **Phase 1 — The team that delivers**: + content, distribution, seo-discovery; Notion/Typefully connections with effect-signature allowlists; approval inbox; artifact handoff by id
 - **Phase 2 — The habitable graph**: supersession UI for Decisions, digest with citations, live tasks queue, first human-enabled registered schedule (daily brief), and the versioned agent-generated Plan surface with Rebuild, same-Plan Advance/Ricontrolla, per-Move Avvia comunque, and open questions
