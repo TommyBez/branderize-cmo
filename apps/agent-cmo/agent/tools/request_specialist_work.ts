@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useFilenamingConvention: Eve derives the public tool name from this filename.
-
 import {
   type DispatchPokeConfiguration,
   type DispatchPokeResult,

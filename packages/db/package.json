@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
+    ".": "./src/client.ts",
     "./client": "./src/client.ts",
     "./schema": "./src/schema.ts",
     "./schema/auth": "./src/schema/auth.ts",
-    "./schema/domain": "./src/schema/domain.ts"
+    "./schema/domain": "./src/schema/domain.ts",
+    "./test-support": "./src/test-support.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",

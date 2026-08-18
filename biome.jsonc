@@ -10,6 +10,25 @@
   },
   "overrides": [
     {
+      "includes": [
+        "apps/agent-*/agent/tools/**",
+        "apps/agent-cmo/agent/subagents/*/tools/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": {
+              "level": "error",
+              "options": {
+                "filenameCases": ["snake_case"],
+                "requireAscii": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/ui/src/components/**", "packages/ui/src/hooks/**"],
       "linter": {
         "enabled": false

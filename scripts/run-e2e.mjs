@@ -113,6 +113,16 @@ const run = ({ args, command, cwd = REPOSITORY_ROOT, env = process.env }) =>
     })
   })
 
+const runSequentially = async ({ items, operation, position = 0 }) => {
+  const item = items.at(position)
+  if (item === undefined) {
+    return
+  }
+
+  await operation(item)
+  await runSequentially({ items, operation, position: position + 1 })
+}
+
 const redactMigrationOutput = ({ output, sensitiveValues }) => {
   let redactedOutput = output
   for (const sensitiveValue of new Set(sensitiveValues)) {
@@ -296,40 +306,64 @@ const stopManagedProcess = async ({ child, closed }) => {
   }
 }
 
-const waitForEveHealth = async ({ managedProcess, origin }) => {
-  const deadline = Date.now() + 180_000
-  let lastFailure = 'not ready'
-  while (Date.now() < deadline) {
-    if (
-      managedProcess.child.exitCode !== null ||
-      managedProcess.child.signalCode !== null
-    ) {
-      // biome-ignore lint/performance/noAwaitInLoops: the only running root has already exited.
-      const exit = await managedProcess.closed
-      throw new Error(
-        `Eve preflight exited before health (code ${String(exit.code)}, signal ${String(exit.signal)})`
-      )
-    }
-    try {
-      const response = await fetch(`${origin}/eve/v1/health`, {
-        redirect: 'error',
-        signal: AbortSignal.timeout(2000),
-      })
-      if (response.ok) {
-        const health = await response.json()
-        if (health?.ok === true && health.status === 'ready') {
-          return health
-        }
-        lastFailure = 'health response was not ready'
-      } else {
-        lastFailure = `health returned HTTP ${String(response.status)}`
-      }
-    } catch (error) {
-      lastFailure = error instanceof Error ? error.message : String(error)
-    }
-    await delay(250)
+const pollEveHealth = async ({
+  deadline,
+  lastFailure,
+  managedProcess,
+  origin,
+}) => {
+  if (Date.now() >= deadline) {
+    throw new Error(
+      `Timed out waiting for Eve preflight health: ${lastFailure}`
+    )
   }
-  throw new Error(`Timed out waiting for Eve preflight health: ${lastFailure}`)
+  if (
+    managedProcess.child.exitCode !== null ||
+    managedProcess.child.signalCode !== null
+  ) {
+    const exit = await managedProcess.closed
+    throw new Error(
+      `Eve preflight exited before health (code ${String(exit.code)}, signal ${String(exit.signal)})`
+    )
+  }
+
+  let nextFailure = lastFailure
+  try {
+    const response = await fetch(`${origin}/eve/v1/health`, {
+      redirect: 'error',
+      signal: AbortSignal.timeout(2000),
+    })
+    if (response.ok) {
+      const health = await response.json()
+      if (health?.ok === true && health.status === 'ready') {
+        return health
+      }
+      nextFailure = 'health response was not ready'
+    } else {
+      nextFailure = `health returned HTTP ${String(response.status)}`
+    }
+  } catch (error) {
+    nextFailure = error instanceof Error ? error.message : String(error)
+  }
+
+  await delay(250)
+  const health = await pollEveHealth({
+    deadline,
+    lastFailure: nextFailure,
+    managedProcess,
+    origin,
+  })
+  return health
+}
+
+const waitForEveHealth = async ({ managedProcess, origin }) => {
+  const health = await pollEveHealth({
+    deadline: Date.now() + 180_000,
+    lastFailure: 'not ready',
+    managedProcess,
+    origin,
+  })
+  return health
 }
 
 const assertCompletePreflightResult = ({ agent, health, info, result }) => {
@@ -671,57 +705,63 @@ try {
     NODE_ENV: 'production',
   }
 
-  for (const root of HEALTH_ONLY_AGENT_ROOTS) {
-    // biome-ignore lint/performance/noAwaitInLoops: Eve dev roots must not share a source watcher or local Workflow world.
-    await runHealthOnlyRootPreflight({
-      env: e2eEnvironment,
-      root,
-      stateDirectory: providerStateDirectory,
-    })
-  }
+  await runSequentially({
+    items: HEALTH_ONLY_AGENT_ROOTS,
+    operation: async (root) => {
+      await runHealthOnlyRootPreflight({
+        env: e2eEnvironment,
+        root,
+        stateDirectory: providerStateDirectory,
+      })
+    },
+  })
 
-  for (const appDirectoryName of AGENT_APP_DIRECTORIES) {
-    const appDirectory = resolve(REPOSITORY_ROOT, 'apps', appDirectoryName)
-    // biome-ignore lint/performance/noAwaitInLoops: shared extension materialization must never overlap across Eve roots.
-    const materializeCode = await run({
-      args: [
-        resolve(REPOSITORY_ROOT, 'scripts/materialize-marketing-skills.mjs'),
-      ],
-      command: process.execPath,
-      cwd: appDirectory,
-      env: e2eEnvironment,
-    })
-    if (materializeCode !== 0) {
-      throw new Error(
-        `${appDirectoryName} marketing-skills materialization exited with code ${materializeCode}`
-      )
-    }
-    const buildCode = await run({
-      args: ['build'],
-      command: resolve(appDirectory, 'node_modules/eve/bin/eve.js'),
-      cwd: appDirectory,
-      env: e2eEnvironment,
-    })
-    if (buildCode !== 0) {
-      throw new Error(
-        `${appDirectoryName} Eve build exited with code ${buildCode}`
-      )
-    }
-  }
+  await runSequentially({
+    items: AGENT_APP_DIRECTORIES,
+    operation: async (appDirectoryName) => {
+      const appDirectory = resolve(REPOSITORY_ROOT, 'apps', appDirectoryName)
+      const materializeCode = await run({
+        args: [
+          resolve(REPOSITORY_ROOT, 'scripts/materialize-marketing-skills.mjs'),
+        ],
+        command: process.execPath,
+        cwd: appDirectory,
+        env: e2eEnvironment,
+      })
+      if (materializeCode !== 0) {
+        throw new Error(
+          `${appDirectoryName} marketing-skills materialization exited with code ${materializeCode}`
+        )
+      }
+      const buildCode = await run({
+        args: ['build'],
+        command: resolve(appDirectory, 'node_modules/eve/bin/eve.js'),
+        cwd: appDirectory,
+        env: e2eEnvironment,
+      })
+      if (buildCode !== 0) {
+        throw new Error(
+          `${appDirectoryName} Eve build exited with code ${buildCode}`
+        )
+      }
+    },
+  })
 
-  for (const application of NEXT_APPLICATIONS) {
-    // biome-ignore lint/performance/noAwaitInLoops: both Next builds write shared workspace dependency caches and must remain isolated.
-    const buildCode = await run({
-      args: ['--filter', application.packageName, 'build'],
-      command: 'pnpm',
-      env: nextBuildEnvironment,
-    })
-    if (buildCode !== 0) {
-      throw new Error(
-        `apps/${application.directoryName} Next build exited with code ${buildCode}`
-      )
-    }
-  }
+  await runSequentially({
+    items: NEXT_APPLICATIONS,
+    operation: async (application) => {
+      const buildCode = await run({
+        args: ['--filter', application.packageName, 'build'],
+        command: 'pnpm',
+        env: nextBuildEnvironment,
+      })
+      if (buildCode !== 0) {
+        throw new Error(
+          `apps/${application.directoryName} Next build exited with code ${buildCode}`
+        )
+      }
+    },
+  })
 
   await Promise.all(
     AGENT_APP_DIRECTORIES.map(async (appDirectoryName) => {

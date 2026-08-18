@@ -10,6 +10,7 @@ import {
 } from '@repo/db/client'
 import { member, organization, user } from '@repo/db/schema/auth'
 import { actions, brands, intents } from '@repo/db/schema/domain'
+import { executeStatementsSequentially } from '@repo/db/test-support'
 import { and, count, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -53,11 +54,12 @@ beforeAll(async () => {
 
   const scopedUrl = new URL(databaseUrl)
   scopedUrl.searchParams.set('options', `-c search_path=${schemaName},public`)
-  databasePool = createDatabasePool({
+  const scopedDatabasePool = createDatabasePool({
     connectionString: scopedUrl.toString(),
     max: 6,
   })
-  database = createDatabase(databasePool)
+  databasePool = scopedDatabasePool
+  database = createDatabase(scopedDatabasePool)
 
   const migration = await readFile(
     new URL(
@@ -70,10 +72,10 @@ beforeAll(async () => {
     .split(MIGRATION_BREAKPOINT)
     .map((statement) => statement.trim())
     .filter((statement) => statement.length > 0)
-  for (const statement of statements) {
-    // biome-ignore lint/performance/noAwaitInLoops: Migration order is part of the integration contract.
-    await databasePool.query(statement)
-  }
+  await executeStatementsSequentially({
+    execute: (statement) => scopedDatabasePool.query(statement),
+    statements,
+  })
 
   testAuth = createBranderizeAuth({
     database: requireDatabase(),

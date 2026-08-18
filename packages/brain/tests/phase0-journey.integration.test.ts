@@ -21,6 +21,7 @@ import {
   sessionEvents,
   tasks,
 } from '@repo/db/schema/domain'
+import { executeStatementsSequentially } from '@repo/db/test-support'
 import { and, asc, count, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -611,11 +612,12 @@ beforeAll(async () => {
 
   const scopedUrl = new URL(databaseUrl)
   scopedUrl.searchParams.set('options', `-c search_path=${schemaName},public`)
-  databasePool = createDatabasePool({
+  const scopedDatabasePool = createDatabasePool({
     connectionString: scopedUrl.toString(),
     max: 4,
   })
-  database = createDatabase(databasePool)
+  databasePool = scopedDatabasePool
+  database = createDatabase(scopedDatabasePool)
 
   const migration = await readFile(
     new URL('../../db/drizzle/0000_phase0_foundation.sql', import.meta.url),
@@ -625,12 +627,12 @@ beforeAll(async () => {
     .split(MIGRATION_BREAKPOINT)
     .map((statement) => statement.trim())
     .filter((statement) => statement.length > 0)
-  for (const statement of statements) {
-    // biome-ignore lint/performance/noAwaitInLoops: migration statement order is the contract under test.
-    await databasePool.query(statement)
-  }
+  await executeStatementsSequentially({
+    execute: (statement) => scopedDatabasePool.query(statement),
+    statements,
+  })
 
-  const versionResult = await databasePool.query<{
+  const versionResult = await scopedDatabasePool.query<{
     readonly server_version: string
   }>('SHOW server_version')
   postgresVersion = requireValue(

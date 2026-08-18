@@ -8,6 +8,8 @@ import {
 } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { executeStatementsSequentially } from '../src/test-support'
+
 const MIGRATION_BREAKPOINT = '--> statement-breakpoint'
 const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000001'
 const DATABASE_ERROR = {
@@ -228,11 +230,7 @@ beforeAll(async () => {
     .map((statement) => statement.trim())
     .filter((statement) => statement.length > 0)
 
-  for (const statement of statements) {
-    // Migration statements must run in journal order on the same connection.
-    // biome-ignore lint/performance/noAwaitInLoops: PostgreSQL DDL is intentionally sequential.
-    await query(statement)
-  }
+  await executeStatementsSequentially({ execute: query, statements })
 
   await query(
     `INSERT INTO "user" (id, name, email)

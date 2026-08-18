@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useFilenamingConvention: Eve derives the public tool name from this filename.
 import { refineIntentFromCmo } from '@repo/brain/intents'
 import { defineTool } from 'eve/tools'
 import { z } from 'zod'

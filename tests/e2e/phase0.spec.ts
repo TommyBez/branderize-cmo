@@ -1917,17 +1917,14 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
         const textParts: string[] = []
         let bytesRead = 0
         let truncated = false
-        while (bytesRead < PROXY_DIAGNOSTIC_BODY_LIMIT_BYTES) {
-          // biome-ignore lint/performance/noAwaitInLoops: diagnostic response chunks must be read sequentially.
+        const readNextChunk = async (): Promise<boolean> => {
+          if (bytesRead >= PROXY_DIAGNOSTIC_BODY_LIMIT_BYTES) {
+            return false
+          }
           const { done, value } = await reader.read()
           if (done) {
             textParts.push(decoder.decode())
-            return {
-              bytesRead,
-              limitBytes: PROXY_DIAGNOSTIC_BODY_LIMIT_BYTES,
-              text: textParts.join(''),
-              truncated,
-            }
+            return true
           }
           const remainingBytes = PROXY_DIAGNOSTIC_BODY_LIMIT_BYTES - bytesRead
           const capturedChunk = value.subarray(0, remainingBytes)
@@ -1935,7 +1932,18 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
           textParts.push(decoder.decode(capturedChunk, { stream: true }))
           if (capturedChunk.byteLength < value.byteLength) {
             truncated = true
-            break
+            return false
+          }
+          const bodyEnded = await readNextChunk()
+          return bodyEnded
+        }
+        const bodyEnded = await readNextChunk()
+        if (bodyEnded) {
+          return {
+            bytesRead,
+            limitBytes: PROXY_DIAGNOSTIC_BODY_LIMIT_BYTES,
+            text: textParts.join(''),
+            truncated,
           }
         }
         if (!truncated) {

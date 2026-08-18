@@ -6,6 +6,7 @@ import {
   createDatabasePool,
   type Database,
 } from '@repo/db/client'
+import { executeStatementsSequentially } from '@repo/db/test-support'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { TrustedMemberAccess } from './context'
@@ -104,11 +105,12 @@ beforeAll(async () => {
 
   const scopedUrl = new URL(databaseUrl)
   scopedUrl.searchParams.set('options', `-c search_path=${schemaName},public`)
-  databasePool = createDatabasePool({
+  const scopedDatabasePool = createDatabasePool({
     connectionString: scopedUrl.toString(),
     max: 2,
   })
-  database = createDatabase(databasePool)
+  databasePool = scopedDatabasePool
+  database = createDatabase(scopedDatabasePool)
 
   const migration = await readFile(
     new URL('../../db/drizzle/0000_phase0_foundation.sql', import.meta.url),
@@ -118,12 +120,12 @@ beforeAll(async () => {
     .split(MIGRATION_BREAKPOINT)
     .map((statement) => statement.trim())
     .filter((statement) => statement.length > 0)
-  for (const statement of statements) {
-    // biome-ignore lint/performance/noAwaitInLoops: Migration order is part of the integration contract.
-    await databasePool.query(statement)
-  }
+  await executeStatementsSequentially({
+    execute: (statement) => scopedDatabasePool.query(statement),
+    statements,
+  })
 
-  await databasePool.query(
+  await scopedDatabasePool.query(
     `INSERT INTO "user" (id, name, email)
      VALUES
        ($1, 'Alice', $2),
@@ -138,7 +140,7 @@ beforeAll(async () => {
       `${randomUUID()}@example.test`,
     ]
   )
-  await databasePool.query(
+  await scopedDatabasePool.query(
     `INSERT INTO organization (id, name, slug)
      VALUES
        ($1, 'Organization A', $2),

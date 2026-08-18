@@ -87,6 +87,52 @@ const secretsMatch = (provided: string, configured: string): boolean => {
   return timingSafeEqual(providedDigest, configuredDigest)
 }
 
+const drainNextProductMarketerTask = async ({
+  dependencies,
+  from,
+  remaining,
+}: {
+  readonly dependencies: ProductMarketerDrainDependencies
+  readonly from: ChannelFrom
+  readonly remaining: number
+}): Promise<void> => {
+  if (remaining === 0) {
+    return
+  }
+
+  const claim = await dependencies.claimTask(dependencies.now())
+  if (claim === null) {
+    return
+  }
+
+  let sessionId: string
+  try {
+    const session = await from(productMarketerTaskAddress(claim)).send(
+      buildProductMarketerPrompt(claim),
+      {
+        auth: createProductMarketerSessionAuth(claim),
+        mode: 'task',
+        outputSchema: PRODUCT_MARKETER_COMPLETION_OUTPUT_SCHEMA,
+        title: `Product Marketer task ${claim.taskId}`,
+      }
+    )
+    sessionId = session.id
+  } catch (error) {
+    await dependencies.failDelivery({
+      claim,
+      now: dependencies.now(),
+    })
+    throw error
+  }
+
+  await dependencies.bindSession({ claim, sessionId })
+  await drainNextProductMarketerTask({
+    dependencies,
+    from,
+    remaining: remaining - 1,
+  })
+}
+
 export const drainProductMarketerTasks = async ({
   dependencies,
   from,
@@ -100,35 +146,7 @@ export const drainProductMarketerTasks = async ({
     throw new Error('Product Marketer drain limit must be a positive integer')
   }
 
-  for (let claimedCount = 0; claimedCount < limit; claimedCount += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: Each FIFO claim must be accepted or failed before claiming the next task.
-    const claim = await dependencies.claimTask(dependencies.now())
-    if (claim === null) {
-      return
-    }
-
-    let sessionId: string
-    try {
-      const session = await from(productMarketerTaskAddress(claim)).send(
-        buildProductMarketerPrompt(claim),
-        {
-          auth: createProductMarketerSessionAuth(claim),
-          mode: 'task',
-          outputSchema: PRODUCT_MARKETER_COMPLETION_OUTPUT_SCHEMA,
-          title: `Product Marketer task ${claim.taskId}`,
-        }
-      )
-      sessionId = session.id
-    } catch (error) {
-      await dependencies.failDelivery({
-        claim,
-        now: dependencies.now(),
-      })
-      throw error
-    }
-
-    await dependencies.bindSession({ claim, sessionId })
-  }
+  await drainNextProductMarketerTask({ dependencies, from, remaining: limit })
 }
 
 const productionDrainDependencies = (): ProductMarketerDrainDependencies => ({

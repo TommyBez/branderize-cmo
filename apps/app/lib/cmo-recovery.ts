@@ -26,10 +26,9 @@ export const readCompleteCmoEventPrefix = async <TEvent>({
   ) => Promise<CmoPersistedEventPage<TEvent>>
 }): Promise<readonly TEvent[]> => {
   const events: TEvent[] = []
-  let afterIngestionSequence: number | null = null
-
-  do {
-    // biome-ignore lint/performance/noAwaitInLoops: each keyset page depends on the prior cursor
+  const readNextPage = async (
+    afterIngestionSequence: number | null
+  ): Promise<void> => {
     const page = await readPage(afterIngestionSequence)
     events.push(...page.events)
     const next = page.nextAfterIngestionSequence
@@ -40,8 +39,12 @@ export const readCompleteCmoEventPrefix = async <TEvent>({
     ) {
       throw new Error('The persisted CMO transcript cursor did not advance')
     }
-    afterIngestionSequence = next
-  } while (afterIngestionSequence !== null)
+    if (next !== null) {
+      await readNextPage(next)
+    }
+  }
+
+  await readNextPage(null)
 
   return events
 }
@@ -86,19 +89,25 @@ export const recoverCmoSessionToCurrentTurnBoundary = async ({
     startIndex: session.state.streamIndex,
   })
   const iterator = stream[Symbol.asyncIterator]()
-  let reachedBoundary = false
-
-  try {
-    while (!reachedBoundary) {
-      // biome-ignore lint/performance/noAwaitInLoops: one ordered durable stream must be consumed sequentially
-      const next = await iterator.next()
-      if (next.done === true) {
-        break
-      }
-      events.push(next.value)
-      onEvent?.(events)
-      reachedBoundary = isCurrentTurnBoundaryEvent(next.value)
+  const readUntilBoundary = async (): Promise<boolean> => {
+    const next = await iterator.next()
+    if (next.done === true) {
+      return false
     }
+
+    events.push(next.value)
+    onEvent?.(events)
+    if (isCurrentTurnBoundaryEvent(next.value)) {
+      return true
+    }
+
+    const laterEventReachedBoundary = await readUntilBoundary()
+    return laterEventReachedBoundary
+  }
+
+  let reachedBoundary: boolean
+  try {
+    reachedBoundary = await readUntilBoundary()
   } finally {
     await iterator.return?.()
   }

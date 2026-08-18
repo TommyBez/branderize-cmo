@@ -67,22 +67,36 @@ const createRecoverySession = (
     },
     stream(options) {
       startIndex = options?.startIndex
-      // biome-ignore lint/suspicious/useAwait: the production boundary exposes an AsyncIterable
-      return (async function* recoveryStream() {
-        let emitted = 0
-        try {
-          for (const event of streamedEvents) {
-            emitted += 1
-            yield event
-          }
-        } finally {
+      const source = streamedEvents[Symbol.iterator]()
+      let emitted = 0
+      const closeStream = () => {
+        if (!closed) {
           closed = true
           state = {
             sessionId: state.sessionId,
             streamIndex: state.streamIndex + emitted,
           }
         }
-      })()
+      }
+      const recoveryStream: AsyncIterableIterator<MessageStreamEvent> = {
+        [Symbol.asyncIterator]() {
+          return recoveryStream
+        },
+        next() {
+          const next = source.next()
+          if (next.done === true) {
+            closeStream()
+          } else {
+            emitted += 1
+          }
+          return Promise.resolve(next)
+        },
+        return() {
+          closeStream()
+          return Promise.resolve({ done: true, value: undefined })
+        },
+      }
+      return recoveryStream
     },
   }
 
