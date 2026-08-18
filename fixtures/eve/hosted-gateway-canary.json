@@ -1,0 +1,17 @@
+{
+  "status": "not_verified",
+  "scope": "hosted_ai_gateway",
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "reasoning": "high",
+  "requiredEvidence": [
+    "The exact hosted model snapshot accepts reasoning high.",
+    "The response contains a reasoning signal.",
+    "The Gateway reports no warning or reasoning remap."
+  ],
+  "excludedEvidence": ["Synthetic reasoning events in reducer fixtures."],
+  "localEvidenceDoesNotProve": [
+    "Provider availability for the exact model snapshot.",
+    "Provider-native acceptance of the requested reasoning level.",
+    "Absence of a hosted warning or remap."
+  ]
+}

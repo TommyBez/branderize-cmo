@@ -2,17 +2,116 @@
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
   "tasks": {
+    "//#check:deployment": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/*/next.config.ts",
+        "$TURBO_ROOT$/apps/*/package.json",
+        "$TURBO_ROOT$/apps/*/turbo.json",
+        "$TURBO_ROOT$/apps/*/vercel.json",
+        "$TURBO_ROOT$/.github/workflows/cleanup-neon-preview.yml",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/packages/marketing-skills/**",
+        "$TURBO_ROOT$/scripts/check-deployment-contract.mjs",
+        "$TURBO_ROOT$/scripts/materialize-marketing-skills.mjs",
+        "$TURBO_ROOT$/scripts/resolve-neon-preview-branch.mjs",
+        "$TURBO_ROOT$/scripts/run-e2e.mjs",
+        "$TURBO_ROOT$/scripts/upload-posthog-sourcemaps.mjs",
+        "$TURBO_ROOT$/tests/e2e/phase0.spec.ts"
+      ]
+    },
+    "//#check:quality": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/biome.jsonc",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/scripts/**",
+        "$TURBO_ROOT$/tests/**"
+      ]
+    },
+    "//#check:runtime": {
+      "inputs": [
+        "$TURBO_ROOT$/.node-version",
+        "$TURBO_ROOT$/.github/workflows/ci.yml",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/pnpm-lock.yaml",
+        "$TURBO_ROOT$/pnpm-workspace.yaml",
+        "$TURBO_ROOT$/scripts/check-runtime-contract.mjs"
+      ]
+    },
+    "//#e2e": {
+      "cache": false,
+      "env": [
+        "CI",
+        "DATABASE_URL",
+        "DIRECT_DATABASE_URL",
+        "E2E_UPDATE_SNAPSHOTS",
+        "E2E_USE_EXISTING_DATABASE",
+        "POSTGRES_TEST_PORT"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/compose.yaml",
+        "$TURBO_ROOT$/playwright.config.ts",
+        "$TURBO_ROOT$/scripts/materialize-marketing-skills.mjs",
+        "$TURBO_ROOT$/scripts/run-e2e.mjs",
+        "$TURBO_ROOT$/tests/e2e/**"
+      ],
+      "outputs": ["playwright-report/**", "test-results/**"],
+      "passThroughEnv": [
+        "CI",
+        "DATABASE_URL",
+        "DIRECT_DATABASE_URL",
+        "E2E_UPDATE_SNAPSHOTS",
+        "E2E_USE_EXISTING_DATABASE",
+        "POSTGRES_TEST_PORT"
+      ]
+    },
+    "//#test:root": {
+      "env": ["CI"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/fixtures/**",
+        "$TURBO_ROOT$/tests/**",
+        "$TURBO_ROOT$/vitest.config.ts"
+      ]
+    },
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "NEXT_PUBLIC_POSTHOG_KEY",
+        "NODE_ENV",
+        "POSTHOG_CLI_API_KEY",
+        "POSTHOG_CLI_HOST",
+        "POSTHOG_CLI_PROJECT_ID",
+        "VERCEL_ENV",
+        "VERCEL_GIT_COMMIT_SHA"
+      ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", ".output/**", "dist/**"]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["transit", "@repo/marketing-skills#build"]
     },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "test": {
+      "dependsOn": ["transit", "@repo/marketing-skills#build"],
+      "env": ["CI"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.config.ts"],
+      "outputs": ["coverage/**", "test-results/**"]
+    },
+    "test:integration": {
+      "cache": false,
+      "dependsOn": ["transit", "@repo/marketing-skills#build"],
+      "env": ["CI", "DATABASE_URL", "DIRECT_DATABASE_URL", "NODE_ENV", "VITEST_SUITE"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.config.ts"],
+      "outputs": ["test-results/**"]
+    },
+    "transit": {
+      "dependsOn": ["^transit"]
     }
   }
 }

@@ -1,21 +1,35 @@
 {
   "name": "branderize-cmo",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "check": "ultracite check",
+    "check": "turbo run \"//#check:deployment\" \"//#check:quality\" \"//#check:runtime\"",
+    "check:deployment": "node scripts/check-deployment-contract.mjs",
+    "check:quality": "ultracite check",
+    "check:runtime": "node scripts/check-runtime-contract.mjs",
     "check-types": "turbo run check-types",
     "dev": "turbo run dev",
-    "fix": "ultracite fix"
+    "e2e": "node scripts/run-e2e.mjs",
+    "fix": "ultracite fix",
+    "test": "turbo run test \"//#test:root\"",
+    "test:e2e": "turbo run \"//#e2e\"",
+    "test:integration": "node scripts/run-integration.mjs",
+    "test:root": "vitest run tests/eve"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@biomejs/biome": "2.5.6",
+    "@next/playwright": "16.3.0",
+    "@playwright/test": "1.62.1",
     "turbo": "^2.10.8",
     "typescript": "5.9.2",
-    "ultracite": "7.10.1"
+    "ultracite": "7.10.1",
+    "vitest": "4.1.10"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=18"
+    "node": "24.x",
+    "pnpm": "11.x"
   }
 }

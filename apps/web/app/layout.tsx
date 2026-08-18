@@ -1,29 +1,26 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 
-const geistSans = Geist({
-  subsets: ['latin'],
-  variable: '--font-geist-sans',
-})
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
-})
+export const instant = true
 
 export const metadata: Metadata = {
-  description: 'Web app powered by @repo/ui',
-  title: 'Web',
+  description:
+    'Branderize organizza Intent, contesto verificabile, conversazioni private con il CMO e provenienza del lavoro di marketing.',
+  openGraph: {
+    description:
+      'Un punto di partenza verificabile per il lavoro di marketing del tuo brand.',
+    locale: 'it_IT',
+    siteName: 'Branderize',
+    title: 'Branderize | Il sistema operativo del tuo marketing',
+    type: 'website',
+  },
+  title: 'Branderize | Il sistema operativo del tuo marketing',
 }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html
-      className={`${geistSans.variable} ${geistMono.variable} dark`}
-      lang="en"
-    >
-      <body className="antialiased">{children}</body>
+    <html lang="it">
+      <body>{children}</body>
     </html>
   )
 }

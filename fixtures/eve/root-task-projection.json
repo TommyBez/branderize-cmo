@@ -1,0 +1,48 @@
+{
+  "messages": [
+    {
+      "id": "turn_product_marketer_fixture_01:user",
+      "metadata": {
+        "status": "complete",
+        "turnId": "turn_product_marketer_fixture_01"
+      },
+      "parts": [
+        {
+          "state": "done",
+          "text": "Compile the trusted Brand Context.",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    },
+    {
+      "id": "turn_product_marketer_fixture_01:assistant",
+      "metadata": {
+        "result": {
+          "brandContextObjectId": "object_fixture_01",
+          "outcome": "report"
+        },
+        "status": "complete",
+        "turnId": "turn_product_marketer_fixture_01"
+      },
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "state": "done",
+          "stepIndex": 0,
+          "text": "Checking sources.",
+          "type": "reasoning"
+        },
+        {
+          "state": "done",
+          "stepIndex": 0,
+          "text": "Compiled.",
+          "type": "text"
+        }
+      ],
+      "role": "assistant"
+    }
+  ]
+}

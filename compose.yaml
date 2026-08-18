@@ -1,0 +1,19 @@
+name: branderize-cmo-integration
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: branderize_test
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d branderize_test"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+    ports:
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-54329}:5432"
+    stop_grace_period: 5s
+    tmpfs:
+      - /var/lib/postgresql/data

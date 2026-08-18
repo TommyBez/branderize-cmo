@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "env": [
+        "$TURBO_EXTENDS$",
+        "AGENT_CMO_URL",
+        "AGENT_CONTENT_URL",
+        "AGENT_DISTRIBUTION_URL",
+        "AGENT_GROWTH_URL",
+        "AGENT_LIFECYCLE_URL",
+        "AGENT_PRODUCT_MARKETER_URL",
+        "AGENT_SEO_DISCOVERY_URL",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_TRUSTED_ORIGINS",
+        "BETTER_AUTH_URL",
+        "BLOB_STORE_ID",
+        "CMO_BRIDGE_SECRET",
+        "CONTEXT_DEV_API_KEY",
+        "CRON_SECRET",
+        "DATABASE_URL",
+        "DISPATCH_SECRET",
+        "E2E_EXPOSE_NEXT_TESTING_API",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "NEXT_PUBLIC_APP_URL"
+      ],
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/scripts/upload-posthog-sourcemaps.mjs"]
+    }
+  }
+}

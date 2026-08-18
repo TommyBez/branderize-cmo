@@ -1,0 +1,41 @@
+name: Clean up Neon preview branch
+
+on:
+  pull_request_target:
+    types: [closed]
+
+concurrency:
+  cancel-in-progress: false
+  group: neon-preview-cleanup-${{ github.event.pull_request.number }}
+
+permissions:
+  contents: read
+
+jobs:
+  delete-preview-branch:
+    name: Delete exact non-production preview branch
+    runs-on: ubuntu-latest
+    env:
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      NEON_PREVIEW_BRANCH_NAME: preview/pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.ref }}
+      NEON_PROJECT_ID: ${{ vars.NEON_NONPRODUCTION_PROJECT_ID }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Resolve safe preview branch
+        id: preview
+        run: node scripts/resolve-neon-preview-branch.mjs
+
+      - name: Delete preview branch
+        if: steps.preview.outputs.branch_found == 'true'
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          api_key: ${{ secrets.NEON_API_KEY }}
+          branch: ${{ steps.preview.outputs.branch_id }}
+          project_id: ${{ vars.NEON_NONPRODUCTION_PROJECT_ID }}

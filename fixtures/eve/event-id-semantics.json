@@ -1,0 +1,93 @@
+{
+  "rewind": {
+    "original": {
+      "type": "step.completed",
+      "data": {
+        "finishReason": "stop",
+        "sequence": 0,
+        "stepIndex": 0,
+        "turnId": "turn_retry_fixture_01",
+        "usage": {
+          "inputTokens": 100,
+          "outputTokens": 20
+        }
+      },
+      "meta": {
+        "id": "evt_01KYJBZA88B4M9XN3RTC5FDGHP",
+        "at": "2026-08-17T12:01:00.900Z"
+      }
+    },
+    "replayed": {
+      "type": "step.completed",
+      "data": {
+        "finishReason": "stop",
+        "sequence": 0,
+        "stepIndex": 0,
+        "turnId": "turn_retry_fixture_01",
+        "usage": {
+          "inputTokens": 100,
+          "outputTokens": 20
+        }
+      },
+      "meta": {
+        "id": "evt_01KYJBZA88B4M9XN3RTC5FDGHP",
+        "at": "2026-08-17T12:01:00.900Z"
+      }
+    }
+  },
+  "interruptedStepAttempts": [
+    {
+      "type": "step.completed",
+      "data": {
+        "finishReason": "stop",
+        "sequence": 0,
+        "stepIndex": 0,
+        "turnId": "turn_retry_fixture_01",
+        "usage": {
+          "inputTokens": 100,
+          "outputTokens": 20
+        }
+      },
+      "meta": {
+        "id": "evt_01KYJBZA88B4M9XN3RTC5FDGHQ",
+        "at": "2026-08-17T12:01:01.000Z"
+      }
+    },
+    {
+      "type": "step.completed",
+      "data": {
+        "finishReason": "stop",
+        "sequence": 0,
+        "stepIndex": 0,
+        "turnId": "turn_retry_fixture_01",
+        "usage": {
+          "inputTokens": 102,
+          "outputTokens": 21
+        }
+      },
+      "meta": {
+        "id": "evt_01KYJBZA88B4M9XN3RTC5FDGHR",
+        "at": "2026-08-17T12:01:01.100Z"
+      }
+    },
+    {
+      "type": "turn.completed",
+      "data": {
+        "sequence": 0,
+        "turnId": "turn_retry_fixture_01"
+      },
+      "meta": {
+        "id": "evt_01KYJBZA88B4M9XN3RTC5FDGHS",
+        "at": "2026-08-17T12:01:01.200Z"
+      }
+    },
+    {
+      "type": "session.completed",
+      "meta": {
+        "id": "evt_01KYJBZA88B4M9XN3RTC5FDGHT",
+        "at": "2026-08-17T12:01:01.300Z"
+      }
+    }
+  ],
+  "rule": "Persist raw events by meta.id. Select winning charges only at the authoritative root terminal boundary in stream order."
+}

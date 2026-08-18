@@ -1,0 +1,28 @@
+{
+  "name": "@repo/agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/registry.ts",
+    "./dispatch-poke": "./src/dispatch-poke.ts",
+    "./endpoints": "./src/endpoint-resolver.ts",
+    "./manifest": "./src/manifest.ts",
+    "./model-config": "./src/model-config.ts",
+    "./runtime-alert": "./src/runtime-alert.ts",
+    "./schedules": "./src/schedules.ts",
+    "./tasks": "./src/tasks.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "vitest run --root ../.. packages/agents"
+  },
+  "dependencies": {
+    "eve": "0.31.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "5.9.2"
+  }
+}
