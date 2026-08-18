@@ -1,9 +1,11 @@
+import { usesLocalEmailOtpBypass } from '@repo/env/app-server'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { StandaloneNavigationPending } from '@/components/navigation-pending'
-import { SignInButton } from '@/components/sign-in-button'
+import { SignInForm } from '@/components/sign-in-form'
+import { appEnvironment } from '@/lib/auth'
 import { firstAvailableBrand, readPageSession } from '@/lib/dal'
 
 export const metadata: Metadata = { title: 'Accedi' }
@@ -37,13 +39,15 @@ const SignInContent = async () => {
           <p className="eyebrow">Area riservata</p>
           <h2>Entra nel tuo atelier operativo.</h2>
           <p>
-            L’accesso usa Google. La disponibilità di brand e conversazioni
-            deriva sempre dalla membership corrente.
+            Inserisci la tua email e poi il codice monouso per accedere; brand e
+            conversazioni dipendono sempre dalla membership corrente.
           </p>
-          <SignInButton />
+          <SignInForm
+            localOtpBypass={usesLocalEmailOtpBypass(appEnvironment)}
+          />
           <small>
-            Continuando accedi a uno spazio privato. Nessuna conversazione CMO è
-            condivisa con altri membri.
+            Il codice è personale. Nessuna conversazione CMO è condivisa con
+            altri membri.
           </small>
         </div>
       </section>

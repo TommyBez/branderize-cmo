@@ -32,15 +32,16 @@ export default defineTool({
   async execute(input, context) {
     const { db } = await import('@repo/db')
     const sourceTaskId = readCurrentCmoSourceTaskId(context)
-    const identity = readCmoSessionIdentity(context)
-    const [access, taskId] = await Promise.all([
-      resolveTrustedCmoTurnAccess({ context, database: db }),
-      loadProductMarketerQuestionTaskId({
-        brandId: identity.brandId,
-        database: db,
-        sourceTaskId,
-      }),
-    ])
+    readCmoSessionIdentity(context)
+    const access = await resolveTrustedCmoTurnAccess({
+      context,
+      database: db,
+    })
+    const taskId = await loadProductMarketerQuestionTaskId({
+      access,
+      database: db,
+      sourceTaskId,
+    })
     return await resolveTaskQuestions({
       access,
       database: db,

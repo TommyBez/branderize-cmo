@@ -19,7 +19,7 @@ export interface ScheduleReconciliationResult {
 
 const workerForTaskKind = (taskKind: string): string => {
   for (const agent of Object.values(agentRegistry)) {
-    if (agent.taskKinds.some((registered) => registered.kind === taskKind)) {
+    if (agent.taskKinds.some((registered) => registered === taskKind)) {
       return agent.key
     }
   }

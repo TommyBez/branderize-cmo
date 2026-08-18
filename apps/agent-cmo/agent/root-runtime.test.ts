@@ -1,18 +1,16 @@
 import { createHmac } from 'node:crypto'
 import { readdirSync } from 'node:fs'
 
+import {
+  createDispatchAckHandler,
+  type DispatchSecretDependencies,
+} from '@repo/agents/dispatch-handler'
+import { resolveDeploymentEnvironment } from '@repo/agents/root-runtime'
 import { describe, expect, it, vi } from 'vitest'
 
 import rootAgent from './agent'
-import {
-  createDispatchHandler,
-  type DispatchHandlerDependencies,
-} from './channels/dispatch'
 import { createCmoBridgeAuth } from './lib/cmo-bridge-auth'
-import {
-  ROOT_RUNTIME_CONTRACT,
-  resolveDeploymentEnvironment,
-} from './lib/root-contract'
+import { ROOT_RUNTIME_CONTRACT } from './lib/root-contract'
 import {
   readCmoSessionIdentity,
   readCurrentCmoSourceTaskId,
@@ -64,8 +62,8 @@ const request = ({
 }
 
 const handler = (
-  readSecret: DispatchHandlerDependencies['readSecret'] = () => DISPATCH_SECRET
-) => createDispatchHandler({ readSecret })
+  readSecret: DispatchSecretDependencies['readSecret'] = () => DISPATCH_SECRET
+) => createDispatchAckHandler({ readSecret })
 
 const signBridgeToken = (
   claims: Readonly<Record<string, unknown>>,

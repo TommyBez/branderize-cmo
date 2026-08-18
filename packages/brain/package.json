@@ -6,6 +6,8 @@
   "type": "module",
   "exports": {
     "./canonical": "./src/canonical.ts",
+    "./cmo-access": "./src/cmo-access.ts",
+    "./cmo-intent-target": "./src/cmo-intent-target.ts",
     "./context": "./src/context.ts",
     "./conversations": "./src/conversations.ts",
     "./errors": "./src/errors.ts",
@@ -16,6 +18,8 @@
     "./projections": "./src/projections.ts",
     "./schedules": "./src/schedules.ts",
     "./session-events": "./src/session-events.ts",
+    "./task-projections": "./src/task-projections.ts",
+    "./task-output": "./src/task-output.ts",
     "./tasks": "./src/tasks.ts"
   },
   "scripts": {
@@ -25,6 +29,7 @@
   },
   "dependencies": {
     "@repo/agents": "workspace:*",
+    "@repo/canonical-json": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/policy": "workspace:*",
     "drizzle-orm": "0.45.2",

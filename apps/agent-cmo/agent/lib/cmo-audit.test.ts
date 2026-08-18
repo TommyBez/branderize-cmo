@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   ingestSessionEvent: vi.fn(() => Promise.resolve()),
   parsePersistableSessionEvent: vi.fn((event: unknown) => event),
   reportSessionEventIngestionFailure: vi.fn(),
-  resolveTrustedCmoSessionMemberAccess: vi.fn(async () => ({
+  resolveInitialCmoSessionMemberAccess: vi.fn(async () => ({
     brandId: '11111111-1111-4111-8111-111111111111',
     conversationId: '22222222-2222-4222-8222-222222222222',
     humanActorId: '33333333-3333-4333-8333-333333333333',
@@ -39,8 +39,8 @@ vi.mock('./runtime-access', async (importOriginal) => {
   const original = await importOriginal<typeof import('./runtime-access')>()
   return {
     ...original,
-    resolveTrustedCmoSessionMemberAccess:
-      mocks.resolveTrustedCmoSessionMemberAccess,
+    resolveInitialCmoSessionMemberAccess:
+      mocks.resolveInitialCmoSessionMemberAccess,
   }
 })
 
@@ -121,14 +121,14 @@ describe('CMO audit hook', () => {
       auditHandler()(sessionStartedEvent, createContext({ current: null }))
     ).rejects.toThrow('CMO current authentication is missing')
 
-    expect(mocks.resolveTrustedCmoSessionMemberAccess).not.toHaveBeenCalled()
+    expect(mocks.resolveInitialCmoSessionMemberAccess).not.toHaveBeenCalled()
     expect(mocks.bindCmoSession).not.toHaveBeenCalled()
     expect(mocks.parsePersistableSessionEvent).not.toHaveBeenCalled()
     expect(mocks.reportSessionEventIngestionFailure).not.toHaveBeenCalled()
   })
 
   it('fails closed when root access resolution fails', async () => {
-    mocks.resolveTrustedCmoSessionMemberAccess.mockRejectedValueOnce(
+    mocks.resolveInitialCmoSessionMemberAccess.mockRejectedValueOnce(
       new Error('access unavailable')
     )
 
@@ -161,7 +161,7 @@ describe('CMO audit hook', () => {
       auditHandler()(sessionStartedEvent, createContext())
     ).resolves.toBeUndefined()
 
-    expect(mocks.resolveTrustedCmoSessionMemberAccess).toHaveBeenCalledTimes(1)
+    expect(mocks.resolveInitialCmoSessionMemberAccess).toHaveBeenCalledTimes(1)
     expect(mocks.bindCmoSession).toHaveBeenCalledTimes(1)
     expect(mocks.ingestSessionEvent).not.toHaveBeenCalled()
     expect(

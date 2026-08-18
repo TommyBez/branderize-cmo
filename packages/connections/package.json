@@ -17,6 +17,7 @@
     "test": "vitest run --root ../.. packages/connections/src"
   },
   "dependencies": {
+    "@repo/canonical-json": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {

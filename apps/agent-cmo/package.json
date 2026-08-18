@@ -8,7 +8,8 @@
     "check-types": "tsc --noEmit",
     "dev": "eve dev",
     "start": "eve start",
-    "test": "vitest run --root ../.. apps/agent-cmo"
+    "test": "vitest run --root ../.. apps/agent-cmo",
+    "test:integration": "vitest run --root ../.. apps/agent-cmo"
   },
   "dependencies": {
     "@repo/agents": "workspace:*",

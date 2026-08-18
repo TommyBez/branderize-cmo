@@ -1,5 +1,6 @@
 import { readdirSync } from 'node:fs'
 
+import { resolveDeploymentEnvironment } from '@repo/agents/root-runtime'
 import { productMarketerContextContentSchema } from '@repo/brain/objects'
 import type { ClaimedProductMarketerTask } from '@repo/brain/tasks'
 import type { ChannelFrom, ChannelSendOptions, Session } from 'eve/channels'
@@ -11,10 +12,7 @@ import {
   type DispatchHandlerDependencies,
   drainProductMarketerTasks,
 } from './channels/dispatch'
-import {
-  ROOT_RUNTIME_CONTRACT,
-  resolveDeploymentEnvironment,
-} from './lib/root-contract'
+import { ROOT_RUNTIME_CONTRACT } from './lib/root-contract'
 import {
   createProductMarketerSessionAuth,
   productMarketerSessionLineageFromContext,

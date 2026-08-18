@@ -1,6 +1,6 @@
 import type { ClientEnvironment } from '@repo/env/client'
 import { createAuthClient } from 'better-auth/client'
-import { organizationClient } from 'better-auth/client/plugins'
+import { emailOTPClient, organizationClient } from 'better-auth/client/plugins'
 import { organizationPluginOptions, organizationRoles } from './access-control'
 
 type AuthClientEnvironment = Pick<ClientEnvironment, 'NEXT_PUBLIC_APP_URL'>
@@ -15,6 +15,7 @@ export const createBranderizeAuthClient = ({
   createAuthClient({
     baseURL: environment.NEXT_PUBLIC_APP_URL,
     plugins: [
+      emailOTPClient(),
       organizationClient({
         dynamicAccessControl: organizationPluginOptions.dynamicAccessControl,
         roles: organizationRoles,

@@ -6,7 +6,7 @@
     "ultracite/biome/next"
   ],
   "files": {
-    "includes": ["!**/public"]
+    "includes": ["!**/public", "!**/.agents", "!**/.claude"]
   },
   "overrides": [
     {

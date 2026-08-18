@@ -53,8 +53,6 @@ const E2E_BLOB_TOKEN =
   'vercel_blob_rw_e2estore_scripted-e2e-token-at-least-32-bytes'
 const E2E_BLOB_STORE_ID = 'e2estore'
 const E2E_CONTEXT_DEV_API_KEY = 'context-dev-scripted-e2e-token'
-const GOOGLE_TEST_CLIENT_ID = 'google-e2e-client'
-const GOOGLE_TEST_CLIENT_SECRET = 'google-e2e-secret'
 const PORT_PATTERN = /^\d{1,5}$/
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const MIGRATION_EVIDENCE_PATH = resolve(
@@ -79,7 +77,7 @@ const PRODUCT_MARKETER_ORIGIN = 'http://127.0.0.1:2001'
 const WEB_ORIGIN = 'http://127.0.0.1:3000'
 const playwrightArguments = ['test', '--config', 'playwright.config.ts']
 if (process.env.E2E_UPDATE_SNAPSHOTS === '1') {
-  playwrightArguments.push('--update-snapshots')
+  playwrightArguments.push('--update-snapshots=all')
 }
 playwrightArguments.push(...process.argv.slice(2))
 
@@ -705,10 +703,10 @@ try {
     E2E_PROVIDER_STATE_DIRECTORY: providerStateDirectory,
     E2E_SEO_DISCOVERY_ORIGIN: SEO_DISCOVERY_ORIGIN,
     E2E_WEB_ORIGIN: WEB_ORIGIN,
-    GOOGLE_CLIENT_ID: GOOGLE_TEST_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: GOOGLE_TEST_CLIENT_SECRET,
     NEXT_PUBLIC_APP_URL: APP_ORIGIN,
     NODE_ENV: 'development',
+    RESEND_API_KEY: 're_branderize_e2e',
+    RESEND_FROM_EMAIL: 'access@e2e.invalid',
   }
   const playwrightEnvironment = Object.fromEntries(
     Object.entries(e2eEnvironment).filter(([name]) => name !== 'NODE_OPTIONS')

@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 import {
+  PRODUCT_MARKETER_TASK_KIND,
+  PRODUCT_MARKETER_WORKER_KEY,
+} from '@repo/agents/tasks'
+import {
   createDatabase,
   createDatabasePool,
   type Database,
@@ -21,12 +25,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import refineIntentTool from '../tools/refine_intent'
 import resolveProductMarketerQuestionsTool from '../tools/resolve_product_marketer_questions'
-import { loadCmoIntentTarget } from './runtime-access'
+import {
+  loadCmoIntentTarget,
+  resolveTrustedCmoTurnAccess,
+} from './runtime-access'
 
 const MIGRATION_BREAKPOINT = '--> statement-breakpoint'
 const TEST_TIMEOUT_MS = 30_000
 const CMO_ACTOR_ID = '00000000-0000-0000-0000-000000000101'
-const PRODUCT_MARKETER_TASK_KIND = 'product-marketer.brand-context.v1'
 const schemaName = `cmo_runtime_access_${randomUUID().replaceAll('-', '_')}`
 
 interface IntentFixture {
@@ -57,7 +63,15 @@ const requireDatabase = (): Database => {
   return database
 }
 
-vi.mock('@repo/db', () => ({ db: requireDatabase() }))
+vi.mock('@repo/db', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@repo/db')>()
+  return {
+    ...original,
+    get db() {
+      return requireDatabase()
+    },
+  }
+})
 
 const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> =>
   typeof value === 'object' &&
@@ -258,8 +272,8 @@ const createOpenQuestionTask = async ({
       payload: { purpose: 'enrich_brand_context' },
       payloadHash: 'open-question-task',
       status: 'succeeded',
-      subjectKey: 'agent:product-marketer:brand-context',
-      workerKey: 'agent:product-marketer',
+      subjectKey: `${PRODUCT_MARKETER_WORKER_KEY}:brand-context`,
+      workerKey: PRODUCT_MARKETER_WORKER_KEY,
     })
   return taskId
 }
@@ -277,6 +291,7 @@ const insertCmoIntentAction = async ({
       actorId: CMO_ACTOR_ID,
       brandId: fixture.brandId,
       callId: `call:${actionId}`,
+      conversationId: fixture.conversationId,
       effectClass: 'graph-internal',
       id: actionId,
       intentId,
@@ -297,38 +312,27 @@ const insertCmoIntentAction = async ({
       policySnapshot: {},
       rationale: 'Test trusted CMO Intent provenance',
       sessionId,
+      turnId,
       type: 'intent_declared',
     })
 }
 
-const cmoContext = ({
+const trustedTurnAccess = async ({
   fixture,
-  sessionId = fixture.sessionId,
   turnId,
 }: {
   readonly fixture: IntentFixture
-  readonly sessionId?: string
   readonly turnId: string
-}): Pick<ToolContext, 'session'> => {
-  const auth = {
-    attributes: {
-      brand_id: fixture.brandId,
-      conversation_id: fixture.conversationId,
-    },
-    authenticator: 'cmo-bridge',
-    issuer: 'branderize-app',
-    principalId: fixture.userId,
-    principalType: 'user' as const,
-    subject: fixture.userId,
-  }
-  return {
-    session: {
-      auth: { current: auth, initiator: auth },
-      id: sessionId,
-      turn: { id: turnId, sequence: 0 },
-    },
-  }
-}
+}) =>
+  await resolveTrustedCmoTurnAccess({
+    context: toolContext({
+      callId: `call:${randomUUID()}`,
+      fixture,
+      toolName: 'test_runtime_access',
+      turnId,
+    }),
+    database: requireDatabase(),
+  })
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL
@@ -382,13 +386,13 @@ describe('CMO Intent continuity on PostgreSQL', () => {
 
     await expect(
       loadCmoIntentTarget({
-        context: cmoContext({ fixture, turnId: 'turn-2' }),
+        access: await trustedTurnAccess({ fixture, turnId: 'turn-2' }),
         database: requireDatabase(),
       })
     ).resolves.toEqual({ id: fixture.secondIntentId, revision: 1 })
     await expect(
       loadCmoIntentTarget({
-        context: cmoContext({ fixture, turnId: 'turn-3' }),
+        access: await trustedTurnAccess({ fixture, turnId: 'turn-3' }),
         database: requireDatabase(),
       })
     ).resolves.toEqual({ id: fixture.secondIntentId, revision: 1 })
@@ -411,7 +415,7 @@ describe('CMO Intent continuity on PostgreSQL', () => {
 
     await expect(
       loadCmoIntentTarget({
-        context: cmoContext({ fixture, turnId: 'turn-3' }),
+        access: await trustedTurnAccess({ fixture, turnId: 'turn-3' }),
         database: requireDatabase(),
       })
     ).rejects.toThrow(
@@ -435,7 +439,7 @@ describe('CMO Intent continuity on PostgreSQL', () => {
 
     await expect(
       loadCmoIntentTarget({
-        context: cmoContext({ fixture, turnId: 'turn-3' }),
+        access: await trustedTurnAccess({ fixture, turnId: 'turn-3' }),
         database: requireDatabase(),
       })
     ).resolves.toEqual({ id: fixture.secondIntentId, revision: 2 })
@@ -447,7 +451,7 @@ describe('CMO Intent continuity on PostgreSQL', () => {
 
     await expect(
       loadCmoIntentTarget({
-        context: cmoContext({ fixture, turnId: 'turn-4' }),
+        access: await trustedTurnAccess({ fixture, turnId: 'turn-4' }),
         database: requireDatabase(),
       })
     ).resolves.toEqual({ id: fixture.firstIntentId, revision: 1 })
@@ -469,7 +473,7 @@ describe('CMO Intent continuity on PostgreSQL', () => {
 
     await expect(
       loadCmoIntentTarget({
-        context: cmoContext({ fixture, turnId: 'turn-2' }),
+        access: await trustedTurnAccess({ fixture, turnId: 'turn-2' }),
         database: requireDatabase(),
       })
     ).rejects.toThrow('The current CMO turn targets no active Intent')

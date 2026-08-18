@@ -397,7 +397,8 @@ earlier, separate "UI phase."
 - add `db:migrate` to the `apps/app` Vercel deployment only, using
   `DIRECT_DATABASE_URL`, and add idempotent `pull_request.closed` cleanup for the
   exact Neon preview branch. Agent roots never receive the direct URL;
-- implement Better Auth User, organization, Member, and Google sign-in;
+- implement Better Auth User, organization, Member, and passwordless email OTP
+  sign-in rendered with React Email and delivered through Resend;
 - implement brand, Human/System/Agent Actor, active human Intent, Action, Object,
   Blob reference, task, completion, and operation receipt needed by the phase;
 - introduce `session_events` and the append-only `credit_ledger` core from the
@@ -495,7 +496,9 @@ earlier, separate "UI phase."
 - expose `request_specialist_work` only in the top-level CMO and only for the
   Product Marketer kind. The current human turn must identify one active Intent
   without ambiguity; trusted code constructs the snapshot;
-- use a deny-all local sandbox when no backend can enforce the network allowlist.
+- use Vercel Sandbox with a deny-all network policy in every environment.
+  Local development authenticates with a short-lived Development OIDC token;
+  sandbox creation fails closed and never falls back to a local backend.
 
 #### User surface
 
@@ -556,7 +559,8 @@ earlier, separate "UI phase."
 
 Phase 0 is complete when all four journeys pass in CI through the real boundaries
 with scripted Context.dev and inference, then pass in the non-production canary
-with Google auth, Context.dev, Blob, Neon, and the exact real AI Gateway profile.
+with email OTP auth, Context.dev, Blob, Neon, Resend, and the exact real
+AI Gateway profile.
 The canary must also prove that the exact snapshot accepts `high`, returns a
 reasoning signal, and reports no warning or remap. Product Marketer must create
 at least one task-linked Object. Every root must pass build and health checks,

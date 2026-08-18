@@ -18,9 +18,16 @@ import type {
 import {
   deriveStructureLevel,
   evaluatePolicy,
+  MEMBER_ROLES,
   PHASE_0_POLICY_MATRIX,
   POLICY_VERSION,
 } from './policy'
+
+describe('policy member roles', () => {
+  it('owns the persisted member-role vocabulary', () => {
+    expect(MEMBER_ROLES).toEqual(['owner', 'admin', 'member', 'viewer'])
+  })
+})
 
 const HUMAN_ACTOR = {
   actorKey: 'human:user-1',

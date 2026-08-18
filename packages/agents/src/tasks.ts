@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+export const PRODUCT_MARKETER_TASK_KIND =
+  'product-marketer.brand-context.v1' as const
+export const PRODUCT_MARKETER_WORKER_KEY = 'product-marketer' as const
+
 const identifierSchema = z.string().trim().min(1)
 const summarySchema = z.string().trim().min(1).max(2000)
 const questionSchema = z.string().trim().min(1).max(500)
@@ -93,3 +97,7 @@ export const requiredProductMarketerOutputIds = (
   result: ProductMarketerResult
 ): readonly string[] =>
   result.outcome === 'report' ? [result.brandContextObjectId] : []
+
+export const hasOpenProductMarketerQuestions = (
+  completion: ProductMarketerCompletion
+): boolean => completion.status !== 'completed'

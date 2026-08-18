@@ -38,10 +38,10 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/branderize_test
       DIRECT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/branderize_test
       DISPATCH_SECRET: ci-dispatch-secret-000000000000000000
-      GOOGLE_CLIENT_ID: ci-google-client-id
-      GOOGLE_CLIENT_SECRET: ci-google-client-secret
       INTEGRATION_USE_EXISTING_DATABASE: "1"
       NEXT_PUBLIC_APP_URL: https://app.ci.invalid
+      RESEND_API_KEY: re_ci_placeholder
+      RESEND_FROM_EMAIL: access@ci.invalid
       TURBO_LOG_ORDER: grouped
     services:
       postgres:

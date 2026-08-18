@@ -5,6 +5,7 @@ import {
   agentRegistry,
   getTaskKind,
   modelProfiles,
+  REGISTERED_QUESTION_TASK_KIND_KEYS,
   taskKindRegistry,
 } from './registry'
 import {
@@ -38,7 +39,69 @@ describe('Phase 0 agent registry', () => {
     expect(
       taskKind.briefSchema.parse({ purpose: 'enrich_brand_context' })
     ).toEqual({ purpose: 'enrich_brand_context' })
-    expect(taskKind.subjectKey).toBe('product-marketer:brand-context')
+    expect(taskKind.subjectKey({ purpose: 'enrich_brand_context' })).toBe(
+      'product-marketer:brand-context'
+    )
+    expect(
+      taskKind.completionSchema.safeParse({
+        intentAcceptance: null,
+        openQuestions: [],
+        outputObjectIds: ['object_brand_context_01'],
+        result: {
+          brandContextObjectId: 'object_brand_context_01',
+          outcome: 'report',
+        },
+        status: 'completed',
+        summary: 'Brand Context enriched.',
+      }).success
+    ).toBe(true)
+    expect(
+      taskKind.questionPolicy?.hasOpenQuestions({
+        intentAcceptance: null,
+        openQuestions: ['Which segment is the first priority?'],
+        outputObjectIds: [],
+        result: {
+          outcome: 'needs_input',
+          reason: 'missing_human_context',
+        },
+        status: 'partial',
+        summary: 'One positioning input is missing.',
+      })
+    ).toBe(true)
+    expect(
+      taskKind.questionPolicy?.hasOpenQuestions({
+        intentAcceptance: null,
+        openQuestions: [],
+        outputObjectIds: ['object_brand_context_01'],
+        result: {
+          brandContextObjectId: 'object_brand_context_01',
+          outcome: 'report',
+        },
+        status: 'completed',
+        summary: 'Brand Context enriched.',
+      })
+    ).toBe(false)
+    expect(
+      taskKind.questionPolicy?.projectOpenQuestions({
+        intentAcceptance: null,
+        openQuestions: ['Which segment is the first priority?'],
+        outputObjectIds: [],
+        result: {
+          outcome: 'needs_input',
+          reason: 'missing_human_context',
+        },
+        status: 'partial',
+        summary: 'One positioning input is missing.',
+      })
+    ).toEqual({
+      questions: ['Which segment is the first priority?'],
+      reason: 'missing_human_context',
+      status: 'partial',
+      summary: 'One positioning input is missing.',
+    })
+    expect(REGISTERED_QUESTION_TASK_KIND_KEYS).toEqual([
+      'product-marketer.brand-context.v1',
+    ])
   })
 })
 

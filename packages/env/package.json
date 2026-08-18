@@ -9,6 +9,7 @@
     "./app-server": "./src/app-server.ts",
     "./cmo-agent-server": "./src/cmo-agent-server.ts",
     "./client": "./src/client.ts",
+    "./local-email-otp": "./src/local-email-otp.ts",
     "./migration-server": "./src/migration-server.ts"
   },
   "scripts": {

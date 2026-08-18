@@ -91,6 +91,7 @@ export default defineConfig({
   snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{arg}{ext}',
   testDir: 'tests/e2e',
   timeout: 60_000,
+  updateSnapshots: process.env.E2E_UPDATE_SNAPSHOTS === '1' ? 'all' : 'none',
   use: {
     actionTimeout: 10_000,
     baseURL: appOrigin,

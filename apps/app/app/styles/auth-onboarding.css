@@ -1,0 +1,261 @@
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.75fr);
+  min-height: 100svh;
+}
+
+.auth-intro {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100svh;
+  padding: clamp(32px, 5vw, 78px);
+  border-right: 1px solid var(--line);
+}
+
+.auth-intro h1 {
+  max-width: 920px;
+  font-size: clamp(4rem, 7vw, 8.5rem);
+}
+
+.folio {
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.auth-panel {
+  display: grid;
+  place-items: center;
+  padding: 48px;
+  color: var(--paper-light);
+  background: var(--ink);
+}
+
+.auth-panel__inner {
+  width: 100%;
+  max-width: 390px;
+}
+
+.auth-panel .eyebrow,
+.auth-panel p,
+.auth-panel small {
+  color: #c5d0ca;
+}
+
+.auth-panel h2 {
+  font-size: clamp(2.5rem, 4vw, 4.5rem);
+}
+
+.auth-panel .button {
+  margin: 28px 0 20px;
+  color: var(--ink-deep);
+  background: var(--paper-light);
+  border-color: var(--paper-light);
+}
+
+.auth-action {
+  width: 100%;
+}
+
+.auth-email-form {
+  display: grid;
+  gap: 12px;
+  margin: 28px 0 20px;
+}
+
+.auth-email-form .button {
+  margin: 10px 0 0;
+}
+
+.auth-text-button {
+  justify-self: start;
+  padding: 4px 0;
+  font: inherit;
+  color: var(--paper-light);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.auth-text-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.form-stack {
+  display: grid;
+  gap: 23px;
+}
+
+.form-stack--compact {
+  gap: 18px;
+}
+
+.field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field > span,
+.brand-switcher > label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+}
+
+.field small {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.field input,
+.field select,
+.field textarea,
+.cmo-composer textarea {
+  width: 100%;
+  font-family: var(--serif);
+  font-size: 18px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-dark);
+  border-radius: 0;
+}
+
+.field input,
+.field select {
+  min-height: 47px;
+}
+
+.field textarea,
+.cmo-composer textarea {
+  padding: 12px 0;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.field input::placeholder,
+.field textarea::placeholder,
+.cmo-composer textarea::placeholder {
+  color: #929b95;
+}
+
+.field--grow {
+  flex: 1;
+  min-width: 220px;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: end;
+}
+
+.inline-form--title {
+  align-items: end;
+}
+
+.form-feedback {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.form-feedback--error {
+  color: #9d321f;
+}
+
+.form-feedback--success {
+  color: var(--success);
+}
+
+.onboarding-page {
+  min-height: 100svh;
+}
+
+.onboarding-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px clamp(24px, 5vw, 80px);
+  border-bottom: 1px solid var(--line);
+}
+
+.onboarding-header p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(480px, 0.95fr);
+  min-height: calc(100svh - 75px);
+}
+
+.onboarding-copy,
+.onboarding-form-panel {
+  padding: clamp(48px, 7vw, 105px);
+}
+
+.onboarding-copy {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+
+.onboarding-copy h1 {
+  font-size: clamp(3.7rem, 6vw, 7rem);
+}
+
+.editorial-steps {
+  display: grid;
+  padding: 0;
+  margin: auto 0 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.editorial-steps li {
+  display: flex;
+  gap: 22px;
+  padding: 15px 0;
+  font-family: var(--serif);
+  font-size: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.editorial-steps span {
+  font-family: var(--sans);
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.onboarding-form-panel {
+  background: var(--paper-light);
+}
+
+.auth-panel .auth-email-form input {
+  color: var(--paper-light);
+  border-bottom-color: #718078;
+}
+
+.auth-panel .auth-email-form input::placeholder {
+  color: #9eaaa3;
+}
+
+.auth-panel .auth-email-form .field > span {
+  color: #c5d0ca;
+}

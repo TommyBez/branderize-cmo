@@ -94,21 +94,27 @@ const materializeHumanActor = async (
 
 interface InsertActionInput {
   brandId: string
+  conversationId?: string
   id?: string
   intentId?: string
   operationKey?: string
   requestHash?: string
+  sessionId?: string
   taskId?: string
+  turnId?: string
   type?: string
 }
 
 const insertAction = async ({
   brandId,
+  conversationId,
   id = randomUUID(),
   intentId,
   operationKey,
   requestHash,
+  sessionId,
   taskId,
+  turnId,
   type = 'integration_fact_recorded',
 }: InsertActionInput): Promise<string> => {
   await query(
@@ -124,8 +130,14 @@ const insertAction = async ({
       operation_key,
       request_hash,
       intent_id,
-      task_id
-    ) VALUES ($1, $2, $3, $4, $5, $6, '{}'::jsonb, '{}'::jsonb, $7, $8, $9, $10)`,
+      task_id,
+      conversation_id,
+      session_id,
+      turn_id
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, '{}'::jsonb, '{}'::jsonb,
+      $7, $8, $9, $10, $11, $12, $13
+    )`,
     [
       id,
       brandId,
@@ -137,6 +149,9 @@ const insertAction = async ({
       requestHash ?? null,
       intentId ?? null,
       taskId ?? null,
+      conversationId ?? null,
+      sessionId ?? null,
+      turnId ?? null,
     ]
   )
 
@@ -808,6 +823,65 @@ describe('Phase 0 PostgreSQL foundation', () => {
       ),
       DATABASE_ERROR.checkViolation
     )
+  })
+
+  it('enforces indexed Action conversation and turn lineage', async () => {
+    const conversationId = randomUUID()
+    const sessionId = `session:${randomUUID()}`
+    await query(
+      `INSERT INTO cmo_conversations (
+        id, brand_id, owner_user_id, session_id
+      ) VALUES ($1, $2, $3, $4)`,
+      [conversationId, fixture.brandAId, fixture.userId, sessionId]
+    )
+
+    await expect(
+      insertAction({
+        brandId: fixture.brandAId,
+        conversationId,
+        sessionId,
+        turnId: `turn:${randomUUID()}`,
+      })
+    ).resolves.toEqual(expect.any(String))
+    await expectDatabaseError(
+      insertAction({ brandId: fixture.brandAId, conversationId, sessionId }),
+      DATABASE_ERROR.checkViolation
+    )
+    await expectDatabaseError(
+      insertAction({
+        brandId: fixture.brandAId,
+        conversationId,
+        turnId: `turn:${randomUUID()}`,
+      }),
+      DATABASE_ERROR.checkViolation
+    )
+    await expectDatabaseError(
+      insertAction({
+        brandId: fixture.brandAId,
+        conversationId,
+        sessionId: `session:${randomUUID()}`,
+        turnId: `turn:${randomUUID()}`,
+      }),
+      DATABASE_ERROR.foreignKeyViolation
+    )
+
+    const lineageIndexes = await query<{ indexname: string }>(
+      `SELECT indexname
+       FROM pg_indexes
+       WHERE schemaname = current_schema()
+         AND indexname = ANY($1::text[])
+       ORDER BY indexname`,
+      [
+        [
+          'actions_brand_conversation_created_idx',
+          'actions_brand_conversation_session_turn_idx',
+        ],
+      ]
+    )
+    expect(lineageIndexes.rows.map(({ indexname }) => indexname)).toEqual([
+      'actions_brand_conversation_created_idx',
+      'actions_brand_conversation_session_turn_idx',
+    ])
   })
 
   it('cascades a deleted tenant through otherwise immutable rows', async () => {

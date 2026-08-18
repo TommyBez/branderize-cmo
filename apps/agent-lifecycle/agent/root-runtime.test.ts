@@ -1,11 +1,11 @@
+import { createDispatchAckHandler } from '@repo/agents/dispatch-handler'
 import { describe, expect, it } from 'vitest'
 
 import rootAgent from './agent'
-import { createDispatchHandler } from './channels/dispatch'
 import { ROOT_RUNTIME_CONTRACT } from './lib/root-contract'
 
 const DISPATCH_SECRET = 'dispatch-secret-at-least-32-characters'
-const handle = createDispatchHandler({ readSecret: () => DISPATCH_SECRET })
+const handle = createDispatchAckHandler({ readSecret: () => DISPATCH_SECRET })
 
 const request = ({
   body,

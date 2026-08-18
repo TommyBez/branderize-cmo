@@ -17,7 +17,7 @@ export const rootManifest: readonly CompiledRootManifest[] = AGENT_KEYS.map(
     return {
       agentKey,
       functional: agent.status === 'functional',
-      supportedTaskKinds: agent.taskKinds.map(({ kind }) => kind),
+      supportedTaskKinds: agent.taskKinds,
     }
   }
 )

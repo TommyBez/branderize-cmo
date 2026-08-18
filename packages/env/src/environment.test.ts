@@ -15,9 +15,9 @@ const validAppEnvironment = {
   CRON_SECRET: 'cron-secret-with-more-than-32-characters',
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/branderize',
   DISPATCH_SECRET: 'dispatch-secret-with-more-than-32-characters',
-  GOOGLE_CLIENT_ID: 'google-client-id',
-  GOOGLE_CLIENT_SECRET: 'google-client-secret',
   NODE_ENV: 'test',
+  RESEND_API_KEY: 're_test_api_key',
+  RESEND_FROM_EMAIL: 'access@example.test',
 } satisfies Readonly<Record<string, string>>
 
 describe('app server environment', () => {
@@ -48,6 +48,68 @@ describe('app server environment', () => {
         BETTER_AUTH_SECRET: 'too-short',
       })
     ).toThrow()
+  })
+
+  it('validates the Resend API key and sender mailbox', () => {
+    expect(() =>
+      parseAppServerEnvironment({
+        ...validAppEnvironment,
+        RESEND_API_KEY: 'not-a-resend-key',
+      })
+    ).toThrow()
+    expect(() =>
+      parseAppServerEnvironment({
+        ...validAppEnvironment,
+        RESEND_FROM_EMAIL: 'not-an-email',
+      })
+    ).toThrow()
+  })
+
+  it('allows no Resend credentials only for the guarded local OTP mode', () => {
+    const environment = parseAppServerEnvironment({
+      ...validAppEnvironment,
+      AUTH_LOCAL_OTP_BYPASS: '1',
+      BETTER_AUTH_URL: 'http://127.0.0.1:3001',
+      NODE_ENV: 'development',
+      RESEND_API_KEY: undefined,
+      RESEND_FROM_EMAIL: undefined,
+      VERCEL_ENV: 'development',
+    })
+
+    expect(environment.AUTH_LOCAL_OTP_BYPASS).toBe('1')
+    expect(environment.RESEND_API_KEY).toBeUndefined()
+    expect(environment.RESEND_FROM_EMAIL).toBeUndefined()
+  })
+
+  it.each([
+    { BETTER_AUTH_URL: 'https://app.example.test' },
+    { BETTER_AUTH_URL: 'http://localhost:3001', NODE_ENV: 'test' },
+    { BETTER_AUTH_URL: 'http://localhost:3001', VERCEL_ENV: 'preview' },
+  ])(
+    'rejects local OTP bypass outside guarded local development',
+    (override) => {
+      expect(() =>
+        parseAppServerEnvironment({
+          ...validAppEnvironment,
+          AUTH_LOCAL_OTP_BYPASS: '1',
+          NODE_ENV: 'development',
+          RESEND_API_KEY: undefined,
+          RESEND_FROM_EMAIL: undefined,
+          VERCEL_ENV: 'development',
+          ...override,
+        })
+      ).toThrow('AUTH_LOCAL_OTP_BYPASS requires')
+    }
+  )
+
+  it('requires Resend credentials when local OTP bypass is absent', () => {
+    expect(() =>
+      parseAppServerEnvironment({
+        ...validAppEnvironment,
+        RESEND_API_KEY: undefined,
+        RESEND_FROM_EMAIL: undefined,
+      })
+    ).toThrow('RESEND_API_KEY is required outside local OTP development')
   })
 
   it('rejects insecure production auth origins', () => {
@@ -135,6 +197,7 @@ describe('client environment', () => {
       NEXT_PUBLIC_APP_URL: 'http://localhost:3001',
     })
     expect('DIRECT_DATABASE_URL' in environment).toBe(false)
+    expect('RESEND_API_KEY' in environment).toBe(false)
   })
 
   it.each([

@@ -1,8 +1,14 @@
 import type { AgentModelOptionsDefinition } from 'eve'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 import {
+  hasOpenProductMarketerQuestions,
+  PRODUCT_MARKETER_TASK_KIND,
+  PRODUCT_MARKETER_WORKER_KEY,
+  type ProductMarketerCompletion,
+  type ProductMarketerPayload,
   type ProductMarketerResult,
+  productMarketerCompletionSchema,
   productMarketerPayloadSchema,
   productMarketerResultSchema,
   requiredProductMarketerOutputIds,
@@ -33,24 +39,49 @@ export interface ModelProfile {
   readonly modelOptions?: AgentModelOptionsDefinition
 }
 
-export interface RegisteredTaskKind {
+export interface RegisteredTaskCompletion {
+  readonly outputObjectIds: readonly string[]
+  readonly result: unknown
+  readonly status: 'blocked' | 'completed' | 'partial'
+}
+
+export interface RegisteredOpenQuestionProjection {
+  readonly questions: readonly string[]
+  readonly reason: string
+  readonly status: 'blocked' | 'partial'
+  readonly summary: string
+}
+
+export interface RegisteredTaskQuestionPolicy {
+  readonly hasOpenQuestions: (completion: unknown) => boolean
+  readonly projectOpenQuestions: (
+    completion: unknown
+  ) => RegisteredOpenQuestionProjection | null
+}
+
+export interface RegisteredTaskKind<
+  TKind extends string = string,
+  TBrief = unknown,
+  TResult = unknown,
+  TCompletion extends RegisteredTaskCompletion = RegisteredTaskCompletion,
+> {
   readonly acceptsPlanRouteOrigin: false
   readonly activation: 'automatic'
-  readonly briefSchema: z.ZodType
+  readonly briefSchema: z.ZodType<TBrief>
   readonly budgetClass: 'standard'
-  readonly completionResultSchema: z.ZodType
+  readonly completionResultSchema: z.ZodType<TResult>
+  readonly completionSchema: z.ZodType<TCompletion>
   readonly effectPhase: 'graph-internal'
   readonly executionMode: 'agent'
   readonly intentAcceptance: 'ineligible'
-  readonly kind: 'product-marketer.brand-context.v1'
-  readonly outputContract: readonly ['brand_context']
-  readonly requiredOutputObjectIds: (
-    result: ProductMarketerResult
-  ) => readonly string[]
+  readonly kind: TKind
+  readonly outputContract: readonly string[]
+  readonly questionPolicy: RegisteredTaskQuestionPolicy | null
+  readonly requiredOutputObjectIds: (result: unknown) => readonly string[]
   readonly requires: readonly []
   readonly schedulableBy: readonly ['agent']
-  readonly subjectKey: 'product-marketer:brand-context'
-  readonly workerKey: 'product-marketer'
+  readonly subjectKey: (payload: unknown) => string
+  readonly workerKey: AgentKey
 }
 
 export interface RegisteredAgent {
@@ -62,7 +93,7 @@ export interface RegisteredAgent {
   readonly key: AgentKey
   readonly reportingFeature: string
   readonly status: 'functional' | 'health-only'
-  readonly taskKinds: readonly RegisteredTaskKind[]
+  readonly taskKinds: readonly RegisteredTaskKindKey[]
 }
 
 export const PHASE_ZERO_MODEL_PROFILE_KEY = 'deepseek-v4-pro-0813'
@@ -87,17 +118,45 @@ const productMarketerTaskKind = {
   briefSchema: productMarketerPayloadSchema,
   budgetClass: 'standard',
   completionResultSchema: productMarketerResultSchema,
+  completionSchema: productMarketerCompletionSchema,
   effectPhase: 'graph-internal',
   executionMode: 'agent',
   intentAcceptance: 'ineligible',
-  kind: 'product-marketer.brand-context.v1',
+  kind: PRODUCT_MARKETER_TASK_KIND,
   outputContract: ['brand_context'],
-  requiredOutputObjectIds: requiredProductMarketerOutputIds,
+  questionPolicy: {
+    hasOpenQuestions: (completion: unknown) =>
+      hasOpenProductMarketerQuestions(
+        productMarketerCompletionSchema.parse(completion)
+      ),
+    projectOpenQuestions: (completion: unknown) => {
+      const parsed = productMarketerCompletionSchema.parse(completion)
+      if (parsed.status === 'completed') {
+        return null
+      }
+      return {
+        questions: parsed.openQuestions,
+        reason: parsed.result.reason,
+        status: parsed.status,
+        summary: parsed.summary,
+      }
+    },
+  },
+  requiredOutputObjectIds: (result: unknown) =>
+    requiredProductMarketerOutputIds(productMarketerResultSchema.parse(result)),
   requires: [],
   schedulableBy: ['agent'],
-  subjectKey: 'product-marketer:brand-context',
-  workerKey: 'product-marketer',
-} as const
+  subjectKey: (payload: unknown) => {
+    productMarketerPayloadSchema.parse(payload)
+    return `${PRODUCT_MARKETER_WORKER_KEY}:brand-context`
+  },
+  workerKey: PRODUCT_MARKETER_WORKER_KEY,
+} as const satisfies RegisteredTaskKind<
+  typeof PRODUCT_MARKETER_TASK_KIND,
+  ProductMarketerPayload,
+  ProductMarketerResult,
+  ProductMarketerCompletion
+>
 
 export const agentRegistry = {
   cmo: {
@@ -164,7 +223,7 @@ export const agentRegistry = {
     key: 'product-marketer',
     reportingFeature: 'brand-context',
     status: 'functional',
-    taskKinds: [productMarketerTaskKind],
+    taskKinds: [PRODUCT_MARKETER_TASK_KIND],
   },
   'seo-discovery': {
     actorKey: 'agent:seo-discovery',
@@ -185,8 +244,22 @@ export const taskKindRegistry = {
 
 export type RegisteredTaskKindKey = keyof typeof taskKindRegistry
 
-export const getAgent = (agentKey: AgentKey): RegisteredAgent =>
-  agentRegistry[agentKey]
+export type RegisteredTaskCompletionValue = z.output<
+  (typeof taskKindRegistry)[RegisteredTaskKindKey]['completionSchema']
+>
+
+export const REGISTERED_TASK_KIND_KEYS = [PRODUCT_MARKETER_TASK_KIND] as const
+
+export const registeredTaskKindKeySchema = z.enum(REGISTERED_TASK_KIND_KEYS)
+
+export const REGISTERED_QUESTION_TASK_KIND_KEYS =
+  REGISTERED_TASK_KIND_KEYS.filter(
+    (kind) => taskKindRegistry[kind].questionPolicy !== null
+  )
+
+export const getAgent = <TAgentKey extends AgentKey>(
+  agentKey: TAgentKey
+): (typeof agentRegistry)[TAgentKey] => agentRegistry[agentKey]
 
 const isModelProfileKey = (
   profileKey: string
@@ -196,5 +269,6 @@ const isModelProfileKey = (
 export const getModelProfile = (profileKey: string): ModelProfile | null =>
   isModelProfileKey(profileKey) ? modelProfiles[profileKey] : null
 
-export const getTaskKind = (kind: RegisteredTaskKindKey): RegisteredTaskKind =>
-  taskKindRegistry[kind]
+export const getTaskKind = <TKind extends RegisteredTaskKindKey>(
+  kind: TKind
+): (typeof taskKindRegistry)[TKind] => taskKindRegistry[kind]

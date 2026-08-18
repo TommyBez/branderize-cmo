@@ -1,12 +1,18 @@
+import { MEMBER_ROLES } from '@repo/policy'
 import { describe, expect, it } from 'vitest'
-
 import {
   canMutate,
+  memberRoleSchema,
   trustedCmoTurnAccessSchema,
   trustedTaskExecutionSchema,
 } from './context'
 
 describe('trusted brain context', () => {
+  it('derives its member-role schema from Policy', () => {
+    expect(memberRoleSchema.options).toEqual(MEMBER_ROLES)
+    expect(memberRoleSchema.safeParse('billing-admin').success).toBe(false)
+  })
+
   it('keeps viewers read-only', () => {
     expect(canMutate('viewer')).toBe(false)
     expect(canMutate('member')).toBe(true)

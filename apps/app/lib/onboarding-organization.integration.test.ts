@@ -84,8 +84,10 @@ beforeAll(async () => {
         'phase0-onboarding-integration-secret-at-least-thirty-two-bytes',
       BETTER_AUTH_TRUSTED_ORIGINS: ['http://localhost:3001'],
       BETTER_AUTH_URL: 'http://localhost:3001',
-      GOOGLE_CLIENT_ID: 'integration-google-client',
-      GOOGLE_CLIENT_SECRET: 'integration-google-secret',
+      NODE_ENV: 'test',
+      RESEND_API_KEY: 're_integration_key',
+      RESEND_FROM_EMAIL: 'access@example.test',
+      VERCEL_ENV: 'development',
     },
   })
 })

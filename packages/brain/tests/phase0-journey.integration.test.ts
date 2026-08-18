@@ -66,6 +66,7 @@ import {
   bindTaskSession,
   claimProductMarketerTask,
   failProductMarketerDelivery,
+  failRegisteredAgentDelivery,
   finishTask,
   PRODUCT_MARKETER_TASK_KIND,
   PRODUCT_MARKETER_WORKER_KEY,
@@ -1285,7 +1286,53 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       taskId: claimedTask.taskId,
       workerKey: PRODUCT_MARKETER_WORKER_KEY,
     }
+    await expect(
+      failRegisteredAgentDelivery({
+        claim: {
+          agentActorId: CMO_ACTOR_ID,
+          agentActorKey: CMO_ACTOR_KEY,
+          brandId: claimedTask.brandId,
+          kind: claimedTask.kind,
+          startedAt: claimedTask.startedAt,
+          taskId: claimedTask.taskId,
+          workerKey: claimedTask.workerKey,
+        },
+        database: requireDatabase(),
+        now: new Date(Date.now() + 1500),
+      })
+    ).rejects.toMatchObject({ code: 'invalid_task' })
+    await expect(
+      bindTaskSession({
+        database: requireDatabase(),
+        execution: {
+          ...execution,
+          agentActorId: CMO_ACTOR_ID,
+          agentActorKey: CMO_ACTOR_KEY,
+        },
+      })
+    ).rejects.toMatchObject({ code: 'invalid_task' })
     await bindTaskSession({ database: requireDatabase(), execution })
+    await expect(
+      finishTask({
+        completion: {
+          intentAcceptance: null,
+          openQuestions: ['Which Agent owns this task?'],
+          outputObjectIds: [],
+          result: {
+            outcome: 'needs_input',
+            reason: 'missing_human_context',
+          },
+          status: 'blocked',
+          summary: 'A different registered Agent attempted completion.',
+        },
+        database: requireDatabase(),
+        execution: {
+          ...execution,
+          agentActorId: CMO_ACTOR_ID,
+          agentActorKey: CMO_ACTOR_KEY,
+        },
+      })
+    ).rejects.toMatchObject({ code: 'invalid_task' })
     const productMarketerChildSessionId = `session:product-marketer-child:${randomUUID()}`
     const childExecution: TrustedTaskExecution = {
       ...execution,

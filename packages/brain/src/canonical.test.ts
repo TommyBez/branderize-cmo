@@ -37,6 +37,9 @@ describe('canonical request identity', () => {
     ])
 
     expect(requestHash(unordered)).toBe(requestHash({ a: 1, b: 2 }))
+    expect(requestHash(unordered)).toBe(
+      '43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777'
+    )
   })
 
   it('namespaces a private digest instead of persisting a raw request id', () => {

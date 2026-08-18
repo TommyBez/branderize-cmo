@@ -24,12 +24,9 @@ const readEndpointMap = (): AgentEndpointMap => ({
 
 export const resolveAgentEndpoint = ({
   agentKey,
-  brandId,
 }: {
   readonly agentKey: AgentKey
-  readonly brandId: string
-}): string =>
-  createAgentEndpointResolver(readEndpointMap())({ agentKey, brandId })
+}): string => createAgentEndpointResolver(readEndpointMap())({ agentKey })
 
 export const resolveFleetEndpoints = (): readonly {
   readonly agentKey: AgentKey
@@ -38,6 +35,6 @@ export const resolveFleetEndpoints = (): readonly {
   const resolver = createAgentEndpointResolver(readEndpointMap())
   return AGENT_KEYS.map((agentKey) => ({
     agentKey,
-    endpoint: resolver({ agentKey, brandId: 'fleet-dispatch' }),
+    endpoint: resolver({ agentKey }),
   }))
 }

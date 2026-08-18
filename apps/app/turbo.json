@@ -22,9 +22,9 @@
         "DATABASE_URL",
         "DISPATCH_SECRET",
         "E2E_EXPOSE_NEXT_TESTING_API",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "NEXT_PUBLIC_APP_URL"
+        "NEXT_PUBLIC_APP_URL",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL"
       ],
       "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/scripts/upload-posthog-sourcemaps.mjs"]
     }

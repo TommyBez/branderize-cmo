@@ -1,0 +1,69 @@
+footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  max-width: 94rem;
+  min-height: 7.5rem;
+  padding: 0 3rem;
+  margin: 0 auto;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-top: 1px solid var(--line);
+}
+
+.footer-tagline,
+.footer-phase {
+  margin: 0;
+}
+
+.footer-phase {
+  justify-self: end;
+}
+
+footer .brand {
+  font-size: 1.15rem;
+  text-transform: none;
+  letter-spacing: -0.02em;
+}
+
+footer .brand-mark {
+  font-size: 1.45rem;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 4px;
+}
+
+.reveal {
+  animation: reveal-up 720ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.reveal-two {
+  animation-delay: 80ms;
+}
+
+.reveal-three {
+  animation-delay: 160ms;
+}
+
+.reveal-four {
+  animation-delay: 240ms;
+}
+
+.reveal-five {
+  animation-delay: 320ms;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

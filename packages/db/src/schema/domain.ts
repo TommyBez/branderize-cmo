@@ -193,6 +193,7 @@ export const actions = pgTable(
       .notNull()
       .references(() => brands.id, { onDelete: 'cascade' }),
     callId: text('call_id'),
+    conversationId: uuid('conversation_id'),
     createdAt: timestampWithTimezone('created_at').defaultNow().notNull(),
     decisionId: uuid('decision_id'),
     effectClass: text('effect_class').notNull(),
@@ -206,6 +207,7 @@ export const actions = pgTable(
     scheduleId: uuid('schedule_id'),
     sessionId: text('session_id'),
     taskId: uuid('task_id'),
+    turnId: text('turn_id'),
     type: text('type').notNull(),
   },
   (table) => [
@@ -215,6 +217,15 @@ export const actions = pgTable(
       foreignColumns: [intents.brandId, intents.id],
       name: 'actions_intent_same_brand_fk',
     }),
+    foreignKey({
+      columns: [table.brandId, table.conversationId, table.sessionId],
+      foreignColumns: [
+        cmoConversations.brandId,
+        cmoConversations.id,
+        cmoConversations.sessionId,
+      ],
+      name: 'actions_conversation_same_brand_session_fk',
+    }),
     uniqueIndex('actions_brand_operation_key_unique')
       .on(table.brandId, table.operationKey)
       .where(sql`${table.operationKey} IS NOT NULL`),
@@ -222,11 +233,32 @@ export const actions = pgTable(
       .on(table.taskId)
       .where(sql`${table.type} = 'task_questions_resolved'`),
     index('actions_brand_created_idx').on(table.brandId, table.createdAt),
+    index('actions_brand_conversation_created_idx')
+      .on(table.brandId, table.conversationId, table.createdAt, table.id)
+      .where(sql`${table.conversationId} IS NOT NULL`),
+    index('actions_brand_conversation_session_turn_idx')
+      .on(
+        table.brandId,
+        table.conversationId,
+        table.sessionId,
+        table.turnId,
+        table.createdAt,
+        table.id
+      )
+      .where(sql`${table.turnId} IS NOT NULL`),
     index('actions_intent_id_idx').on(table.intentId),
     index('actions_task_id_idx').on(table.taskId),
     check(
       'actions_operation_receipt_pair',
       sql`(${table.operationKey} IS NULL) = (${table.requestHash} IS NULL)`
+    ),
+    check(
+      'actions_conversation_turn_pair',
+      sql`(${table.conversationId} IS NULL) = (${table.turnId} IS NULL)`
+    ),
+    check(
+      'actions_turn_requires_session',
+      sql`${table.turnId} IS NULL OR ${table.sessionId} IS NOT NULL`
     ),
     check(
       'actions_payload_object',
@@ -345,6 +377,11 @@ export const cmoConversations = pgTable(
   },
   (table) => [
     unique('cmo_conversations_brand_id_id_unique').on(table.brandId, table.id),
+    unique('cmo_conversations_brand_id_id_session_id_unique').on(
+      table.brandId,
+      table.id,
+      table.sessionId
+    ),
     uniqueIndex('cmo_conversations_session_id_unique')
       .on(table.sessionId)
       .where(sql`${table.sessionId} IS NOT NULL`),

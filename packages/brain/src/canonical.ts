@@ -1,55 +1,17 @@
-import { createHash } from 'node:crypto'
+import {
+  canonicalJson,
+  sha256CanonicalJson,
+  sha256Hex,
+} from '@repo/canonical-json'
 
-import { z } from 'zod'
+export type { CanonicalJson } from '@repo/canonical-json'
 
-const jsonPrimitiveSchema = z.union([
-  z.string(),
-  z.number().finite(),
-  z.boolean(),
-  z.null(),
-])
+export const canonicalize = (value: unknown): string => canonicalJson(value)
 
-export type CanonicalJson =
-  | string
-  | number
-  | boolean
-  | null
-  | readonly CanonicalJson[]
-  | Readonly<{ [key: string]: CanonicalJson }>
-
-const normalizeJson = (value: unknown): CanonicalJson => {
-  const primitive = jsonPrimitiveSchema.safeParse(value)
-  if (primitive.success) {
-    return primitive.data
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => normalizeJson(entry))
-  }
-
-  if (typeof value !== 'object' || value === null) {
-    throw new TypeError('Canonical JSON accepts only JSON-compatible values')
-  }
-
-  const normalized: Record<string, CanonicalJson> = {}
-  for (const key of Object.keys(value).sort()) {
-    const entry = Reflect.get(value, key)
-    if (entry === undefined) {
-      throw new TypeError('Canonical JSON does not accept undefined values')
-    }
-    normalized[key] = normalizeJson(entry)
-  }
-  return normalized
-}
-
-export const canonicalize = (value: unknown): string =>
-  JSON.stringify(normalizeJson(value))
-
-export const sha256 = (value: string | Uint8Array): string =>
-  createHash('sha256').update(value).digest('hex')
+export const sha256 = (value: string | Uint8Array): string => sha256Hex(value)
 
 export const requestHash = (value: unknown): string =>
-  sha256(canonicalize(value))
+  sha256CanonicalJson(value)
 
 export const operationKey = (namespace: string, requestId: string): string => {
   const normalizedNamespace = namespace.trim()

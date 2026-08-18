@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./brand-tokens.css": "./src/styles/brand-tokens.css",
     "./globals.css": "./src/styles/globals.css",
     "./components/*": "./src/components/*.tsx",
     "./lib/*": "./src/lib/*.ts",

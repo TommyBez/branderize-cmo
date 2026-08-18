@@ -26,7 +26,9 @@ branderize-cmo is a **multi-tenant SaaS product**:
 - Creating a CMO conversation, starting its first turn, sending a follow-up, answering HITL, saving its cursor, and invoking any product mutation require the exact conversation owner with current Member role `owner | admin | member`. `viewer` cannot exercise those operations, compact, clear, or reset the Eve session. The only state-reducing exception is that the exact current conversation owner who remains a Member after being downgraded to `viewer` may stop a turn they already observed by sending its exact `turnId` to the cancel endpoint; this does not authorize a later follow-up or any other mutation. Conversation listing, metadata, transcript, snapshot, and stream reads require that same exact owner for every role; another organization Member has no read override in v1.
 - Self-serve onboarding starts without inference: the authenticated product boundary creates the brand, its human-authored `active` revision-1 onboarding Intent, and `website_url`; a server-side `apps/app` onboarding action then calls context.dev directly, validates and normalizes the response, and produces Brand Context v0 through the canonical Action/Object path. It is application onboarding logic, not a task, Eve session, or specialist-root execution. Only the later CMO-guided refinement enters the agent lane.
 - Credit-based billing: monthly pool per plan, metered consumption, paid overage
-- Real authentication (Better Auth, Google sign-in) instead of a bare allow-list
+- Real authentication through Better Auth passwordless email OTP, rendered
+  with React Email and delivered by Resend, instead of a bare allow-list. The
+  local supervisor uses a server-guarded no-delivery OTP mode.
 
 Dogfooding remains the wedge: the first tenant is branderize itself, and `apps/web` is the public site the agent team markets.
 

@@ -4,6 +4,7 @@ import {
   postAgentDispatchPoke,
 } from '@repo/agents/dispatch-poke'
 import { normalizeAgentEndpoint } from '@repo/agents/endpoints'
+import { PRODUCT_MARKETER_TASK_KIND } from '@repo/agents/tasks'
 import type { RequestSpecialistWorkReceipt } from '@repo/brain/tasks'
 import { requestSpecialistWork } from '@repo/brain/tasks'
 import { parseCmoAgentServerEnvironment } from '@repo/env/cmo-agent-server'
@@ -94,22 +95,23 @@ export default defineTool({
     "Request the allowlisted Product Marketer Brand Context task for the authenticated brand's unambiguous current-turn Intent. The task and tenant selectors are fixed by trusted runtime state.",
   async execute(_input, context) {
     const { db } = await import('@repo/db')
-    const [access, target] = await Promise.all([
-      resolveTrustedCmoTurnAccess({ context, database: db }),
-      loadCmoIntentTarget({ context, database: db }),
-    ])
+    const access = await resolveTrustedCmoTurnAccess({
+      context,
+      database: db,
+    })
+    const target = await loadCmoIntentTarget({ access, database: db })
     const receipt = await requestSpecialistWork({
       access,
       database: db,
       input: {
         intentId: target.id,
-        kind: 'product-marketer.brand-context.v1',
+        kind: PRODUCT_MARKETER_TASK_KIND,
         payload: { purpose: 'enrich_brand_context' },
         requestId: stableCmoRequestId({
           context,
           operation: 'request-product-marketer',
           semantics: {
-            kind: 'product-marketer.brand-context.v1',
+            kind: PRODUCT_MARKETER_TASK_KIND,
             payload: { purpose: 'enrich_brand_context' },
           },
         }),

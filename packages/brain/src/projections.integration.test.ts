@@ -276,12 +276,12 @@ beforeAll(async () => {
     [
       fixture.openQuestionTaskId,
       fixture.brandAId,
-      `question-open:${randomUUID()}`,
+      'product-marketer:brand-context',
       fixture.intentAId,
       JSON.stringify({ intent_id: fixture.intentAId, intent_revision: 1 }),
       JSON.stringify(openCompletion),
       fixture.resolvedQuestionTaskId,
-      `question-resolved:${randomUUID()}`,
+      'product-marketer:brand-context',
       JSON.stringify(resolvedCompletion),
     ]
   )

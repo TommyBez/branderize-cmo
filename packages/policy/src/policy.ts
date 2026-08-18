@@ -8,7 +8,9 @@ export type PolicyVerdict =
   | 'requires-human-approval'
   | 'denied'
 
-export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer'
+export const MEMBER_ROLES = ['owner', 'admin', 'member', 'viewer'] as const
+
+export type MemberRole = (typeof MEMBER_ROLES)[number]
 
 export type CommitmentEffectClass =
   | 'reversible-external'

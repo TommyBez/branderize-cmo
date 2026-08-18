@@ -27,14 +27,15 @@ export default defineTool({
       operation: 'refine-intent',
       semantics: input,
     })
-    const [access, target] = await Promise.all([
-      resolveTrustedCmoTurnAccess({ context, database: db }),
-      loadCmoRefineIntentTarget({
-        context,
-        database: db,
-        requestId,
-      }),
-    ])
+    const access = await resolveTrustedCmoTurnAccess({
+      context,
+      database: db,
+    })
+    const target = await loadCmoRefineIntentTarget({
+      access,
+      database: db,
+      requestId,
+    })
     return await refineIntentFromCmo({
       access,
       database: db,

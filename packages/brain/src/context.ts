@@ -1,6 +1,10 @@
+import type { MemberRole } from '@repo/policy'
+import { MEMBER_ROLES } from '@repo/policy'
 import { z } from 'zod'
 
-export const memberRoleSchema = z.enum(['owner', 'admin', 'member', 'viewer'])
+export type { MemberRole } from '@repo/policy'
+
+export const memberRoleSchema = z.enum(MEMBER_ROLES)
 
 const identifierSchema = z.string().trim().min(1)
 
@@ -45,7 +49,6 @@ export const trustedTaskExecutionSchema = z
   })
   .strict()
 
-export type MemberRole = z.infer<typeof memberRoleSchema>
 export type TrustedOrganizationAccess = z.infer<
   typeof trustedOrganizationAccessSchema
 >

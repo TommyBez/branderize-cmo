@@ -1,16 +1,12 @@
-import { agentRegistry } from '@repo/agents'
-import { createEveModelConfig } from '@repo/agents/model-config'
+import { createRootAgentDefinition } from '@repo/agents/root-runtime'
 import { defineAgent } from 'eve'
 
 import { DEPLOYMENT_ENVIRONMENT, ROOT_AGENT_KEY } from './lib/root-contract'
 
-const rootDefinition = agentRegistry[ROOT_AGENT_KEY]
-
-export default defineAgent({
-  model: createEveModelConfig({
-    agentKey: rootDefinition.key,
+export default defineAgent(
+  createRootAgentDefinition({
+    agentKey: ROOT_AGENT_KEY,
     environment: DEPLOYMENT_ENVIRONMENT,
     lane: 'cmo',
-  }),
-  reasoning: 'high',
-})
+  })
+)

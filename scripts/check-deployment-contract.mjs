@@ -37,6 +37,7 @@ const webTurbo = readJson('apps/web/turbo.json')
 const appVercel = readJson('apps/app/vercel.json')
 const webVercel = readJson('apps/web/vercel.json')
 const marketingSkillsTurbo = readJson('packages/marketing-skills/turbo.json')
+const playwrightConfig = readText('playwright.config.ts')
 const appEnvironmentSchema = readText('packages/env/src/schema.ts')
 const appBlobAdapter = readText('apps/app/lib/blob.ts')
 const appCmoProxy = readText(
@@ -140,9 +141,9 @@ check(
     'DATABASE_URL',
     'DISPATCH_SECRET',
     'E2E_EXPOSE_NEXT_TESTING_API',
-    'GOOGLE_CLIENT_ID',
-    'GOOGLE_CLIENT_SECRET',
     'NEXT_PUBLIC_APP_URL',
+    'RESEND_API_KEY',
+    'RESEND_FROM_EMAIL',
   ].every((name) => appTurbo.tasks?.build?.env?.includes(name)) &&
     !appTurbo.tasks?.build?.env?.includes('DIRECT_DATABASE_URL'),
   'apps/app must receive its exact build-time environment in Turbo strict mode'
@@ -264,7 +265,10 @@ check(
       e2eBrowserContract.includes(status)
     ) &&
     e2eBrowserContract.includes('forbiddenCopy: protectedCopy') &&
-    e2eBrowserContract.includes('expect(pending).not.toContainText(value)'),
+    e2eBrowserContract.includes('expect(pending).not.toContainText(value)') &&
+    playwrightConfig.includes(
+      "process.env.E2E_UPDATE_SNAPSHOTS === '1' ? 'all' : 'none'"
+    ),
   'production-artifact E2E must prove instant Cache Components shells with the matching Next Playwright helper'
 )
 check(

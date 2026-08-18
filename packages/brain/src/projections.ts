@@ -1,4 +1,10 @@
-import { productMarketerCompletionSchema } from '@repo/agents/tasks'
+import {
+  getTaskKind,
+  REGISTERED_QUESTION_TASK_KIND_KEYS,
+  type RegisteredTaskCompletion,
+  type RegisteredTaskKind,
+  registeredTaskKindKeySchema,
+} from '@repo/agents'
 import type { Database } from '@repo/db/client'
 import {
   actions,
@@ -8,7 +14,17 @@ import {
   objects,
   tasks,
 } from '@repo/db/schema/domain'
-import { and, desc, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  or,
+  sql,
+} from 'drizzle-orm'
 import { z } from 'zod'
 
 import type { MemberRole, TrustedMemberAccess } from './context'
@@ -21,8 +37,6 @@ import {
 
 const DEFAULT_PAGE_SIZE = 25
 const MAX_PAGE_SIZE = 100
-const PRODUCT_MARKETER_TASK_KIND = 'product-marketer.brand-context.v1'
-
 const pageCursorSchema = z
   .object({
     createdAt: z.date(),
@@ -179,10 +193,7 @@ export interface TaskQuestionBundleProjection {
   readonly createdAt: Date
   readonly intentId: string
   readonly questions: readonly string[]
-  readonly reason:
-    | 'missing_human_context'
-    | 'insufficient_evidence'
-    | 'context_unavailable'
+  readonly reason: string
   readonly resolution: TaskQuestionResolutionProjection
   readonly status: 'partial' | 'blocked'
   readonly summary: string
@@ -195,6 +206,95 @@ export interface TaskQuestionBundleProjectionPage {
     readonly createdAt: Date
     readonly id: string
   } | null
+}
+
+export const projectRegisteredTaskQuestionBundle = <
+  TKind extends string,
+  TBrief,
+  TResult,
+  TCompletion extends RegisteredTaskCompletion,
+>({
+  task,
+  taskKind,
+}: {
+  readonly task: {
+    readonly activation: string
+    readonly brandId: string
+    readonly completion: unknown
+    readonly createdAt: Date
+    readonly executionMode: string
+    readonly intentId: string | null
+    readonly kind: string
+    readonly payload: unknown
+    readonly resolutionActionId: string | null
+    readonly resolvedAt: Date | null
+    readonly status: string
+    readonly subjectKey: string | null
+    readonly taskId: string
+    readonly workerKey: string | null
+  }
+  readonly taskKind: RegisteredTaskKind<TKind, TBrief, TResult, TCompletion>
+}): TaskQuestionBundleProjection => {
+  const payload = taskKind.briefSchema.safeParse(task.payload)
+  if (!payload.success) {
+    return fail('invalid_task', 'Question bundle task payload is invalid')
+  }
+  const bindingMatches =
+    task.kind === taskKind.kind &&
+    task.activation === taskKind.activation &&
+    task.executionMode === taskKind.executionMode &&
+    task.workerKey === taskKind.workerKey &&
+    task.subjectKey === taskKind.subjectKey(payload.data)
+  if (!bindingMatches) {
+    return fail(
+      'invalid_task',
+      'Question bundle task registry binding is invalid'
+    )
+  }
+  const { completionSchema, questionPolicy } = taskKind
+  const completion = completionSchema.safeParse(task.completion)
+  if (
+    task.status !== 'succeeded' ||
+    questionPolicy === null ||
+    !completion.success ||
+    completion.data.status === 'completed' ||
+    !questionPolicy.hasOpenQuestions(completion.data)
+  ) {
+    return fail('invalid_task', 'Task has no settled open-question bundle')
+  }
+  const openQuestions = questionPolicy.projectOpenQuestions(completion.data)
+  if (
+    openQuestions === null ||
+    openQuestions.status !== completion.data.status
+  ) {
+    return fail('invalid_task', 'Task question projection is invalid')
+  }
+  if (task.intentId === null) {
+    return fail('invalid_task', 'A question bundle requires an Intent origin')
+  }
+  let resolution: TaskQuestionResolutionProjection
+  if (task.resolutionActionId === null && task.resolvedAt === null) {
+    resolution = { kind: 'open' }
+  } else if (task.resolutionActionId !== null && task.resolvedAt !== null) {
+    resolution = {
+      actionId: task.resolutionActionId,
+      kind: 'resolved',
+      resolvedAt: task.resolvedAt,
+    }
+  } else {
+    return fail('invalid_task', 'Task question resolution is invalid')
+  }
+  return {
+    brandId: task.brandId,
+    createdAt: task.createdAt,
+    intentId: task.intentId,
+    questions: openQuestions.questions,
+    reason: openQuestions.reason,
+    resolution,
+    status: openQuestions.status,
+    summary: openQuestions.summary,
+    taskId: task.taskId,
+  }
 }
 
 export type BrandImportStatusProjection =
@@ -668,13 +768,20 @@ export const listTaskQuestionBundles = async ({
     const resolutionCondition = taskQuestionResolutionCondition(parsed.state)
     const rows = await transaction
       .select({
+        activation: tasks.activation,
         brandId: tasks.brandId,
         completion: tasks.completion,
         createdAt: tasks.createdAt,
+        executionMode: tasks.executionMode,
         intentId: tasks.intentId,
+        kind: tasks.kind,
+        payload: tasks.payload,
         resolutionActionId: actions.id,
         resolvedAt: actions.createdAt,
+        status: tasks.status,
+        subjectKey: tasks.subjectKey,
         taskId: tasks.id,
+        workerKey: tasks.workerKey,
       })
       .from(tasks)
       .leftJoin(
@@ -688,7 +795,7 @@ export const listTaskQuestionBundles = async ({
       .where(
         and(
           eq(tasks.brandId, access.brandId),
-          eq(tasks.kind, PRODUCT_MARKETER_TASK_KIND),
+          inArray(tasks.kind, [...REGISTERED_QUESTION_TASK_KIND_KEYS]),
           eq(tasks.status, 'succeeded'),
           sql<boolean>`${tasks.completion}->>'status' IN ('partial', 'blocked')`,
           resolutionCondition,
@@ -700,38 +807,17 @@ export const listTaskQuestionBundles = async ({
 
     const pageRows = rows.slice(0, parsed.limit)
     const items = pageRows.map((row): TaskQuestionBundleProjection => {
-      const completion = productMarketerCompletionSchema.parse(row.completion)
-      if (completion.status === 'completed') {
-        return fail(
-          'invalid_output',
-          'A completed Product Marketer task cannot contain open questions'
-        )
-      }
-      if (row.intentId === null) {
+      const registeredKind = registeredTaskKindKeySchema.safeParse(row.kind)
+      if (!registeredKind.success) {
         return fail(
           'invalid_task',
-          'A Product Marketer question bundle requires an Intent origin'
+          'Question bundle task kind is not registered'
         )
       }
-      const resolution: TaskQuestionResolutionProjection =
-        row.resolutionActionId === null || row.resolvedAt === null
-          ? { kind: 'open' }
-          : {
-              actionId: row.resolutionActionId,
-              kind: 'resolved',
-              resolvedAt: row.resolvedAt,
-            }
-      return {
-        brandId: row.brandId,
-        createdAt: row.createdAt,
-        intentId: row.intentId,
-        questions: completion.openQuestions,
-        reason: completion.result.reason,
-        resolution,
-        status: completion.status,
-        summary: completion.summary,
-        taskId: row.taskId,
-      }
+      return projectRegisteredTaskQuestionBundle({
+        task: row,
+        taskKind: getTaskKind(registeredKind.data),
+      })
     })
     const lastItem = items.at(-1)
     const nextCursor =

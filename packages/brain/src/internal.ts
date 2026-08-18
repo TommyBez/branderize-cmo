@@ -2,13 +2,13 @@ import type { Database } from '@repo/db/client'
 import { member } from '@repo/db/schema/auth'
 import { actors, brands, cmoConversations } from '@repo/db/schema/domain'
 import { and, eq } from 'drizzle-orm'
-import { z } from 'zod'
 
-import type {
-  MemberRole,
-  TrustedCmoTurnAccess,
-  TrustedMemberAccess,
-  TrustedOrganizationAccess,
+import {
+  type MemberRole,
+  memberRoleSchema,
+  type TrustedCmoTurnAccess,
+  type TrustedMemberAccess,
+  type TrustedOrganizationAccess,
 } from './context'
 import { fail } from './errors'
 
@@ -17,8 +17,6 @@ export type BrainTransaction = Parameters<
 >[0]
 
 const HUMAN_ACTOR_PREFIX = 'human:'
-
-const persistedMemberRoleSchema = z.enum(['owner', 'admin', 'member', 'viewer'])
 
 export interface HumanActorBinding {
   readonly actorKey: string
@@ -96,7 +94,7 @@ export const requireCurrentOrganizationMember = async (
   }
 
   return {
-    role: persistedMemberRoleSchema.parse(currentMember.role),
+    role: memberRoleSchema.parse(currentMember.role),
     userId: currentMember.userId,
   }
 }
@@ -141,7 +139,7 @@ export const requireCurrentBrandMember = async (
 
   return {
     brandId: currentMember.brandId,
-    role: persistedMemberRoleSchema.parse(currentMember.role),
+    role: memberRoleSchema.parse(currentMember.role),
     userId: currentMember.userId,
   }
 }
@@ -224,10 +222,7 @@ export const requireTrustedCmoTurn = async (
     )
   }
 
-  if (
-    conversation.sessionId !== null &&
-    conversation.sessionId !== access.rootSessionId
-  ) {
+  if (conversation.sessionId !== access.rootSessionId) {
     return fail('access_denied', 'The CMO root session binding is invalid')
   }
 }

@@ -256,6 +256,8 @@ CREATE TABLE "actions" (
   "schedule_id" uuid,
   "session_id" text,
   "call_id" text,
+  "conversation_id" uuid,
+  "turn_id" text,
   "created_at" timestamptz DEFAULT now() NOT NULL,
   CONSTRAINT "actions_brand_id_brands_id_fk"
     FOREIGN KEY ("brand_id") REFERENCES "brands" ("id") ON DELETE CASCADE,
@@ -267,6 +269,10 @@ CREATE TABLE "actions" (
     DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT "actions_operation_receipt_pair"
     CHECK (("operation_key" IS NULL) = ("request_hash" IS NULL)),
+  CONSTRAINT "actions_conversation_turn_pair"
+    CHECK (("conversation_id" IS NULL) = ("turn_id" IS NULL)),
+  CONSTRAINT "actions_turn_requires_session"
+    CHECK ("turn_id" IS NULL OR "session_id" IS NOT NULL),
   CONSTRAINT "actions_payload_object" CHECK (jsonb_typeof("payload") = 'object'),
   CONSTRAINT "actions_policy_snapshot_object"
     CHECK (jsonb_typeof("policy_snapshot") = 'object'),
@@ -284,6 +290,14 @@ CREATE UNIQUE INDEX "actions_task_questions_resolved_unique"
   WHERE "type" = 'task_questions_resolved';
 --> statement-breakpoint
 CREATE INDEX "actions_brand_created_idx" ON "actions" ("brand_id", "created_at");
+--> statement-breakpoint
+CREATE INDEX "actions_brand_conversation_created_idx"
+  ON "actions" ("brand_id", "conversation_id", "created_at", "id")
+  WHERE "conversation_id" IS NOT NULL;
+--> statement-breakpoint
+CREATE INDEX "actions_brand_conversation_session_turn_idx"
+  ON "actions" ("brand_id", "conversation_id", "session_id", "turn_id", "created_at", "id")
+  WHERE "turn_id" IS NOT NULL;
 --> statement-breakpoint
 CREATE INDEX "actions_intent_id_idx" ON "actions" ("intent_id");
 --> statement-breakpoint
@@ -381,6 +395,8 @@ CREATE TABLE "cmo_conversations" (
   CONSTRAINT "cmo_conversations_owner_user_id_user_id_fk"
     FOREIGN KEY ("owner_user_id") REFERENCES "user" ("id") ON DELETE RESTRICT,
   CONSTRAINT "cmo_conversations_brand_id_id_unique" UNIQUE ("brand_id", "id"),
+  CONSTRAINT "cmo_conversations_brand_id_id_session_id_unique"
+    UNIQUE ("brand_id", "id", "session_id"),
   CONSTRAINT "cmo_conversations_stream_index_nonnegative" CHECK ("stream_index" >= 0)
 );
 --> statement-breakpoint
@@ -390,6 +406,12 @@ CREATE UNIQUE INDEX "cmo_conversations_session_id_unique"
 --> statement-breakpoint
 CREATE INDEX "cmo_conversations_owner_brand_created_idx"
   ON "cmo_conversations" ("owner_user_id", "brand_id", "created_at");
+--> statement-breakpoint
+ALTER TABLE "actions"
+  ADD CONSTRAINT "actions_conversation_same_brand_session_fk"
+  FOREIGN KEY ("brand_id", "conversation_id", "session_id")
+  REFERENCES "cmo_conversations" ("brand_id", "id", "session_id")
+  DEFERRABLE INITIALLY DEFERRED;
 --> statement-breakpoint
 
 CREATE TABLE "schedules" (

@@ -19,11 +19,11 @@ import {
 import { readActionReceipt } from './receipts'
 
 const nonBlankSchema = z.string().trim().min(1)
-const structureListSchema = z.array(z.json()).min(1).max(100)
+export const intentStructureListSchema = z.array(z.json()).min(1).max(100)
 
 const intentStructureFields = {
-  acceptanceCriteria: structureListSchema.nullable().default(null),
-  constraints: structureListSchema.nullable().default(null),
+  acceptanceCriteria: intentStructureListSchema.nullable().default(null),
+  constraints: intentStructureListSchema.nullable().default(null),
 } as const
 
 const validateIntentStructure = (
@@ -63,8 +63,8 @@ export const refineIntentInputSchema = z
 
 const intentReceiptSnapshotSchema = z
   .object({
-    acceptanceCriteria: structureListSchema.nullable(),
-    constraints: structureListSchema.nullable(),
+    acceptanceCriteria: intentStructureListSchema.nullable(),
+    constraints: intentStructureListSchema.nullable(),
     revision: z.number().int().positive(),
     statement: nonBlankSchema.max(4000),
     status: z.enum(['draft', 'active']),
@@ -90,7 +90,7 @@ const intentProducerContextSchema = z.discriminatedUnion('kind', [
     .strict(),
 ])
 
-const declareIntentReceiptSchema = z
+export const declareIntentReceiptSchema = z
   .object({
     actionId: z.uuid(),
     intentId: z.uuid(),
@@ -100,7 +100,7 @@ const declareIntentReceiptSchema = z
   })
   .strict()
 
-const refineIntentReceiptSchema = z
+export const refineIntentReceiptSchema = z
   .object({
     actionId: z.uuid(),
     after: intentReceiptSnapshotSchema,
@@ -158,10 +158,11 @@ const actionLineage = (access: IntentAccess) =>
   isCmoAccess(access)
     ? {
         callId: access.callId,
+        conversationId: access.conversationId,
         sessionId: access.sessionId,
         turnId: access.turnId,
       }
-    : { callId: null, sessionId: null, turnId: null }
+    : { callId: null, conversationId: null, sessionId: null, turnId: null }
 
 const producerContext = (access: IntentAccess) =>
   isCmoAccess(access)
@@ -276,6 +277,7 @@ const declareIntentWithAccess = async ({
       actorId: actor.actorId,
       brandId: access.brandId,
       callId: lineage.callId,
+      conversationId: lineage.conversationId,
       effectClass: 'graph-internal',
       id: actionId,
       intentId: intent.id,
@@ -288,6 +290,7 @@ const declareIntentWithAccess = async ({
           : 'Declare a canonical root Intent from an authenticated product mutation',
       requestHash: semanticHash,
       sessionId: lineage.sessionId,
+      turnId: lineage.turnId,
       type: 'intent_declared',
     })
     return receipt
@@ -465,6 +468,7 @@ const refineIntentWithAccess = async ({
       actorId: actor.actorId,
       brandId: access.brandId,
       callId: lineage.callId,
+      conversationId: lineage.conversationId,
       effectClass: 'graph-internal',
       id: actionId,
       intentId: parsed.intentId,
@@ -477,6 +481,7 @@ const refineIntentWithAccess = async ({
           : 'Refine the active Intent from an authenticated product mutation',
       requestHash: semanticHash,
       sessionId: lineage.sessionId,
+      turnId: lineage.turnId,
       type: 'intent_refined',
     })
     return receipt

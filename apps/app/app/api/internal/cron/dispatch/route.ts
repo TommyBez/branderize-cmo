@@ -1,5 +1,7 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 
+import { postAgentDispatchPoke } from '@repo/agents/dispatch-poke'
+
 import { resolveFleetEndpoints } from '@/lib/agent-endpoints'
 import { appEnvironment } from '@/lib/auth'
 import {
@@ -7,8 +9,6 @@ import {
   scheduleAppHandledError,
   scheduleAppOperationalLog,
 } from '@/lib/observability'
-
-const DISPATCH_TIMEOUT_MS = 2000
 
 const matchesBearer = (header: string | null, secret: string): boolean => {
   const prefix = 'Bearer '
@@ -25,6 +25,7 @@ const matchesBearer = (header: string | null, secret: string): boolean => {
 export const GET = async (request: Request): Promise<Response> => {
   const correlationId = randomUUID()
   const startedAt = Date.now()
+  let endpoints: ReturnType<typeof resolveFleetEndpoints> = []
   const url = new URL(request.url)
   if (url.search.length > 0) {
     return new Response(null, { status: 400 })
@@ -39,25 +40,17 @@ export const GET = async (request: Request): Promise<Response> => {
   }
 
   try {
-    const endpoints = resolveFleetEndpoints()
+    endpoints = resolveFleetEndpoints()
     const results = await Promise.allSettled(
       endpoints.map(async ({ agentKey, endpoint }) => {
         const rootStartedAt = Date.now()
         try {
-          const response = await fetch(`${endpoint}/internal/dispatch`, {
-            cache: 'no-store',
-            headers: {
-              authorization: `Bearer ${appEnvironment.DISPATCH_SECRET}`,
-            },
-            method: 'POST',
-            redirect: 'error',
-            signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
+          const result = await postAgentDispatchPoke({
+            endpoint,
+            secret: appEnvironment.DISPATCH_SECRET,
           })
-          await response.body?.cancel()
-          if (response.status !== 202) {
-            throw new Error(
-              'Agent dispatch endpoint did not acknowledge the fleet poke'
-            )
+          if (result.outcome !== 'accepted') {
+            throw new Error(`Agent dispatch poke deferred: ${result.reason}`)
           }
           scheduleAppOperationalLog({
             agentKey,
@@ -118,7 +111,7 @@ export const GET = async (request: Request): Promise<Response> => {
       surface: 'server',
     })
     return Response.json(
-      { accepted: 0, attempted: 7, status: 'unavailable' },
+      { accepted: 0, attempted: endpoints.length, status: 'unavailable' },
       { status: 503 }
     )
   }

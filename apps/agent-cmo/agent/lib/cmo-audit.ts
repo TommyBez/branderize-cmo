@@ -8,7 +8,7 @@ import { defineHook } from 'eve/hooks'
 
 import {
   readCmoSessionIdentity,
-  resolveTrustedCmoSessionMemberAccess,
+  resolveInitialCmoSessionMemberAccess,
 } from './runtime-access'
 
 export const createCmoAuditHook = () =>
@@ -19,8 +19,7 @@ export const createCmoAuditHook = () =>
         const { db } = await import('@repo/db')
         const { parent } = context.session
         if (parent === undefined && event.type === 'session.started') {
-          const access = await resolveTrustedCmoSessionMemberAccess({
-            allowUnboundSession: true,
+          const access = await resolveInitialCmoSessionMemberAccess({
             context,
             database: db,
           })

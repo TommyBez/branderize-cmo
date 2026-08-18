@@ -19,6 +19,13 @@
         "$TURBO_ROOT$/tests/e2e/phase0.spec.ts"
       ]
     },
+    "//#check:file-size": {
+      "inputs": [
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/scripts/check-source-file-size.mjs"
+      ]
+    },
     "//#check:quality": {
       "inputs": [
         "$TURBO_DEFAULT$",

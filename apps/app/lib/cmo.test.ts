@@ -12,8 +12,8 @@ vi.mock('@repo/brain/conversations', () => ({
   openCmoConversation: vi.fn(),
   readPersistedCmoEvents: vi.fn(),
 }))
-vi.mock('@repo/brain/session-events', () => ({
-  sessionEventEnvelopeSchema: { parse: vi.fn() },
+vi.mock('@repo/brain/task-projections', () => ({
+  getOpenProductMarketerQuestionTaskId: vi.fn(),
 }))
 vi.mock('@repo/db', () => ({ db: {} }))
 vi.mock('./agent-endpoints', () => ({
@@ -27,7 +27,6 @@ vi.mock('./auth', () => ({
 }))
 vi.mock('./dal', () => ({
   AppAccessError: class AppAccessError extends Error {},
-  getProductMarketerTask: vi.fn(),
 }))
 
 import { fetchCmoRuntime } from './cmo'

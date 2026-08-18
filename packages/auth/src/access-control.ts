@@ -1,3 +1,4 @@
+import type { MemberRole } from '@repo/policy'
 import {
   adminAc,
   defaultAc,
@@ -12,7 +13,7 @@ export const organizationRoles = {
   member: memberAc,
   owner: ownerAc,
   viewer: viewerRole,
-}
+} satisfies Record<MemberRole, unknown>
 
 export type OrganizationRoleName = keyof typeof organizationRoles
 

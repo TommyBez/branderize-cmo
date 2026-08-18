@@ -16,10 +16,10 @@ const endpoints = {
 } satisfies AgentEndpointMap
 
 describe('agent endpoint resolver', () => {
-  it('resolves the compiled endpoint for a trusted brand lookup', () => {
+  it('resolves the compiled endpoint for an agent', () => {
     const resolveEndpoint = createAgentEndpointResolver(endpoints)
 
-    expect(resolveEndpoint({ agentKey: 'cmo', brandId: 'brand_fixture' })).toBe(
+    expect(resolveEndpoint({ agentKey: 'cmo' })).toBe(
       'https://cmo.example.test/root-0'
     )
   })
@@ -30,7 +30,6 @@ describe('agent endpoint resolver', () => {
     expect(() =>
       resolveEndpoint({
         agentKey: 'cmo',
-        brandId: 'brand_fixture',
         endpoint: 'https://attacker.example',
       })
     ).toThrow()

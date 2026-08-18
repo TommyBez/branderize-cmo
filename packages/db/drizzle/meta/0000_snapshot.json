@@ -749,6 +749,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -829,6 +835,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "turn_id": {
+          "name": "turn_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "type": {
           "name": "type",
           "type": "text",
@@ -896,6 +908,86 @@
           "method": "btree",
           "with": {}
         },
+        "actions_brand_conversation_created_idx": {
+          "name": "actions_brand_conversation_created_idx",
+          "columns": [
+            {
+              "expression": "brand_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"actions\".\"conversation_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "actions_brand_conversation_session_turn_idx": {
+          "name": "actions_brand_conversation_session_turn_idx",
+          "columns": [
+            {
+              "expression": "brand_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "turn_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"actions\".\"turn_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "actions_intent_id_idx": {
           "name": "actions_intent_id_idx",
           "columns": [
@@ -954,6 +1046,15 @@
           "columnsTo": ["brand_id", "id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "actions_conversation_same_brand_session_fk": {
+          "name": "actions_conversation_same_brand_session_fk",
+          "tableFrom": "actions",
+          "tableTo": "cmo_conversations",
+          "columnsFrom": ["brand_id", "conversation_id", "session_id"],
+          "columnsTo": ["brand_id", "id", "session_id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -969,6 +1070,14 @@
         "actions_operation_receipt_pair": {
           "name": "actions_operation_receipt_pair",
           "value": "(\"actions\".\"operation_key\" IS NULL) = (\"actions\".\"request_hash\" IS NULL)"
+        },
+        "actions_conversation_turn_pair": {
+          "name": "actions_conversation_turn_pair",
+          "value": "(\"actions\".\"conversation_id\" IS NULL) = (\"actions\".\"turn_id\" IS NULL)"
+        },
+        "actions_turn_requires_session": {
+          "name": "actions_turn_requires_session",
+          "value": "\"actions\".\"turn_id\" IS NULL OR \"actions\".\"session_id\" IS NOT NULL"
         },
         "actions_payload_object": {
           "name": "actions_payload_object",
@@ -1314,6 +1423,11 @@
           "name": "cmo_conversations_brand_id_id_unique",
           "nullsNotDistinct": false,
           "columns": ["brand_id", "id"]
+        },
+        "cmo_conversations_brand_id_id_session_id_unique": {
+          "name": "cmo_conversations_brand_id_id_session_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["brand_id", "id", "session_id"]
         }
       },
       "policies": {},

@@ -5,11 +5,15 @@
   "type": "module",
   "exports": {
     ".": "./src/registry.ts",
+    "./dispatch-handler": "./src/dispatch-handler.ts",
     "./dispatch-poke": "./src/dispatch-poke.ts",
+    "./disabled-tool": "./src/disabled-tool.ts",
     "./endpoints": "./src/endpoint-resolver.ts",
     "./manifest": "./src/manifest.ts",
     "./model-config": "./src/model-config.ts",
     "./runtime-alert": "./src/runtime-alert.ts",
+    "./root-runtime": "./src/root-runtime.ts",
+    "./sandbox": "./src/sandbox.ts",
     "./schedules": "./src/schedules.ts",
     "./tasks": "./src/tasks.ts"
   },
@@ -23,6 +27,7 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "24.13.3",
     "typescript": "5.9.2"
   }
 }

@@ -1,10 +1,13 @@
 import { z } from 'zod'
+import { isGuardedLocalEmailOtpEnvironment } from './local-email-otp'
 
 export type EnvironmentSource = Readonly<Record<string, string | undefined>>
 
 const nodeEnvironmentSchema = z.enum(['development', 'test', 'production'])
+const vercelEnvironmentSchema = z.enum(['development', 'preview', 'production'])
 const secretSchema = z.string().min(32)
 const blobStoreIdSchema = z.string().trim().min(1).max(512)
+const resendApiKeySchema = z.string().trim().min(4).startsWith('re_')
 
 const postgresUrlSchema = z.url().refine(
   (value) => {
@@ -45,6 +48,7 @@ const trustedOriginsSchema = z
 
 export const appServerEnvironmentSchema = z
   .object({
+    AUTH_LOCAL_OTP_BYPASS: z.literal('1').optional(),
     BETTER_AUTH_SECRET: secretSchema,
     BETTER_AUTH_TRUSTED_ORIGINS: trustedOriginsSchema,
     BETTER_AUTH_URL: originSchema,
@@ -53,18 +57,48 @@ export const appServerEnvironmentSchema = z
     CRON_SECRET: secretSchema,
     DATABASE_URL: postgresUrlSchema,
     DISPATCH_SECRET: secretSchema,
-    GOOGLE_CLIENT_ID: z.string().min(1),
-    GOOGLE_CLIENT_SECRET: z.string().min(1),
     NODE_ENV: nodeEnvironmentSchema,
+    RESEND_API_KEY: resendApiKeySchema.optional(),
+    RESEND_FROM_EMAIL: z.email().optional(),
+    VERCEL_ENV: vercelEnvironmentSchema.optional(),
   })
   .strict()
   .superRefine((environment, context) => {
+    const authUrl = new URL(environment.BETTER_AUTH_URL)
+    const localOtpBypassIsValid = isGuardedLocalEmailOtpEnvironment(environment)
+
+    if (environment.AUTH_LOCAL_OTP_BYPASS === '1' && !localOtpBypassIsValid) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'AUTH_LOCAL_OTP_BYPASS requires NODE_ENV=development, VERCEL_ENV=development, and a loopback HTTP BETTER_AUTH_URL',
+        path: ['AUTH_LOCAL_OTP_BYPASS'],
+      })
+    }
+
+    if (environment.AUTH_LOCAL_OTP_BYPASS !== '1') {
+      if (environment.RESEND_API_KEY === undefined) {
+        context.addIssue({
+          code: 'custom',
+          message: 'RESEND_API_KEY is required outside local OTP development',
+          path: ['RESEND_API_KEY'],
+        })
+      }
+      if (environment.RESEND_FROM_EMAIL === undefined) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            'RESEND_FROM_EMAIL is required outside local OTP development',
+          path: ['RESEND_FROM_EMAIL'],
+        })
+      }
+    }
+
     if (environment.NODE_ENV !== 'production') {
       return
     }
 
-    const authUrlUsesHttps =
-      new URL(environment.BETTER_AUTH_URL).protocol === 'https:'
+    const authUrlUsesHttps = authUrl.protocol === 'https:'
     const trustedOriginsUseHttps =
       environment.BETTER_AUTH_TRUSTED_ORIGINS.every(
         (origin) => new URL(origin).protocol === 'https:'

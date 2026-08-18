@@ -1,3 +1,4 @@
+import { isGuardedLocalEmailOtpEnvironment } from './local-email-otp'
 import { appServerEnvironmentSchema, type EnvironmentSource } from './schema'
 
 export type AppServerEnvironment = ReturnType<
@@ -8,6 +9,7 @@ export const parseAppServerEnvironment = (
   source: EnvironmentSource
 ): AppServerEnvironment =>
   appServerEnvironmentSchema.parse({
+    AUTH_LOCAL_OTP_BYPASS: source.AUTH_LOCAL_OTP_BYPASS,
     BETTER_AUTH_SECRET: source.BETTER_AUTH_SECRET,
     BETTER_AUTH_TRUSTED_ORIGINS: source.BETTER_AUTH_TRUSTED_ORIGINS,
     BETTER_AUTH_URL: source.BETTER_AUTH_URL,
@@ -16,7 +18,12 @@ export const parseAppServerEnvironment = (
     CRON_SECRET: source.CRON_SECRET,
     DATABASE_URL: source.DATABASE_URL,
     DISPATCH_SECRET: source.DISPATCH_SECRET,
-    GOOGLE_CLIENT_ID: source.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: source.GOOGLE_CLIENT_SECRET,
     NODE_ENV: source.NODE_ENV,
+    RESEND_API_KEY: source.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: source.RESEND_FROM_EMAIL,
+    VERCEL_ENV: source.VERCEL_ENV,
   })
+
+export const usesLocalEmailOtpBypass = (
+  environment: AppServerEnvironment
+): boolean => isGuardedLocalEmailOtpEnvironment(environment)

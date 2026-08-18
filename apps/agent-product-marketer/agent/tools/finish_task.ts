@@ -2,15 +2,14 @@ import {
   type ProductMarketerCompletion,
   productMarketerCompletionSchema,
 } from '@repo/agents/tasks'
+import type { TrustedTaskExecution } from '@repo/brain/context'
+import { listTaskResultObjects } from '@repo/brain/task-output'
 import { finishTask } from '@repo/brain/tasks'
 import type { Database } from '@repo/db/client'
-import { objects, tasks } from '@repo/db/schema/domain'
-import { and, eq } from 'drizzle-orm'
 import { defineTool } from 'eve/tools'
 import { z } from 'zod'
 
 import {
-  readProductMarketerSessionIdentity,
   requireProductMarketerRootSession,
   taskExecutionFromContext,
 } from '../lib/task-runtime'
@@ -39,50 +38,30 @@ export const finishTaskInputSchema = z.discriminatedUnion('status', [
 ])
 
 const loadProducedObjectId = async ({
-  brandId,
   database,
-  sessionId,
-  startedAt,
-  taskId,
+  execution,
 }: {
-  readonly brandId: string
   readonly database: Database
-  readonly sessionId: string
-  readonly startedAt: Date
-  readonly taskId: string
+  readonly execution: TrustedTaskExecution
 }): Promise<string> => {
-  const [result] = await database
-    .select({ objectId: objects.id })
-    .from(tasks)
-    .innerJoin(
-      objects,
-      and(
-        eq(objects.brandId, tasks.brandId),
-        eq(objects.producedBy, tasks.resultActionId),
-        eq(objects.type, 'brand_context')
-      )
-    )
-    .where(
-      and(
-        eq(tasks.id, taskId),
-        eq(tasks.brandId, brandId),
-        eq(tasks.sessionId, sessionId),
-        eq(tasks.startedAt, startedAt),
-        eq(tasks.status, 'running')
-      )
-    )
-    .limit(1)
+  const resultObjects = await listTaskResultObjects({
+    database,
+    execution,
+  })
+  const result = resultObjects.find(
+    (candidate) => candidate.type === 'brand_context'
+  )
   if (result === undefined) {
     throw new Error(
       'The Product Marketer task has no trusted Brand Context output'
     )
   }
-  return result.objectId
+  return result.id
 }
 
 const completionFromInput = async (
   input: z.infer<typeof finishTaskInputSchema>,
-  identity: ReturnType<typeof readProductMarketerSessionIdentity>,
+  execution: TrustedTaskExecution,
   database: Database
 ): Promise<ProductMarketerCompletion> => {
   if (input.status !== 'completed') {
@@ -97,11 +76,8 @@ const completionFromInput = async (
   }
 
   const objectId = await loadProducedObjectId({
-    brandId: identity.brandId,
     database,
-    sessionId: identity.sessionId,
-    startedAt: identity.startedAt,
-    taskId: identity.taskId,
+    execution,
   })
   return productMarketerCompletionSchema.parse({
     intentAcceptance: null,
@@ -118,13 +94,13 @@ export default defineTool({
     'Stage the authoritative terminal Product Marketer completion. Completed work requires a prior save_brand_context receipt; partial or blocked work records questions without writing an Object.',
   async execute(input, context) {
     requireProductMarketerRootSession(context)
-    const identity = readProductMarketerSessionIdentity(context)
     const { db } = await import('@repo/db')
-    const completion = await completionFromInput(input, identity, db)
+    const execution = taskExecutionFromContext(context)
+    const completion = await completionFromInput(input, execution, db)
     const staged = await finishTask({
       completion,
       database: db,
-      execution: taskExecutionFromContext(context),
+      execution,
     })
     return staged.completion
   },

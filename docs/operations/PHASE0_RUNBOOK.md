@@ -24,6 +24,12 @@ store. A pull request gets an ephemeral Neon branch from the non-production
 project. Closing the pull request invokes
 `.github/workflows/cleanup-neon-preview.yml` for that exact branch.
 
+Each developer uses a dedicated persistent branch in the non-production Neon
+project. Local `DATABASE_URL` uses its pooled endpoint and local
+`DIRECT_DATABASE_URL` uses its direct endpoint only for migrations. Starting an
+application locally must not start Docker. Docker is reserved for the automated
+integration and E2E harnesses below.
+
 Only `apps/app` receives `DIRECT_DATABASE_URL`. Agent roots must reject an
 environment containing it. All database consumers receive pooled
 `DATABASE_URL`. Both Neon projects and both Blob stores belong in the EU
@@ -37,7 +43,8 @@ following values are required by `apps/app`:
 - `BETTER_AUTH_SECRET`, at least 32 characters;
 - `BETTER_AUTH_URL` and comma-separated `BETTER_AUTH_TRUSTED_ORIGINS`, HTTPS in
   production;
-- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`;
+- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in preview and production; the sender
+  mailbox must belong to a domain verified in Resend;
 - `BLOB_STORE_ID`, identifying the environment-specific private Blob store for
   Vercel OIDC operations;
 - pooled `DATABASE_URL` and unpooled `DIRECT_DATABASE_URL`;
@@ -55,6 +62,90 @@ fleet. Every other root receives only pooled `DATABASE_URL` and
 `DISPATCH_SECRET`. `apps/app` retains all seven endpoint URLs for the CMO proxy
 and Cron fan-out. Hosted AI Gateway and Blob access use Vercel OIDC. Do not add
 long-lived Gateway or `BLOB_READ_WRITE_TOKEN` credentials.
+
+## Local manual verification
+
+Local application startup uses the dedicated Neon development branch and real
+Development credentials. It does not use the automated PostgreSQL fixture.
+
+From `apps/app`, link the non-production Vercel project and pull its Development
+environment. Vercel writes `VERCEL_OIDC_TOKEN` and the project's Development
+variables to the ignored `.env.local` file:
+
+```sh
+cd apps/app
+vercel link
+vercel env pull .env.local
+```
+
+The local OIDC token is short-lived. Repeat `vercel env pull .env.local` when
+Sandbox, Blob, or AI Gateway reports expired Vercel authentication.
+
+For `pnpm dev:local`, that file needs `DATABASE_URL`, `BETTER_AUTH_SECRET`,
+`BLOB_STORE_ID`, `CMO_BRIDGE_SECRET`, `CRON_SECRET`, `DISPATCH_SECRET`,
+`CONTEXT_DEV_API_KEY`, and `VERCEL_OIDC_TOKEN`. `DATABASE_URL` must be the pooled
+URL for the developer's persistent Neon branch. The runner supplies the local
+application and agent origins. It also enables the guarded local OTP mode and
+removes Resend credentials from the app process. Add the branch's direct URL as
+`DIRECT_DATABASE_URL`, then run the migration as an explicit operation:
+
+```sh
+node --env-file=.env.local --run=db:migrate
+cd ../..
+```
+
+Application startup never performs that migration. Start the whole local fleet
+from the repository root:
+
+```sh
+pnpm dev:local
+```
+
+The supervisor validates the required variables without printing their values,
+checks all ports before spawning anything, and stops the fleet when one process
+fails or when it receives `Ctrl-C`. It fixes these local addresses:
+
+| Process | Address |
+| --- | --- |
+| public web | `http://localhost:3000` |
+| authenticated app | `http://localhost:3001` |
+| CMO | `http://127.0.0.1:2000` |
+| Product Marketer | `http://127.0.0.1:2001` |
+| Content | `http://127.0.0.1:2002` |
+| Distribution | `http://127.0.0.1:2003` |
+| Growth | `http://127.0.0.1:2004` |
+| Lifecycle | `http://127.0.0.1:2005` |
+| SEO Discovery | `http://127.0.0.1:2006` |
+
+The runner starts Eve with `--no-ui` because one terminal cannot own seven
+interactive TUIs. Each Eve root remains a normal development server. Its
+sandbox backend is the shared pinned Vercel backend, so the first sandbox use
+creates hosted Vercel compute with the pulled Development OIDC token. The
+runner never starts Docker and never falls back to a local sandbox backend.
+
+Check the product manually in this order:
+
+1. Open the public site and follow its console link.
+2. Submit any valid email address, then enter any non-empty code of up to six
+   characters. The local runner must not send an email.
+3. Complete onboarding with a real website. Confirm that Context.dev imports
+   it and that the private Blob-backed Brand Context becomes available.
+4. Open the CMO, send a message, and confirm that the conversation remains
+   usable after moving to another console section and back.
+5. Request Product Marketer work. Follow the resulting Work item through its
+   question or completion state and open the resulting Brand Context Object.
+6. Visit Context, Work, Intent, CMO, conversation, task, and Object pages through
+   their visible links. Client navigation should show the destination shell
+   immediately while uncached data streams inside its local `Suspense`
+   boundary.
+
+Local authentication deliberately skips delivery. The bypass marker exists
+only in the app process created by `pnpm dev:local`, and the server accepts it
+only with `NODE_ENV=development`, `VERCEL_ENV=development`, and a loopback HTTP
+auth origin. Preview, production, and automated tests use hashed six-character
+OTPs delivered through the React Email template and Resend. Neon remains a real
+non-production branch and sandboxes remain real Vercel Sandboxes. Keep
+automated fixture results and this manual development check separate.
 
 Production telemetry additionally uses:
 
@@ -210,7 +301,8 @@ cannot close the Phase 0 exit gate.
 
 Run this checklist in the shared non-production environment:
 
-- Google sign-in creates or resumes the intended user and organization.
+- A Resend-delivered email OTP creates or resumes the intended user and
+  organization without exposing whether the address already existed.
 - Context.dev imports the target site, every accepted asset is mirrored to the
   non-production private Blob store, and cross-brand delivery fails closed.
 - Neon contains the expected Actor, Intent, Action, Object, conversation, task,

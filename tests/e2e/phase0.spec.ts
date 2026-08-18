@@ -734,7 +734,7 @@ test('the landing route is present in its initial Cache Components shell', async
       await expect(
         page
           .getByRole('link', {
-            name: "Apri l'app Branderize e continua con Google",
+            name: "Apri l'app Branderize e accedi via email",
           })
           .first()
       ).toHaveAttribute('href', appOrigin)
@@ -753,7 +753,7 @@ test('landing and sign-in expose accessible Phase 0 boundaries', async ({
   await expect(
     page
       .getByRole('link', {
-        name: "Apri l'app Branderize e continua con Google",
+        name: "Apri l'app Branderize e accedi via email",
       })
       .first()
   ).toHaveAttribute('href', appOrigin)
@@ -771,14 +771,18 @@ test('landing and sign-in expose accessible Phase 0 boundaries', async ({
     })
   ).toBeVisible()
   await expect(
-    page.getByRole('button', { name: 'Continua con Google' })
+    page.getByRole('button', { name: 'Continua con l’email' })
   ).toBeVisible()
   await assertAxeClean(page)
   await page.keyboard.press('Tab')
   await assertVisibleFocusIndicator(page.locator('a.wordmark'))
   await page.keyboard.press('Tab')
   await assertVisibleFocusIndicator(
-    page.getByRole('button', { name: 'Continua con Google' })
+    page.getByRole('textbox', { name: 'Email' })
+  )
+  await page.keyboard.press('Tab')
+  await assertVisibleFocusIndicator(
+    page.getByRole('button', { name: 'Continua con l’email' })
   )
 })
 
@@ -899,7 +903,7 @@ test('every app route family exposes an instant shell before streamed data', asy
       context: anonymousContext,
       path: '/sign-in',
       ready: (page) =>
-        page.getByRole('button', { name: 'Continua con Google' }),
+        page.getByRole('button', { name: 'Continua con l’email' }),
       shell: {
         heading: 'Verifico la sessione.',
         status: 'Verifica della sessione in corso.',
@@ -3064,7 +3068,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
       process.env.CONTEXT_DEV_API_KEY,
       process.env.DATABASE_URL,
       process.env.DISPATCH_SECRET,
-      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.RESEND_API_KEY,
     ].filter(
       (value): value is string => typeof value === 'string' && value.length > 0
     )

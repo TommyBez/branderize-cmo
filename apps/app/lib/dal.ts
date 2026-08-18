@@ -1,10 +1,6 @@
 import 'server-only'
 
 import {
-  type ProductMarketerCompletion,
-  productMarketerCompletionSchema,
-} from '@repo/agents/tasks'
-import {
   type MemberRole,
   memberRoleSchema,
   type TrustedMemberAccess,
@@ -14,10 +10,16 @@ import {
   type BrandProjection,
   getBrandProjection,
 } from '@repo/brain/projections'
+import {
+  getProductMarketerTask as getProductMarketerTaskProjection,
+  listProductMarketerTasks as listProductMarketerTaskProjections,
+  type ProductMarketerTaskDetailProjection as ProductMarketerTaskDetailProjectionValue,
+  type ProductMarketerTaskProjection as ProductMarketerTaskProjectionValue,
+} from '@repo/brain/task-projections'
 import { db } from '@repo/db'
 import { member, organization } from '@repo/db/schema/auth'
-import { actions, brands, tasks } from '@repo/db/schema/domain'
-import { and, desc, eq } from 'drizzle-orm'
+import { brands } from '@repo/db/schema/domain'
+import { and, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
@@ -252,92 +254,14 @@ export const requireBrandRequestContext = async (
   return { access, session }
 }
 
-export type TaskCompletionProjection =
-  | { readonly kind: 'none' }
-  | {
-      readonly kind: 'valid'
-      readonly value: ProductMarketerCompletion
-    }
-  | { readonly kind: 'invalid' }
-
-export interface ProductMarketerTaskProjection {
-  readonly completion: TaskCompletionProjection
-  readonly createdAt: Date
-  readonly finishedAt: Date | null
-  readonly id: string
-  readonly intentId: string | null
-  readonly kind: string
-  readonly startedAt: Date | null
-  readonly status:
-    | 'awaiting_approval'
-    | 'queued'
-    | 'running'
-    | 'succeeded'
-    | 'failed'
-    | 'cancelled'
-    | 'superseded'
-    | 'outcome_unknown'
-    | 'expired'
-    | 'needs_regeneration'
-    | 'dismissed'
-  readonly updatedAt: Date
-}
-
-export interface ProductMarketerTaskDetailProjection
-  extends ProductMarketerTaskProjection {
-  readonly questionResolution: {
-    readonly actionId: string
-    readonly resolvedAt: Date
-  } | null
-}
-
-const projectCompletion = (value: unknown): TaskCompletionProjection => {
-  if (value === null) {
-    return { kind: 'none' }
-  }
-  const parsed = productMarketerCompletionSchema.safeParse(value)
-  return parsed.success
-    ? { kind: 'valid', value: parsed.data }
-    : { kind: 'invalid' }
-}
-
-const taskSelection = {
-  completion: tasks.completion,
-  createdAt: tasks.createdAt,
-  finishedAt: tasks.finishedAt,
-  id: tasks.id,
-  intentId: tasks.intentId,
-  kind: tasks.kind,
-  startedAt: tasks.startedAt,
-  status: tasks.status,
-  updatedAt: tasks.updatedAt,
-}
-
 export const listProductMarketerTasks = async ({
   access,
   limit = 30,
 }: {
   readonly access: TrustedMemberAccess
   readonly limit?: number
-}): Promise<readonly ProductMarketerTaskProjection[]> => {
-  await getBrandProjection({ access, database: db })
-  const rows = await db
-    .select(taskSelection)
-    .from(tasks)
-    .where(
-      and(
-        eq(tasks.brandId, access.brandId),
-        eq(tasks.kind, 'product-marketer.brand-context.v1')
-      )
-    )
-    .orderBy(desc(tasks.createdAt), desc(tasks.id))
-    .limit(Math.min(Math.max(limit, 1), 100))
-
-  return rows.map((row) => ({
-    ...row,
-    completion: projectCompletion(row.completion),
-  }))
-}
+}): Promise<readonly ProductMarketerTaskProjectionValue[]> =>
+  await listProductMarketerTaskProjections({ access, database: db, limit })
 
 export const getProductMarketerTask = async ({
   access,
@@ -345,47 +269,11 @@ export const getProductMarketerTask = async ({
 }: {
   readonly access: TrustedMemberAccess
   readonly taskId: string
-}): Promise<ProductMarketerTaskDetailProjection | null> => {
-  await getBrandProjection({ access, database: db })
-  const [row] = await db
-    .select({
-      ...taskSelection,
-      resolutionActionId: actions.id,
-      resolvedAt: actions.createdAt,
-    })
-    .from(tasks)
-    .leftJoin(
-      actions,
-      and(
-        eq(actions.brandId, tasks.brandId),
-        eq(actions.taskId, tasks.id),
-        eq(actions.type, 'task_questions_resolved')
-      )
-    )
-    .where(
-      and(
-        eq(tasks.brandId, access.brandId),
-        eq(tasks.id, taskId),
-        eq(tasks.kind, 'product-marketer.brand-context.v1')
-      )
-    )
-    .limit(1)
+}): Promise<ProductMarketerTaskDetailProjectionValue | null> =>
+  await getProductMarketerTaskProjection({ access, database: db, taskId })
 
-  if (row === undefined) {
-    return null
-  }
-
-  const { resolutionActionId, resolvedAt, ...task } = row
-  const questionResolution =
-    resolutionActionId === null || resolvedAt === null
-      ? null
-      : {
-          actionId: resolutionActionId,
-          resolvedAt,
-        }
-  return {
-    ...task,
-    completion: projectCompletion(task.completion),
-    questionResolution,
-  }
-}
+export type {
+  ProductMarketerTaskDetailProjection,
+  ProductMarketerTaskProjection,
+  TaskCompletionProjection,
+} from '@repo/brain/task-projections'

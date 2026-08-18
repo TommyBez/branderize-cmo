@@ -1,0 +1,248 @@
+@media (max-width: 1100px) {
+  .object-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .two-column-detail,
+  .task-completion {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-page {
+    grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .app-frame {
+    display: block;
+  }
+
+  .sidebar {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr);
+    gap: 24px;
+    align-items: center;
+    width: 100%;
+    height: auto;
+    padding: 21px 25px;
+  }
+
+  .brand-switcher {
+    margin: 0;
+  }
+
+  .primary-nav {
+    display: flex;
+    grid-column: 1 / -1;
+    margin: 0;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--line-dark);
+  }
+
+  .primary-nav a {
+    flex: 1 0 auto;
+    padding: 11px 16px 11px 0;
+    font-size: 16px;
+    border-bottom: 0;
+  }
+
+  .sidebar__foot {
+    display: none;
+  }
+
+  .sidebar--pending .navigation-pending__brand {
+    margin-top: 0;
+  }
+
+  .sidebar--pending .navigation-pending__nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-column: 1 / -1;
+    gap: 16px;
+    margin-top: 0;
+    background: transparent;
+    border-top: 1px solid var(--line-dark);
+  }
+
+  .sidebar--pending .navigation-pending__nav > span {
+    height: 36px;
+  }
+
+  .sidebar--pending .navigation-pending__identity {
+    display: none;
+  }
+
+  .workspace {
+    padding: 45px 28px 70px;
+  }
+
+  .auth-page,
+  .onboarding-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-intro {
+    min-height: 68svh;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .auth-panel {
+    min-height: 52svh;
+  }
+
+  .onboarding-copy {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .onboarding-form-panel {
+    padding-top: 60px;
+  }
+
+  .detail-hero,
+  .provenance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .import-status {
+    grid-template-columns: 50px minmax(0, 1fr);
+  }
+
+  .import-status__action {
+    grid-column: 2;
+    justify-items: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px;
+    padding-inline: 20px;
+  }
+
+  .brand-switcher {
+    min-width: 0;
+  }
+
+  .primary-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+
+  .sidebar--pending .navigation-pending__nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .primary-nav a {
+    min-width: 0;
+    padding-right: 8px;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 8vw, 3.2rem);
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
+
+  .auth-intro,
+  .auth-panel,
+  .onboarding-copy,
+  .onboarding-form-panel {
+    padding: 33px 23px;
+  }
+
+  .auth-intro h1,
+  .onboarding-copy h1 {
+    font-size: 3.8rem;
+  }
+
+  .onboarding-header {
+    gap: 20px;
+    align-items: start;
+  }
+
+  .onboarding-header p {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .field-pair,
+  .object-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header--split,
+  .section-heading,
+  .cmo-header {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .page-header__aside {
+    width: 100%;
+    text-align: left;
+  }
+
+  .record-list a {
+    grid-template-columns: 35px minmax(0, 1fr) 20px;
+  }
+
+  .record-list__title {
+    font-size: 1.35rem;
+  }
+
+  .detail-hero h1 {
+    font-size: 3.3rem;
+  }
+
+  .mini-facts > div {
+    grid-template-columns: 75px 1fr;
+  }
+
+  .import-status {
+    grid-template-columns: 1fr;
+  }
+
+  .import-status__action {
+    grid-column: 1;
+  }
+
+  .artifact-actions {
+    flex-direction: column;
+  }
+
+  .chat-message {
+    grid-template-columns: 35px minmax(0, 1fr);
+    gap: 9px;
+    max-width: 100%;
+  }
+
+  .chat-message > div {
+    padding: 16px;
+    font-size: 16px;
+  }
+
+  .cmo-composer__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cmo-composer__actions .button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,24 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { handledErrorMock, operationalLogMock } = vi.hoisted(() => ({
-  handledErrorMock: vi.fn(),
-  operationalLogMock: vi.fn(),
-}))
+const { handledErrorMock, operationalLogMock, resolveFleetEndpointsMock } =
+  vi.hoisted(() => ({
+    handledErrorMock: vi.fn(),
+    operationalLogMock: vi.fn(),
+    resolveFleetEndpointsMock: vi.fn(),
+  }))
 
 vi.mock('@/lib/agent-endpoints', () => ({
-  resolveFleetEndpoints: () =>
-    [
-      'cmo',
-      'content',
-      'distribution',
-      'growth',
-      'lifecycle',
-      'product-marketer',
-      'seo-discovery',
-    ].map((agentKey) => ({
-      agentKey,
-      endpoint: `https://${agentKey}.example.test`,
-    })),
+  resolveFleetEndpoints: resolveFleetEndpointsMock,
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -38,6 +28,18 @@ import { GET } from './route'
 
 const CRON_SECRET = 'test-cron-secret-at-least-thirty-two-bytes'
 const fetchMock = vi.fn<typeof globalThis.fetch>()
+const fleetEndpoints = [
+  'cmo',
+  'content',
+  'distribution',
+  'growth',
+  'lifecycle',
+  'product-marketer',
+  'seo-discovery',
+].map((agentKey) => ({
+  agentKey,
+  endpoint: `https://${agentKey}.example.test`,
+}))
 
 const dispatchRequest = (search = ''): Request =>
   new Request(`https://app.example.test/api/internal/cron/dispatch${search}`, {
@@ -47,7 +49,10 @@ const dispatchRequest = (search = ''): Request =>
 describe('GET /api/internal/cron/dispatch', () => {
   beforeEach(() => {
     fetchMock.mockReset()
+    handledErrorMock.mockReset()
     operationalLogMock.mockReset()
+    resolveFleetEndpointsMock.mockReset()
+    resolveFleetEndpointsMock.mockReturnValue(fleetEndpoints)
     vi.stubGlobal('fetch', fetchMock)
   })
 
@@ -115,5 +120,24 @@ describe('GET /api/internal/cron/dispatch', () => {
 
     expect(response.status).toBe(400)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reports zero attempted roots when endpoint resolution fails', async () => {
+    resolveFleetEndpointsMock.mockImplementation(() => {
+      throw new Error('fleet configuration unavailable')
+    })
+
+    const response = await GET(dispatchRequest())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      accepted: 0,
+      attempted: 0,
+      status: 'unavailable',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(handledErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'cron_dispatch' })
+    )
   })
 })

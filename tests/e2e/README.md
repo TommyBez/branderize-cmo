@@ -42,7 +42,8 @@ Landing, sign-in e una surface console autenticata hanno baseline Playwright
 versionabili. I diff coprono i viewport primari, 200%/400% e i due lati dei
 breakpoint web 1120/768 e app 1100/900/640; Axe, tastiera, focus visibile e
 assenza di scroll orizzontale a 320 px restano assert separati. Per rigenerare
-intenzionalmente le baseline si usa `E2E_UPDATE_SNAPSHOTS=1 pnpm test:e2e`.
+intenzionalmente tutte le baseline correnti si usa
+`E2E_UPDATE_SNAPSHOTS=1 pnpm test:e2e`.
 Le screenshot caricano via route Playwright un singolo file Geist incluso nella
 versione Next bloccata nel workspace e forzano quel font soltanto nello style di
 snapshot: i byte e il rendering tipografico non dipendono dai font di sistema

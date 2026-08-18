@@ -7,7 +7,6 @@ const TRAILING_SLASH_PATTERN = /\/$/u
 const endpointLookupSchema = z
   .object({
     agentKey: z.enum(AGENT_KEYS),
-    brandId: z.string().trim().min(1),
   })
   .strict()
 

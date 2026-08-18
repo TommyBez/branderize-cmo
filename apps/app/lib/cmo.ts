@@ -7,10 +7,8 @@ import {
   openCmoConversation,
   readPersistedCmoEvents,
 } from '@repo/brain/conversations'
-import { sessionEventEnvelopeSchema } from '@repo/brain/session-events'
+import { getOpenProductMarketerQuestionTaskId } from '@repo/brain/task-projections'
 import { db } from '@repo/db'
-import { actions } from '@repo/db/schema/domain'
-import { and, eq } from 'drizzle-orm'
 import {
   Client,
   type ClientSessionState,
@@ -26,7 +24,8 @@ import {
   projectCmoMessages,
   readCompleteCmoEventPrefix,
 } from './cmo-recovery'
-import { AppAccessError, getProductMarketerTask } from './dal'
+import { AppAccessError } from './dal'
+import { parseEveMessageProjectionEvent } from './eve-message-event'
 
 const BRIDGE_LIFETIME_SECONDS = 45
 const SNAPSHOT_TIMEOUT_MS = 8000
@@ -87,7 +86,7 @@ export const createCmoClient = ({
           userId,
         }),
     },
-    host: resolveAgentEndpoint({ agentKey: 'cmo', brandId }),
+    host: resolveAgentEndpoint({ agentKey: 'cmo' }),
     redirect: 'error',
   })
 
@@ -109,7 +108,7 @@ export const fetchCmoRuntime = async ({
     'authorization',
     `Bearer ${mintCmoBridgeToken({ brandId, conversationId, userId })}`
   )
-  const endpoint = resolveAgentEndpoint({ agentKey: 'cmo', brandId })
+  const endpoint = resolveAgentEndpoint({ agentKey: 'cmo' })
   const relativePath = path.startsWith('/') ? path.slice(1) : path
 
   return await fetch(new URL(relativePath, `${endpoint}/`), {
@@ -127,41 +126,18 @@ export const authorizeCmoSourceTaskClaim = async ({
   readonly sourceTaskId: string
 }): Promise<string> => {
   const sourceTaskId = z.uuid().parse(sourceTaskIdInput)
-  const task = await getProductMarketerTask({
+  const openTaskId = await getOpenProductMarketerQuestionTaskId({
     access,
-    taskId: sourceTaskId,
+    database: db,
+    sourceTaskId,
   })
-  const isOpenQuestionBundle =
-    task !== null &&
-    task.status === 'succeeded' &&
-    task.completion.kind === 'valid' &&
-    (task.completion.value.status === 'partial' ||
-      task.completion.value.status === 'blocked')
-  if (!isOpenQuestionBundle) {
+  if (openTaskId === null) {
     throw new AppAccessError(
       'not_found',
       'The source task is not an open Product Marketer question bundle'
     )
   }
-
-  const [resolution] = await db
-    .select({ id: actions.id })
-    .from(actions)
-    .where(
-      and(
-        eq(actions.brandId, access.brandId),
-        eq(actions.taskId, sourceTaskId),
-        eq(actions.type, 'task_questions_resolved')
-      )
-    )
-    .limit(1)
-  if (resolution !== undefined) {
-    throw new AppAccessError(
-      'not_found',
-      'The source task question bundle is already resolved'
-    )
-  }
-  return sourceTaskId
+  return openTaskId
 }
 
 export type CmoConsoleState =
@@ -175,9 +151,6 @@ export type CmoConsoleState =
       readonly kind: 'read-only'
       readonly messages: readonly EveMessage[]
     }
-
-const parsePersistedCmoEvent = (event: unknown): MessageStreamEvent =>
-  sessionEventEnvelopeSchema.parse(event) as MessageStreamEvent
 
 export const readCmoAuditFallback = async ({
   access,
@@ -198,9 +171,14 @@ export const readCmoAuditFallback = async ({
         },
       }),
   })
-  return projectCmoMessages(
-    persistedEvents.map((persisted) => parsePersistedCmoEvent(persisted.event))
-  )
+  const messageEvents: MessageStreamEvent[] = []
+  for (const persisted of persistedEvents) {
+    const event = parseEveMessageProjectionEvent(persisted.event)
+    if (event !== null) {
+      messageEvents.push(event)
+    }
+  }
+  return projectCmoMessages(messageEvents)
 }
 
 export const loadCmoConsoleState = async ({
