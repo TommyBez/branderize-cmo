@@ -45,6 +45,20 @@ const marketingSkillsManifest = readJson(
 )
 const cleanupWorkflow = readText('.github/workflows/cleanup-neon-preview.yml')
 const sourceMapUpload = readText('scripts/upload-posthog-sourcemaps.mjs')
+const instantRouteFamilyStatuses = [
+  'Apertura dello spazio personale.',
+  'Verifica della sessione in corso.',
+  'Preparazione del nuovo brand in corso.',
+  'Apertura del registro Intent.',
+  'Caricamento Intent.',
+  'Caricamento del dettaglio Intent.',
+  'Caricamento Brand Context.',
+  "Caricamento dell'Object.",
+  'Caricamento Work.',
+  'Caricamento del task.',
+  'Caricamento CMO.',
+  'Caricamento della conversazione CMO.',
+]
 
 check(
   JSON.stringify(appVercel.regions) === JSON.stringify(['fra1']),
@@ -210,14 +224,17 @@ check(
     e2eBrowserContract.includes("from '@next/playwright'") &&
     (e2eBrowserContract.match(/await instant\(/gu)?.length ?? 0) >= 3 &&
     e2eBrowserContract.includes(
-      "test('protected client navigations expose non-tenant shells before streamed data'"
+      "test('every app route family exposes an instant shell before streamed data'"
     ) &&
-    e2eBrowserContract.includes(
-      'await expect(workShell).not.toContainText(brandName)'
+    (e2eBrowserContract.match(/await assertInstantHardNavigation\(\{/gu)
+      ?.length ?? 0) === 12 &&
+    (e2eBrowserContract.match(/await assertInstantClientNavigation\(\{/gu)
+      ?.length ?? 0) === 8 &&
+    instantRouteFamilyStatuses.every((status) =>
+      e2eBrowserContract.includes(status)
     ) &&
-    e2eBrowserContract.includes(
-      'await expect(contextShell).not.toContainText(ownerName)'
-    ),
+    e2eBrowserContract.includes('forbiddenCopy: protectedCopy') &&
+    e2eBrowserContract.includes('expect(pending).not.toContainText(value)'),
   'production-artifact E2E must prove instant Cache Components shells with the matching Next Playwright helper'
 )
 check(

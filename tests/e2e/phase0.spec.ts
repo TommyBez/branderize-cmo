@@ -34,14 +34,12 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
 const BRAND_CONTEXT_URL_PATTERN = /\/brands\/[0-9a-f-]+\/context$/u
 const CMO_CONVERSATION_URL_PATTERN = /\/cmo\/[0-9a-f-]+$/u
-const CONTEXT_FALLBACK_STATUS_PATTERN = /^Caricamento Brand Context\.$/u
 const LANDING_HEADING_PATTERN = /Una direzione chiara/i
 const PRIVATE_ROUTE_BOUNDARY_PATTERN =
   /Questa pagina non appartiene al tuo spazio|Non possiamo proiettare questo stato adesso/u
 const PRODUCT_MARKETER_SOURCE_PATTERN = /product-marketer/u
 const GATEWAY_TRACE_FILE_PATTERN = /^gateway-\d+-\d{4}\.json$/u
 const STREAM_TAIL_INDEX_PATTERN = /^-?\d+$/u
-const WORK_FALLBACK_STATUS_PATTERN = /^Caricamento Work\.$/u
 const PROXY_DIAGNOSTIC_BODY_LIMIT_BYTES = 16_384
 const PROXY_SNAPSHOT_BUDGET_MS = 8000
 const SCRIPTED_ASSET_SOURCE_URL =
@@ -206,6 +204,31 @@ interface ConversationCheckpointProofRow extends QueryResultRow {
   readonly streamIndex: number
 }
 
+interface InstantNavigationFixtureRow extends QueryResultRow {
+  readonly conversationId: string
+  readonly intentId: string
+  readonly intentStatement: string
+  readonly objectId: string
+  readonly organizationId: string
+  readonly taskId: string
+}
+
+interface InstantNavigationFixture {
+  readonly conversationId: string
+  readonly conversationTitle: string
+  readonly intentId: string
+  readonly intentStatement: string
+  readonly objectId: string
+  readonly objectType: string
+  readonly organizationId: string
+  readonly taskId: string
+}
+
+interface InstantRouteShell {
+  readonly heading: string
+  readonly status: string
+}
+
 interface ScriptedGatewayTrace {
   readonly agent: string
   readonly costUsd: number
@@ -350,6 +373,225 @@ const readScriptedGatewayTraces = async (): Promise<
         return JSON.parse(source) as ScriptedGatewayTrace
       })
   )
+}
+
+const createInstantNavigationFixture = async ({
+  brandId,
+  ownerUserId,
+  suffix,
+}: {
+  readonly brandId: string
+  readonly ownerUserId: string
+  readonly suffix: string
+}): Promise<InstantNavigationFixture> => {
+  const actionId = randomUUID()
+  const conversationId = randomUUID()
+  const conversationTitle = `Instant conversation ${suffix}`
+  const objectId = randomUUID()
+  const objectType = `instant-navigation-${suffix}`
+  const taskId = randomUUID()
+  const result = await databasePool.query<InstantNavigationFixtureRow>(
+    `WITH source AS (
+       SELECT
+         brands.organization_id,
+         intents.author_actor_id,
+         intents.id AS intent_id,
+         intents.statement AS intent_statement
+       FROM brands
+       INNER JOIN intents
+         ON intents.brand_id = brands.id
+        AND intents.status = 'active'
+       WHERE brands.id = $1
+       ORDER BY intents.created_at ASC, intents.id ASC
+       LIMIT 1
+     ), fixture_action AS (
+       INSERT INTO actions (
+         id, brand_id, actor_id, intent_id, type, rationale, effect_class,
+         payload, policy_snapshot
+       )
+       SELECT
+         $2, $1, source.author_actor_id, source.intent_id,
+         'instant_navigation_fixture',
+         'Creates a terminal navigation-only E2E projection.',
+         'graph-internal',
+         jsonb_build_object('fixture', 'instant-navigation'),
+         jsonb_build_object('source', 'e2e')
+       FROM source
+       RETURNING id
+     ), fixture_object AS (
+       INSERT INTO objects (
+         id, brand_id, type, status, content, content_text, produced_by
+       )
+       SELECT
+         $3, $1, $4, 'active',
+         jsonb_build_object('proof', 'instant navigation'),
+         $5,
+         fixture_action.id
+       FROM fixture_action
+       RETURNING id
+     ), fixture_task AS (
+       INSERT INTO tasks (
+         id, brand_id, kind, subject_key, worker_key, execution_mode,
+         activation, status, finished_at, payload, payload_hash, outcome_code
+       )
+       VALUES (
+         $6, $1, 'product-marketer.brand-context.v1', $7,
+         'product-marketer', 'agent', 'automatic', 'failed', NOW(),
+         jsonb_build_object('fixture', 'instant-navigation'), $8,
+         'instant_navigation_fixture'
+       )
+       RETURNING id
+     ), fixture_conversation AS (
+       INSERT INTO cmo_conversations (
+         id, brand_id, owner_user_id, title
+       )
+       VALUES ($9, $1, $10, $11)
+       RETURNING id
+     )
+     SELECT
+       fixture_conversation.id AS "conversationId",
+       source.intent_id AS "intentId",
+       source.intent_statement AS "intentStatement",
+       fixture_object.id AS "objectId",
+       source.organization_id AS "organizationId",
+       fixture_task.id AS "taskId"
+     FROM source
+     CROSS JOIN fixture_action
+     CROSS JOIN fixture_object
+     CROSS JOIN fixture_task
+     CROSS JOIN fixture_conversation`,
+    [
+      brandId,
+      actionId,
+      objectId,
+      objectType,
+      `Instant navigation proof ${suffix}`,
+      taskId,
+      `instant-navigation:${suffix}`,
+      `instant-navigation:${suffix}`,
+      conversationId,
+      ownerUserId,
+      conversationTitle,
+    ]
+  )
+  const fixture = result.rows.at(0)
+  if (fixture === undefined) {
+    throw new Error('The instant-navigation fixture could not be created')
+  }
+  return {
+    ...fixture,
+    conversationTitle,
+    objectType,
+  }
+}
+
+const visibleNavigationPending = (page: Page): Locator =>
+  page.locator('.navigation-pending').filter({ visible: true })
+
+const assertInstantShell = async ({
+  forbiddenCopy = [],
+  page,
+  shell,
+}: {
+  readonly forbiddenCopy?: readonly string[]
+  readonly page: Page
+  readonly shell: InstantRouteShell
+}): Promise<void> => {
+  const pending = visibleNavigationPending(page)
+  await expect(pending).toHaveCount(1)
+  await expect(pending.getByRole('status')).toHaveText(shell.status)
+  await expect(
+    pending.getByRole('heading', { exact: true, name: shell.heading })
+  ).toBeVisible()
+  await Promise.all(
+    forbiddenCopy.map((value) => expect(pending).not.toContainText(value))
+  )
+}
+
+const assertInstantHardNavigation = async ({
+  context,
+  expectProtectedLayout = false,
+  forbiddenCopy,
+  path,
+  ready,
+  settledPath = path,
+  shell,
+}: {
+  readonly context: BrowserContext
+  readonly expectProtectedLayout?: boolean
+  readonly forbiddenCopy?: readonly string[]
+  readonly path: string
+  readonly ready: (page: Page) => Locator
+  readonly settledPath?: string
+  readonly shell: InstantRouteShell
+}): Promise<void> => {
+  const page = await context.newPage()
+  try {
+    await instant(
+      page,
+      async () => {
+        await page.goto(path)
+        await assertInstantShell({ forbiddenCopy, page, shell })
+        if (expectProtectedLayout) {
+          const protectedLayout = page.locator('.app-frame--pending')
+          await expect(protectedLayout).toHaveCount(1)
+          await Promise.all(
+            (forbiddenCopy ?? []).map((value) =>
+              expect(protectedLayout).not.toContainText(value)
+            )
+          )
+        }
+      },
+      { baseURL: appOrigin }
+    )
+    await expect(page).toHaveURL(`${appOrigin}${settledPath}`)
+    await expect(visibleNavigationPending(page)).toHaveCount(0)
+    await expect(ready(page)).toBeVisible()
+  } finally {
+    await page.close()
+  }
+}
+
+const assertInstantClientNavigation = async ({
+  context,
+  forbiddenCopy,
+  link,
+  ready,
+  shell,
+  sourcePath,
+  targetPath,
+}: {
+  readonly context: BrowserContext
+  readonly forbiddenCopy: readonly string[]
+  readonly link: (page: Page) => Locator
+  readonly ready: (page: Page) => Locator
+  readonly shell: InstantRouteShell
+  readonly sourcePath: string
+  readonly targetPath: string
+}): Promise<void> => {
+  const page = await context.newPage()
+  try {
+    await page.goto(sourcePath)
+    const sourceLink = link(page)
+    await expect(sourceLink).toBeVisible()
+    await instant(page, async () => {
+      await Promise.all([
+        page.waitForURL(
+          (url) =>
+            url.origin === appOrigin &&
+            url.pathname === targetPath &&
+            url.search === ''
+        ),
+        sourceLink.click(),
+      ])
+      await assertInstantShell({ forbiddenCopy, page, shell })
+    })
+    await expect(page).toHaveURL(`${appOrigin}${targetPath}`)
+    await expect(visibleNavigationPending(page)).toHaveCount(0)
+    await expect(ready(page)).toBeVisible()
+  } finally {
+    await page.close()
+  }
 }
 
 const assertNoHorizontalOverflow = async (page: Page): Promise<void> => {
@@ -624,10 +866,10 @@ test('public shells reflow at 200% and 400% zoom equivalents', async ({
   })
 })
 
-test('protected client navigations expose non-tenant shells before streamed data', async ({
+test('every app route family exposes an instant shell before streamed data', async ({
   browser,
 }) => {
-  test.setTimeout(90_000)
+  test.setTimeout(180_000)
   const suffix = randomUUID().slice(0, 8)
   const ownerEmail = `instant-owner-${suffix}@e2e.branderize.test`
   const ownerName = `Instant Owner ${suffix}`
@@ -637,6 +879,36 @@ test('protected client navigations expose non-tenant shells before streamed data
   const registry = createTestDataRegistry()
   registry.organizationSlugs.add(organizationSlug)
   registry.userEmails.add(ownerEmail)
+  const anonymousContext = await browser.newContext({ baseURL: appOrigin })
+
+  try {
+    await assertInstantHardNavigation({
+      context: anonymousContext,
+      path: '/',
+      ready: (page) =>
+        page.getByRole('heading', {
+          name: 'Una memoria di brand che mostra sempre da dove viene.',
+        }),
+      settledPath: '/sign-in',
+      shell: {
+        heading: 'Apro il tuo spazio.',
+        status: 'Apertura dello spazio personale.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: anonymousContext,
+      path: '/sign-in',
+      ready: (page) =>
+        page.getByRole('button', { name: 'Continua con Google' }),
+      shell: {
+        heading: 'Verifico la sessione.',
+        status: 'Verifica della sessione in corso.',
+      },
+    })
+  } finally {
+    await anonymousContext.close()
+  }
+
   const owner = await createAuthenticatedBrowser({
     browser,
     email: ownerEmail,
@@ -645,6 +917,18 @@ test('protected client navigations expose non-tenant shells before streamed data
   registry.userIds.add(owner.userId)
 
   try {
+    await assertInstantHardNavigation({
+      context: owner.context,
+      forbiddenCopy: [ownerEmail, ownerName],
+      path: '/onboarding',
+      ready: (page) =>
+        page.getByRole('button', { name: 'Crea brand e continua' }),
+      shell: {
+        heading: 'Preparo il primo punto fermo.',
+        status: 'Preparazione del nuovo brand in corso.',
+      },
+    })
+
     const setupPage = await owner.context.newPage()
     await setupPage.goto('/onboarding')
     await setupPage
@@ -667,53 +951,260 @@ test('protected client navigations expose non-tenant shells before streamed data
       position: 1,
       url: setupPage.url(),
     })
-    const page = setupPage
-    await expect(page.getByLabel('Brand').locator('option:checked')).toHaveText(
-      brandName
-    )
-    await expect(page.locator('.sidebar__foot p')).toHaveText(ownerName)
+    await expect(
+      setupPage.getByLabel('Brand').locator('option:checked')
+    ).toHaveText(brandName)
+    await expect(setupPage.locator('.sidebar__foot p')).toHaveText(ownerName)
+    await setupPage.close()
 
-    const workFallback = page
-      .getByRole('status')
-      .filter({ hasText: WORK_FALLBACK_STATUS_PATTERN })
-    const workShell = workFallback.locator('..')
-    await instant(page, async () => {
-      await page.getByRole('link', { exact: true, name: 'Work' }).click()
-      await page.waitForURL(`/brands/${brandId}/work`)
-      await expect(
-        page.getByRole('heading', { name: 'Il lavoro lascia ricevute.' })
-      ).toBeVisible()
-      await expect(workFallback).toBeAttached()
-      await expect(workShell).not.toContainText(brandName)
-      await expect(workShell).not.toContainText(ownerName)
-      await expect(page.getByText('Nessun task richiesto.')).toHaveCount(0)
+    const fixture = await createInstantNavigationFixture({
+      brandId,
+      ownerUserId: owner.userId,
+      suffix,
     })
+    registry.organizationIds.add(fixture.organizationId)
 
-    await expect(workFallback).toHaveCount(0)
-    await expect(page.getByText('Nessun task richiesto.')).toBeVisible()
+    const brandPath = `/brands/${brandId}`
+    const intentPath = `${brandPath}/intent`
+    const intentDetailPath = `${intentPath}/${fixture.intentId}`
+    const contextPath = `${brandPath}/context`
+    const objectDetailPath = `${brandPath}/objects/${fixture.objectId}`
+    const workPath = `${brandPath}/work`
+    const taskDetailPath = `${workPath}/${fixture.taskId}`
+    const cmoPath = `${brandPath}/cmo`
+    const conversationDetailPath = `${cmoPath}/${fixture.conversationId}`
+    const protectedCopy = [brandName, ownerName]
+    const intentListReady = (page: Page): Locator =>
+      page.getByRole('link', { name: fixture.intentStatement })
+    const objectListReady = (page: Page): Locator =>
+      page.getByRole('link').filter({ hasText: fixture.objectType })
+    const taskListReady = (page: Page): Locator =>
+      page.getByRole('link').filter({ hasText: fixture.taskId.slice(0, 8) })
+    const conversationListReady = (page: Page): Locator =>
+      page.getByRole('link').filter({ hasText: fixture.conversationTitle })
 
-    const contextFallback = page
-      .getByRole('status')
-      .filter({ hasText: CONTEXT_FALLBACK_STATUS_PATTERN })
-    const contextShell = contextFallback.locator('..')
-    const contextDynamicCopy = `Il sito di ${brandName} entra nel grafo solo dopo validazione e mirroring privato degli asset.`
-    await instant(page, async () => {
-      await page
-        .getByRole('link', { exact: true, name: 'Brand Context' })
-        .click()
-      await page.waitForURL(`/brands/${brandId}/context`)
-      await expect(
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: brandPath,
+      ready: intentListReady,
+      settledPath: intentPath,
+      shell: {
+        heading: 'Apro gli Intent.',
+        status: 'Apertura del registro Intent.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: intentPath,
+      ready: intentListReady,
+      shell: {
+        heading: 'Il risultato prima del lavoro.',
+        status: 'Caricamento Intent.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: intentDetailPath,
+      ready: (page) =>
         page.getByRole('heading', {
-          name: 'Fonti, trasformazioni, prova.',
-        })
-      ).toBeVisible()
-      await expect(contextFallback).toBeAttached()
-      await expect(contextShell).not.toContainText(brandName)
-      await expect(contextShell).not.toContainText(ownerName)
+          exact: true,
+          name: fixture.intentStatement,
+        }),
+      shell: {
+        heading: "Apro l'Intent.",
+        status: 'Caricamento del dettaglio Intent.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: contextPath,
+      ready: objectListReady,
+      shell: {
+        heading: 'Fonti, trasformazioni, prova.',
+        status: 'Caricamento Brand Context.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: objectDetailPath,
+      ready: (page) =>
+        page.getByRole('heading', {
+          exact: true,
+          name: fixture.objectType,
+        }),
+      shell: {
+        heading: 'Apro contenuto e provenienza.',
+        status: "Caricamento dell'Object.",
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: workPath,
+      ready: taskListReady,
+      shell: {
+        heading: 'Il lavoro lascia ricevute.',
+        status: 'Caricamento Work.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: taskDetailPath,
+      ready: (page) => page.getByText(fixture.taskId, { exact: true }),
+      shell: {
+        heading: 'Apro il lavoro tracciato.',
+        status: 'Caricamento del task.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: cmoPath,
+      ready: conversationListReady,
+      shell: {
+        heading: 'Uno spazio solo tuo, dentro il brand.',
+        status: 'Caricamento CMO.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: conversationDetailPath,
+      ready: (page) =>
+        page.getByRole('heading', {
+          exact: true,
+          name: fixture.conversationTitle,
+        }),
+      shell: {
+        heading: 'Apro la conversazione privata.',
+        status: 'Caricamento della conversazione CMO.',
+      },
     })
 
-    await expect(contextFallback).toHaveCount(0)
-    await expect(page.getByText(contextDynamicCopy)).toBeVisible()
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: (page) => page.getByRole('link', { exact: true, name: 'Intent' }),
+      ready: intentListReady,
+      shell: {
+        heading: 'Il risultato prima del lavoro.',
+        status: 'Caricamento Intent.',
+      },
+      sourcePath: contextPath,
+      targetPath: intentPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: intentListReady,
+      ready: (page) =>
+        page.getByRole('heading', {
+          exact: true,
+          name: fixture.intentStatement,
+        }),
+      shell: {
+        heading: "Apro l'Intent.",
+        status: 'Caricamento del dettaglio Intent.',
+      },
+      sourcePath: intentPath,
+      targetPath: intentDetailPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: (page) =>
+        page.getByRole('link', { exact: true, name: 'Brand Context' }),
+      ready: objectListReady,
+      shell: {
+        heading: 'Fonti, trasformazioni, prova.',
+        status: 'Caricamento Brand Context.',
+      },
+      sourcePath: intentDetailPath,
+      targetPath: contextPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: objectListReady,
+      ready: (page) =>
+        page.getByRole('heading', {
+          exact: true,
+          name: fixture.objectType,
+        }),
+      shell: {
+        heading: 'Apro contenuto e provenienza.',
+        status: "Caricamento dell'Object.",
+      },
+      sourcePath: contextPath,
+      targetPath: objectDetailPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: (page) => page.getByRole('link', { exact: true, name: 'Work' }),
+      ready: taskListReady,
+      shell: {
+        heading: 'Il lavoro lascia ricevute.',
+        status: 'Caricamento Work.',
+      },
+      sourcePath: objectDetailPath,
+      targetPath: workPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: taskListReady,
+      ready: (page) => page.getByText(fixture.taskId, { exact: true }),
+      shell: {
+        heading: 'Apro il lavoro tracciato.',
+        status: 'Caricamento del task.',
+      },
+      sourcePath: workPath,
+      targetPath: taskDetailPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: (page) => page.getByRole('link', { exact: true, name: 'CMO' }),
+      ready: conversationListReady,
+      shell: {
+        heading: 'Uno spazio solo tuo, dentro il brand.',
+        status: 'Caricamento CMO.',
+      },
+      sourcePath: taskDetailPath,
+      targetPath: cmoPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
+      link: conversationListReady,
+      ready: (page) =>
+        page.getByRole('heading', {
+          exact: true,
+          name: fixture.conversationTitle,
+        }),
+      shell: {
+        heading: 'Apro la conversazione privata.',
+        status: 'Caricamento della conversazione CMO.',
+      },
+      sourcePath: cmoPath,
+      targetPath: conversationDetailPath,
+    })
   } finally {
     await owner.context.close()
     await cleanTestData(registry)
