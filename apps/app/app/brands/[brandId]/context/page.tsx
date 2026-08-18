@@ -9,26 +9,26 @@ import { formatDateTime } from '@/lib/presentation'
 
 const statusCopy = {
   importing: {
-    body: 'La sorgente esterna è ancora al lavoro. Le azioni restano bloccate finché il commit canonico non è concluso.',
-    eyebrow: 'Import in corso',
-    title: 'Il sito sta diventando contesto verificabile.',
+    body: 'The external source is still working. Actions stay locked until this import finishes.',
+    eyebrow: 'Import in progress',
+    title: 'The site is becoming Brand Context.',
   },
   incomplete: {
-    body: 'Avvia l’import esplicito. Se la sorgente fallisce, nessun contesto viene fabbricato al suo posto.',
-    eyebrow: 'Import richiesto',
-    title: 'Il Brand Context non è ancora canonico.',
+    body: 'Start the import. If the source fails, nothing is invented in its place.',
+    eyebrow: 'Import required',
+    title: 'The site is not in Brand Context yet.',
   },
   ready: {
-    body: 'Snapshot, asset e provenienza sono leggibili come Objects prodotti dalla stessa Action.',
-    eyebrow: 'Contesto pronto',
-    title: 'Il brand ha una testa canonica attiva.',
+    body: 'The snapshot, assets, and source are readable as Objects from the same Action.',
+    eyebrow: 'Context ready',
+    title: 'The brand has an active Brand Context.',
   },
 } as const
 
 const staleImportCopy = {
-  body: 'L’import precedente non si è concluso entro il tempo massimo. Puoi riprovare senza creare una seconda testa canonica.',
-  eyebrow: 'Import interrotto',
-  title: 'Il claim può essere ripreso in sicurezza.',
+  body: 'The previous import timed out. You can retry without creating a second current record.',
+  eyebrow: 'Import interrupted',
+  title: 'The claim can be resumed safely.',
 } as const
 
 export const instant = true
@@ -62,10 +62,10 @@ const ContextContent = async ({ params }: ContextPageProps) => {
     <div className="page-stack">
       <header className="page-header">
         <p className="eyebrow">Brand Context</p>
-        <h1>Fonti, trasformazioni, prova.</h1>
+        <h1>Sources, then proof.</h1>
         <p className="lede">
-          Il sito di {brand.name} entra nel grafo solo dopo validazione e
-          mirroring privato degli asset.
+          The {brand.name} site enters the brand only after it is validated and
+          its assets are copied privately.
         </p>
       </header>
 
@@ -90,7 +90,7 @@ const ContextContent = async ({ params }: ContextPageProps) => {
               className="button button--quiet"
               href={`/brands/${brandId}/objects/${status.currentBrandContextObjectId}`}
             >
-              Apri testa attiva
+              Open current record
             </Link>
           )}
         </div>
@@ -100,14 +100,17 @@ const ContextContent = async ({ params }: ContextPageProps) => {
         <div className="section-heading">
           <div>
             <p className="eyebrow">Object browser</p>
-            <h2>Registro del contesto</h2>
+            <h2>Context register</h2>
           </div>
-          <span>{objects.items.length} oggetti visibili</span>
+          <span>
+            {objects.items.length} visible object
+            {objects.items.length === 1 ? '' : 's'}
+          </span>
         </div>
 
         {objects.items.length === 0 ? (
           <div className="empty-state empty-state--compact">
-            <p>Nessun Object è stato prodotto per questo brand.</p>
+            <p>No Objects have been produced for this brand.</p>
           </div>
         ) : (
           <div className="object-grid">
@@ -146,8 +149,8 @@ export default function ContextPage(props: ContextPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Brand Context"
-          status="Caricamento Brand Context."
-          title="Fonti, trasformazioni, prova."
+          status="Loading Brand Context."
+          title="Sources, then proof."
         />
       }
     >

@@ -26,7 +26,7 @@ const IntentIndexContent = async ({ params }: IntentIndexPageProps) => {
       <header className="page-header page-header--split">
         <div>
           <p className="eyebrow">Intent register</p>
-          <h1>Il risultato prima del lavoro.</h1>
+          <h1>The result before the work.</h1>
         </div>
         <div className="page-header__aside">
           <span>{brand.name}</span>
@@ -38,11 +38,11 @@ const IntentIndexContent = async ({ params }: IntentIndexPageProps) => {
 
       {page.items.length === 0 ? (
         <section className="empty-state">
-          <p className="eyebrow">Nessun Intent</p>
-          <h2>Non esiste ancora un obiettivo canonico.</h2>
-          <p>Apri il CMO per dichiararne uno attraverso un turno esplicito.</p>
+          <p className="eyebrow">No Intents</p>
+          <h2>There is no goal yet.</h2>
+          <p>Open the CMO and write one in an explicit turn.</p>
           <Link className="text-link" href={`/brands/${brandId}/cmo`}>
-            Vai al CMO →
+            Go to the CMO →
           </Link>
         </section>
       ) : (
@@ -56,7 +56,7 @@ const IntentIndexContent = async ({ params }: IntentIndexPageProps) => {
                 <span className="record-list__body">
                   <span className="record-list__title">{intent.statement}</span>
                   <span className="record-list__meta">
-                    {intent.status} · revisione {intent.revision} ·{' '}
+                    {intent.status} · revision {intent.revision} ·{' '}
                     {formatDateTime(intent.updatedAt)}
                   </span>
                 </span>
@@ -78,8 +78,8 @@ export default function IntentIndexPage(props: IntentIndexPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Intent register"
-          status="Caricamento Intent."
-          title="Il risultato prima del lavoro."
+          status="Loading Intents."
+          title="The result before the work."
         />
       }
     >

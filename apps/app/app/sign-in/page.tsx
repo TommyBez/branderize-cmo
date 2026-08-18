@@ -8,7 +8,7 @@ import { SignInForm } from '@/components/sign-in-form'
 import { appEnvironment } from '@/lib/auth'
 import { firstAvailableBrand, readPageSession } from '@/lib/dal'
 
-export const metadata: Metadata = { title: 'Accedi' }
+export const metadata: Metadata = { title: 'Sign in' }
 export const instant = true
 
 const SignInContent = async () => {
@@ -25,29 +25,24 @@ const SignInContent = async () => {
           Branderize<span>CMO</span>
         </Link>
         <div>
-          <p className="eyebrow">Canonical marketing operations</p>
-          <h1>Una memoria di brand che mostra sempre da dove viene.</h1>
+          <p className="eyebrow">Your space</p>
+          <h1>You can still see why something was made.</h1>
           <p className="lede">
-            Intent, contesto e lavoro degli agenti restano leggibili come un
-            unico filo, senza perdere attori e provenienza.
+            The goal and the website stay with the work. The chat stays yours.
           </p>
         </div>
-        <p className="folio">Private alpha · Phase 0</p>
+        <p className="folio">Early access</p>
       </section>
       <section className="auth-panel">
         <div className="auth-panel__inner">
-          <p className="eyebrow">Area riservata</p>
-          <h2>Entra nel tuo atelier operativo.</h2>
-          <p>
-            Inserisci la tua email e poi il codice monouso per accedere; brand e
-            conversazioni dipendono sempre dalla membership corrente.
-          </p>
+          <p className="eyebrow">Sign in</p>
+          <h2>Enter your email. We’ll send a code.</h2>
+          <p>No password. You only see brands you belong to.</p>
           <SignInForm
             localOtpBypass={usesLocalEmailOtpBypass(appEnvironment)}
           />
           <small>
-            Il codice è personale. Nessuna conversazione CMO è condivisa con
-            altri membri.
+            The code is only for you. Nobody else can read your CMO chats.
           </small>
         </div>
       </section>
@@ -60,9 +55,9 @@ export default function SignInPage() {
     <Suspense
       fallback={
         <StandaloneNavigationPending
-          eyebrow="Area riservata"
-          status="Verifica della sessione in corso."
-          title="Verifico la sessione."
+          eyebrow="Sign in"
+          status="Checking for an existing session."
+          title="Checking your session."
         />
       }
     >

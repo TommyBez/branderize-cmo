@@ -20,15 +20,15 @@ const WorkIndexContent = async ({ params }: WorkIndexPageProps) => {
       <header className="page-header page-header--split">
         <div>
           <p className="eyebrow">Work ledger</p>
-          <h1>Il lavoro lascia ricevute.</h1>
+          <h1>Work leaves a receipt.</h1>
           <p className="lede">
-            Phase 0 espone solo il Product Marketer. Stato, output e domande
-            rimaste aperte restano nella scheda del singolo task.
+            Early access shows Product Marketer only. Status, output, and open
+            questions stay on the task.
           </p>
         </div>
         <div className="counter-mark">
           <strong>{tasks.length}</strong>
-          <span>task recenti</span>
+          <span>recent tasks</span>
         </div>
       </header>
 
@@ -36,15 +36,15 @@ const WorkIndexContent = async ({ params }: WorkIndexPageProps) => {
         <div className="section-heading">
           <div>
             <p className="eyebrow">Product Marketer</p>
-            <h2>Task recenti</h2>
+            <h2>Recent tasks</h2>
           </div>
           <span>{tasks.length} task</span>
         </div>
         {tasks.length === 0 ? (
           <div className="empty-state empty-state--compact">
             <p>
-              Nessun task richiesto. Il CMO può inviare lavoro specialistico
-              solo da un Intent attivo e non ambiguo.
+              No tasks yet. The CMO can send specialist work only from one
+              active, unambiguous Intent.
             </p>
           </div>
         ) : (
@@ -82,8 +82,8 @@ export default function WorkIndexPage(props: WorkIndexPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Work ledger"
-          status="Caricamento Work."
-          title="Il lavoro lascia ricevute."
+          status="Loading Work."
+          title="Work leaves a receipt."
         />
       }
     >

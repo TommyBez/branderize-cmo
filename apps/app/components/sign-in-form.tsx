@@ -108,11 +108,11 @@ export const SignInForm = ({
       <form className="auth-action auth-email-form" onSubmit={verifyCode}>
         <p aria-live="polite" className="form-feedback" role="status">
           {localOtpBypass
-            ? `Sviluppo locale per ${email}: inserisci qualunque codice.`
-            : `Abbiamo inviato un codice a ${email}.`}
+            ? `Local development for ${email}: enter any code.`
+            : `We sent a code to ${email}.`}
         </p>
         <label className="field" htmlFor="sign-in-otp">
-          <span>Codice di accesso</span>
+          <span>Sign-in code</span>
           <input
             aria-describedby="sign-in-otp-help"
             autoCapitalize="none"
@@ -131,15 +131,15 @@ export const SignInForm = ({
         </label>
         <small id="sign-in-otp-help">
           {localOtpBypass
-            ? 'Nessuna email viene inviata dal runner locale.'
-            : 'Il codice scade tra cinque minuti e può essere usato una sola volta.'}
+            ? 'The local runner does not send email.'
+            : 'Expires in five minutes. One use only.'}
         </small>
         <button
           className="button button--wide"
           disabled={verifying}
           type="submit"
         >
-          {verifying ? 'Verifica in corso…' : 'Accedi'}
+          {verifying ? 'Signing in…' : 'Sign in'}
         </button>
         <button
           className="auth-text-button"
@@ -147,11 +147,11 @@ export const SignInForm = ({
           onClick={resetEmail}
           type="button"
         >
-          Usa un'altra email
+          Use a different email
         </button>
         {state.kind === 'verify-error' ? (
           <p className="form-feedback form-feedback--error" role="alert">
-            Non è stato possibile accedere. Controlla il codice e riprova.
+            That code didn’t work. Check it and try again.
           </p>
         ) : null}
       </form>
@@ -170,7 +170,7 @@ export const SignInForm = ({
           id="sign-in-email"
           inputMode="email"
           name="email"
-          placeholder="nome@azienda.it"
+          placeholder="you@company.com"
           required
           spellCheck={false}
           type="email"
@@ -178,15 +178,15 @@ export const SignInForm = ({
       </label>
       <small id="sign-in-email-help">
         {localOtpBypass
-          ? 'In locale passerai direttamente al codice, senza invio email.'
-          : 'Riceverai un codice monouso. Non serve una password.'}
+          ? 'Locally you’ll go straight to the code. No email is sent.'
+          : 'You’ll get a one-time code. No password.'}
       </small>
       <button className="button button--wide" disabled={sending} type="submit">
-        {sending ? 'Invio in corso…' : 'Continua con l’email'}
+        {sending ? 'Sending…' : 'Email me a code'}
       </button>
       {state.kind === 'send-error' ? (
         <p className="form-feedback form-feedback--error" role="alert">
-          Non è stato possibile continuare. Riprova tra poco.
+          We couldn’t send the code. Try again in a moment.
         </p>
       ) : null}
     </form>

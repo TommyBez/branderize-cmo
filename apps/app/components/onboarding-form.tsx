@@ -23,14 +23,14 @@ export const OnboardingForm = ({
 
       {hasOrganizations ? (
         <label className="field">
-          <span>Organizzazione</span>
+          <span>Organization</span>
           <select defaultValue={organizations[0]?.id} name="organizationId">
             {organizations.map((organization) => (
               <option key={organization.id} value={organization.id}>
                 {organization.name}
               </option>
             ))}
-            <option value="">Crea una nuova organizzazione</option>
+            <option value="">Create a new organization</option>
           </select>
         </label>
       ) : (
@@ -39,7 +39,7 @@ export const OnboardingForm = ({
 
       <div className="field-pair">
         <label className="field">
-          <span>Nome organizzazione</span>
+          <span>Organization name</span>
           <input
             autoComplete="organization"
             name="organizationName"
@@ -48,7 +48,7 @@ export const OnboardingForm = ({
           />
         </label>
         <label className="field">
-          <span>Slug organizzazione</span>
+          <span>Organization slug</span>
           <input
             autoCapitalize="none"
             name="organizationSlug"
@@ -63,11 +63,11 @@ export const OnboardingForm = ({
 
       <div className="field-pair">
         <label className="field">
-          <span>Nome brand</span>
+          <span>Brand name</span>
           <input name="brandName" placeholder="Aurora" required />
         </label>
         <label className="field">
-          <span>Slug brand</span>
+          <span>Brand slug</span>
           <input
             autoCapitalize="none"
             name="brandSlug"
@@ -79,7 +79,7 @@ export const OnboardingForm = ({
       </div>
 
       <label className="field">
-        <span>Sito canonico</span>
+        <span>Website</span>
         <input
           inputMode="url"
           name="websiteUrl"
@@ -87,14 +87,14 @@ export const OnboardingForm = ({
           required
           type="url"
         />
-        <small>Deve essere pubblico e raggiungibile via HTTPS.</small>
+        <small>Must be public and reachable over HTTPS.</small>
       </label>
 
       <label className="field">
-        <span>Intent iniziale</span>
+        <span>First goal</span>
         <textarea
           name="intentStatement"
-          placeholder="Definisci il risultato che il brand deve ottenere, non una lista di attività."
+          placeholder="Name the outcome the brand must get. Not a task list."
           required
           rows={5}
         />
@@ -102,8 +102,8 @@ export const OnboardingForm = ({
 
       <FormFeedback state={state} />
       <SubmitButton
-        idleLabel="Crea brand e continua"
-        pendingLabel="Creazione…"
+        idleLabel="Create brand and continue"
+        pendingLabel="Creating…"
       />
     </form>
   )

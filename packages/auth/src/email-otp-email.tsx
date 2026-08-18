@@ -72,25 +72,25 @@ export interface EmailOtpEmailProps {
 }
 
 export const EmailOtpEmail = ({ otp }: EmailOtpEmailProps) => (
-  <Html lang="it">
+  <Html lang="en">
     <Head />
     <Body style={styles.body}>
-      <Preview>Il tuo codice di accesso a Branderize è {otp}</Preview>
+      <Preview>Your Branderize sign-in code is {otp}</Preview>
       <Container style={styles.container}>
         <Text style={styles.brand}>Branderize</Text>
         <Heading as="h1" style={styles.heading}>
-          Il tuo codice di accesso
+          Your sign-in code
         </Heading>
         <Text style={styles.text}>
-          Inserisci questo codice nella schermata di accesso. Scade tra{' '}
-          {OTP_EXPIRY_MINUTES} minuti e può essere usato una sola volta.
+          Enter this code on the sign-in screen. It expires in{' '}
+          {OTP_EXPIRY_MINUTES} minutes and works once.
         </Text>
         <Section style={styles.codeContainer}>
           <Text style={styles.code}>{otp}</Text>
         </Section>
         <Text style={styles.footer}>
-          Se non hai richiesto tu questo codice, ignora l&apos;email e non
-          condividerlo con altre persone.
+          If you didn&apos;t ask for this code, ignore the email and don&apos;t
+          share it.
         </Text>
       </Container>
     </Body>
@@ -147,7 +147,7 @@ export const sendEmailOtpEmail = async ({
     {
       from: `Branderize <${fromEmail}>`,
       react: emailTemplate,
-      subject: 'Il tuo codice di accesso a Branderize',
+      subject: 'Your Branderize sign-in code',
       text: plainText,
       to: email,
     },

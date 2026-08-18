@@ -5,7 +5,7 @@ import { StandaloneNavigationPending } from '@/components/navigation-pending'
 import { OnboardingForm } from '@/components/onboarding-form'
 import { listUserOrganizations, requirePageSession } from '@/lib/dal'
 
-export const metadata: Metadata = { title: 'Nuovo brand' }
+export const metadata: Metadata = { title: 'New brand' }
 export const instant = true
 
 const OnboardingContent = async () => {
@@ -22,30 +22,28 @@ const OnboardingContent = async () => {
       </header>
       <div className="onboarding-grid">
         <section className="onboarding-copy">
-          <p className="eyebrow">01 · Origine</p>
-          <h1>Costruiamo il primo punto fermo del brand.</h1>
+          <p className="eyebrow">01 · Start</p>
+          <h1>Start with the brand.</h1>
           <p className="lede">
-            Il sito diventa una fonte verificabile. L’Intent dice invece quale
-            cambiamento vuoi ottenere: sono due cose diverse, entrambe
-            canoniche.
+            Write the goal. Add the website. That is enough to begin.
           </p>
           <ol className="editorial-steps">
             <li>
               <span>01</span>
-              Brand e website
+              Brand and website
             </li>
             <li>
               <span>02</span>
-              Intent iniziale
+              First goal
             </li>
             <li>
               <span>03</span>
-              Import del contesto
+              Add the website
             </li>
           </ol>
         </section>
         <section className="onboarding-form-panel">
-          <p className="eyebrow">Dettagli canonici</p>
+          <p className="eyebrow">Brand details</p>
           <OnboardingForm
             organizations={organizations}
             requestId={randomUUID()}
@@ -61,9 +59,9 @@ export default function OnboardingPage() {
     <Suspense
       fallback={
         <StandaloneNavigationPending
-          eyebrow="Nuovo brand"
-          status="Preparazione del nuovo brand in corso."
-          title="Preparo il primo punto fermo."
+          eyebrow="New brand"
+          status="Setting up the new brand."
+          title="Preparing the first record."
         />
       }
     >

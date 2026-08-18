@@ -124,33 +124,33 @@ const formValue = (
 
 const publicErrorMessage = (error: unknown): string => {
   if (error instanceof z.ZodError) {
-    return 'Controlla i campi e riprova.'
+    return 'Check the fields and try again.'
   }
   if (error instanceof ContextImportUnavailableError) {
-    return 'Import non configurato in questo ambiente.'
+    return 'Import is not configured in this environment.'
   }
   if (error instanceof OnboardingOrganizationConflictError) {
-    return 'Lo slug dell’organizzazione è già in uso.'
+    return 'That organization slug is already in use.'
   }
   if (error instanceof AppAccessError) {
     return error.code === 'unauthenticated'
-      ? 'La sessione è scaduta. Accedi di nuovo.'
-      : 'Non hai accesso a questa operazione.'
+      ? 'Your session expired. Sign in again.'
+      : 'You do not have access to this operation.'
   }
   if (error instanceof BrainError) {
     switch (error.code) {
       case 'stale_intent':
-        return 'L’Intent è cambiato. Ricarica la pagina prima di riprovare.'
+        return 'The Intent changed. Reload the page before trying again.'
       case 'operation_conflict':
       case 'stale_head':
-        return 'Esiste già uno stato canonico più recente.'
+        return 'A newer record already exists.'
       case 'access_denied':
-        return 'Il tuo ruolo non consente questa operazione.'
+        return 'Your role cannot perform this operation.'
       default:
-        return 'L’operazione canonica non è stata completata.'
+        return 'The operation could not be completed.'
     }
   }
-  return 'Servizio temporaneamente non disponibile.'
+  return 'The service is temporarily unavailable.'
 }
 
 const linesOrNull = (value: string): string[] | null => {
@@ -364,7 +364,7 @@ export const refineIntentAction = async (
     })
     revalidatePath(`/brands/${parsed.brandId}/intent/${parsed.intentId}`)
     revalidatePath(`/brands/${parsed.brandId}/intent`)
-    return { kind: 'success', message: 'Intent aggiornato nel grafo canonico.' }
+    return { kind: 'success', message: 'Intent updated.' }
   } catch (error) {
     scheduleActionFailure({
       correlationId,
@@ -407,7 +407,7 @@ export const retryContextImportAction = async (
     revalidatePath(`/brands/${brandId}/objects/${receipt.brandContextObjectId}`)
     return {
       kind: 'success',
-      message: 'Brand Context importato con provenienza canonica.',
+      message: 'Brand Context imported with its source attached.',
     }
   } catch (error) {
     scheduleActionFailure({

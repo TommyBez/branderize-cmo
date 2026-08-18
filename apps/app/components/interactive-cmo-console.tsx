@@ -76,7 +76,7 @@ export const InteractiveCmoConsole = ({
           setCheckpointError(null)
         } catch {
           setCheckpointError(
-            'Il cursore di recupero non è stato salvato. Ricarica per riprovare.'
+            'The recovery cursor was not saved. Reload to try again.'
           )
         }
       })
@@ -107,7 +107,7 @@ export const InteractiveCmoConsole = ({
           }
           cancellation.requested = false
           cancellation.sentTurnId = undefined
-          setCancellationError('Non è stato possibile fermare questo turno.')
+          setCancellationError('This turn could not be stopped.')
           setCancellationState('idle')
         })
     },
@@ -144,12 +144,12 @@ export const InteractiveCmoConsole = ({
   const busy = agent.status === 'streaming' || agent.status === 'submitted'
   const errorMessage =
     cancellationError ?? checkpointError ?? agent.error?.message
-  let statusLabel = 'Pronto'
+  let statusLabel = 'Ready'
   if (readOnly) {
-    statusLabel = 'Sola lettura'
+    statusLabel = 'Read only'
   }
   if (busy) {
-    statusLabel = 'CMO al lavoro'
+    statusLabel = 'CMO at work'
   }
 
   const refresh = useCallback(() => router.refresh(), [router])
@@ -205,7 +205,7 @@ export const InteractiveCmoConsole = ({
         />
         {statusLabel}
         <button className="text-button" onClick={refresh} type="button">
-          Ricarica
+          Reload
         </button>
       </div>
 
@@ -219,7 +219,7 @@ export const InteractiveCmoConsole = ({
 
       <form className="cmo-composer" onSubmit={submit}>
         <label className="sr-only" htmlFor="cmo-message">
-          Messaggio al CMO
+          Message to the CMO
         </label>
         <textarea
           disabled={busy || readOnly}
@@ -227,8 +227,8 @@ export const InteractiveCmoConsole = ({
           maxLength={20_000}
           placeholder={
             readOnly
-              ? 'La conversazione è disponibile in sola lettura.'
-              : 'Dichiara il risultato che vuoi ottenere…'
+              ? 'This conversation is read-only.'
+              : 'Name the outcome you want…'
           }
           ref={composerRef}
           rows={3}
@@ -236,8 +236,8 @@ export const InteractiveCmoConsole = ({
         <div className="cmo-composer__actions">
           <small>
             {sourceTaskId === null
-              ? 'I turni sono privati al proprietario della conversazione.'
-              : `Questo turno attesta il task ${sourceTaskId}.`}
+              ? 'Turns stay private to the conversation owner.'
+              : `This turn attests task ${sourceTaskId}.`}
           </small>
           {busy ? (
             <button
@@ -246,11 +246,11 @@ export const InteractiveCmoConsole = ({
               onClick={requestCancellation}
               type="button"
             >
-              {cancellationState === 'idle' ? 'Ferma turno' : 'Arresto…'}
+              {cancellationState === 'idle' ? 'Stop turn' : 'Stopping…'}
             </button>
           ) : (
             <button className="button" disabled={readOnly} type="submit">
-              Invia
+              Send
             </button>
           )}
         </div>

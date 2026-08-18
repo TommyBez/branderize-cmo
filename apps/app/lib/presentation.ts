@@ -1,11 +1,11 @@
 export const formatDateTime = (value: Date): string =>
-  new Intl.DateTimeFormat('it-IT', {
+  new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(value)
 
 export const formatBytes = (value: number): string =>
-  new Intl.NumberFormat('it-IT', {
+  new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 1,
     style: 'unit',
     unit: value >= 1_000_000 ? 'megabyte' : 'kilobyte',
@@ -31,6 +31,6 @@ export const readableValue = (value: unknown): string => {
   try {
     return JSON.stringify(value, null, 2)
   } catch {
-    return 'Valore non rappresentabile'
+    return 'Value cannot be displayed'
   }
 }

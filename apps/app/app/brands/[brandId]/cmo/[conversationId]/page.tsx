@@ -49,10 +49,10 @@ const CmoConversationContent = async ({
       <header className="cmo-header">
         <div>
           <Link className="back-link" href={`/brands/${brandId}/cmo`}>
-            ← Conversazioni
+            ← Conversations
           </Link>
           <p className="eyebrow">Private CMO</p>
-          <h1>{conversation.title ?? 'Conversazione senza titolo'}</h1>
+          <h1>{conversation.title ?? 'Untitled conversation'}</h1>
         </div>
         <span className="privacy-mark">Owner-private</span>
       </header>
@@ -80,8 +80,8 @@ export default function CmoConversationPage(props: CmoConversationPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Private CMO"
-          status="Caricamento della conversazione CMO."
-          title="Apro la conversazione privata."
+          status="Loading the CMO conversation."
+          title="Opening the private conversation."
           variant="detail"
         />
       }

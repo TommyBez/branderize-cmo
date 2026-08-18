@@ -40,14 +40,14 @@ export const AppShell = ({
               <BrandOption brand={brand} key={brand.id} />
             ))}
           </select>
-          <button className="icon-button" title="Apri il brand" type="submit">
+          <button className="icon-button" title="Open brand" type="submit">
             <span aria-hidden="true">↗</span>
-            <span className="sr-only">Apri il brand selezionato</span>
+            <span className="sr-only">Open the selected brand</span>
           </button>
         </div>
       </form>
 
-      <nav aria-label="Navigazione principale" className="primary-nav">
+      <nav aria-label="Primary" className="primary-nav">
         {navigation.map((item, index) => (
           <Link
             href={`/brands/${context.brand.id}/${item.path}`}

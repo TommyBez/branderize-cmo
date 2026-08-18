@@ -74,9 +74,7 @@ export const RecoveringCmoConsole = ({
           }
         } catch {
           if (!controller.signal.aborted) {
-            setRecoveryError(
-              'Non è stato possibile completare il recupero dello stream.'
-            )
+            setRecoveryError('Stream recovery could not be completed.')
           }
         }
       }
@@ -84,9 +82,7 @@ export const RecoveringCmoConsole = ({
 
     recover().catch(() => {
       if (!controller.signal.aborted) {
-        setRecoveryError(
-          'Non è stato possibile completare il recupero dello stream.'
-        )
+        setRecoveryError('Stream recovery could not be completed.')
       }
     })
     return () => controller.abort()
@@ -102,7 +98,7 @@ export const RecoveringCmoConsole = ({
       await session.cancel({ turnId: activeTurnId })
     } catch {
       setCancellationState('idle')
-      setRecoveryError('Non è stato possibile fermare questo turno.')
+      setRecoveryError('This turn could not be stopped.')
     }
   }, [activeTurnId, cancellationState, session])
 
@@ -136,15 +132,15 @@ export const RecoveringCmoConsole = ({
             recoveryError === null ? 'streaming' : 'error'
           }`}
         />
-        {busy ? 'CMO al lavoro' : 'Recupero sessione'}
+        {busy ? 'CMO at work' : 'Recovering session'}
         <button className="text-button" onClick={refresh} type="button">
-          Ricarica
+          Reload
         </button>
       </div>
 
       {recoveryError === null ? null : (
         <p className="form-feedback form-feedback--error" role="alert">
-          {recoveryError} Ricarica per riprovare.
+          {recoveryError} Reload to try again.
         </p>
       )}
 

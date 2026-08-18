@@ -49,10 +49,10 @@ const ObjectDetailContent = async ({ params }: ObjectDetailPageProps) => {
               rel="noopener"
               target="_blank"
             >
-              Anteprima ↗
+              Preview ↗
             </a>
             <a className="button" href={`${deliveryPath}?delivery=download`}>
-              Scarica
+              Download
             </a>
           </div>
         ) : null}
@@ -60,11 +60,11 @@ const ObjectDetailContent = async ({ params }: ObjectDetailPageProps) => {
 
       <div className="provenance-grid">
         <section className="paper-panel paper-panel--content">
-          <p className="eyebrow">Contenuto canonico</p>
+          <p className="eyebrow">Record content</p>
           <pre>{readableValue(object.content)}</pre>
         </section>
         <aside className="provenance-rail">
-          <p className="eyebrow">Provenienza</p>
+          <p className="eyebrow">Source</p>
           <dl className="provenance-list">
             <div>
               <dt>Action</dt>
@@ -72,7 +72,7 @@ const ObjectDetailContent = async ({ params }: ObjectDetailPageProps) => {
               <dd className="mono-id">{object.producedBy.id}</dd>
             </div>
             <div>
-              <dt>Attore</dt>
+              <dt>Actor</dt>
               <dd>{object.producedBy.actor.actorKey}</dd>
               <dd>{object.producedBy.actor.type}</dd>
             </div>
@@ -81,21 +81,21 @@ const ObjectDetailContent = async ({ params }: ObjectDetailPageProps) => {
               <dd>{object.producedBy.rationale}</dd>
             </div>
             <div>
-              <dt>Effetto</dt>
+              <dt>Effect</dt>
               <dd>{object.producedBy.effectClass}</dd>
             </div>
             <div>
-              <dt>Prodotto</dt>
+              <dt>Produced</dt>
               <dd>{formatDateTime(object.createdAt)}</dd>
             </div>
             {object.binary.kind === 'artifact' ? (
               <>
                 <div>
-                  <dt>Formato</dt>
+                  <dt>Format</dt>
                   <dd>{object.binary.contentType}</dd>
                 </div>
                 <div>
-                  <dt>Dimensione</dt>
+                  <dt>Size</dt>
                   <dd>{formatBytes(object.binary.byteSize)}</dd>
                 </div>
                 <div>
@@ -117,8 +117,8 @@ export default function ObjectDetailPage(props: ObjectDetailPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Object"
-          status="Caricamento dell'Object."
-          title="Apro contenuto e provenienza."
+          status="Loading the Object."
+          title="Opening the record."
           variant="detail"
         />
       }

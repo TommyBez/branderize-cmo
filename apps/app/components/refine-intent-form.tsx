@@ -30,25 +30,25 @@ export const RefineIntentForm = ({
       <input name="expectedRevision" type="hidden" value={revision} />
       <input name="requestId" type="hidden" value={requestId} />
       <label className="field">
-        <span>Criteri di accettazione</span>
+        <span>Acceptance criteria</span>
         <textarea
           defaultValue={acceptanceCriteria}
           name="acceptanceCriteria"
-          placeholder="Un criterio per riga"
+          placeholder="One criterion per line"
           rows={5}
         />
       </label>
       <label className="field">
-        <span>Vincoli</span>
+        <span>Constraints</span>
         <textarea
           defaultValue={constraints}
           name="constraints"
-          placeholder="Un vincolo per riga"
+          placeholder="One constraint per line"
           rows={5}
         />
       </label>
       <FormFeedback state={state} />
-      <SubmitButton idleLabel="Salva revisione" pendingLabel="Salvataggio…" />
+      <SubmitButton idleLabel="Save revision" pendingLabel="Saving…" />
     </form>
   )
 }

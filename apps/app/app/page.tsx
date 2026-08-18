@@ -21,9 +21,9 @@ export default function HomePage() {
     <Suspense
       fallback={
         <StandaloneNavigationPending
-          eyebrow="Area riservata"
-          status="Apertura dello spazio personale."
-          title="Apro il tuo spazio."
+          eyebrow="Private workspace"
+          status="Taking you to your brand."
+          title="Opening your workspace."
         />
       }
     >

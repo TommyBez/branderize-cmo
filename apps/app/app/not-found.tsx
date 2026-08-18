@@ -4,10 +4,12 @@ export default function NotFoundPage() {
   return (
     <main className="system-page">
       <p className="eyebrow">404</p>
-      <h1>Questa pagina non appartiene al tuo spazio.</h1>
-      <p>La risorsa non esiste oppure la membership corrente non la espone.</p>
+      <h1>This page is not in your workspace.</h1>
+      <p>
+        The resource does not exist, or your current membership cannot see it.
+      </p>
       <Link className="button" href="/">
-        Torna all’inizio
+        Back to the start
       </Link>
     </main>
   )

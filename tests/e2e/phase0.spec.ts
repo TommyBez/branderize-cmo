@@ -34,9 +34,9 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
 const BRAND_CONTEXT_URL_PATTERN = /\/brands\/[0-9a-f-]+\/context$/u
 const CMO_CONVERSATION_URL_PATTERN = /\/cmo\/[0-9a-f-]+$/u
-const LANDING_HEADING_PATTERN = /Una direzione chiara/i
+const LANDING_HEADING_PATTERN = /A clear direction/i
 const PRIVATE_ROUTE_BOUNDARY_PATTERN =
-  /Questa pagina non appartiene al tuo spazio|Non possiamo proiettare questo stato adesso/u
+  /This page is not in your workspace|We can’t show this state right now/u
 const PRODUCT_MARKETER_SOURCE_PATTERN = /product-marketer/u
 const GATEWAY_TRACE_FILE_PATTERN = /^gateway-\d+-\d{4}\.json$/u
 const STREAM_TAIL_INDEX_PATTERN = /^-?\d+$/u
@@ -734,7 +734,7 @@ test('the landing route is present in its initial Cache Components shell', async
       await expect(
         page
           .getByRole('link', {
-            name: "Apri l'app Branderize e accedi via email",
+            name: 'Open the Branderize app and sign in with email',
           })
           .first()
       ).toHaveAttribute('href', appOrigin)
@@ -753,25 +753,25 @@ test('landing and sign-in expose accessible Phase 0 boundaries', async ({
   await expect(
     page
       .getByRole('link', {
-        name: "Apri l'app Branderize e accedi via email",
+        name: 'Open the Branderize app and sign in with email',
       })
       .first()
   ).toHaveAttribute('href', appOrigin)
   await assertAxeClean(page)
   await page.keyboard.press('Tab')
-  const skipLink = page.getByRole('link', { name: 'Vai al contenuto' })
+  const skipLink = page.getByRole('link', { name: 'Skip to content' })
   await assertVisibleFocusIndicator(skipLink)
   await page.keyboard.press('Enter')
-  await expect(page).toHaveURL(`${webOrigin}/#contenuto`)
+  await expect(page).toHaveURL(`${webOrigin}/#content`)
 
   await page.goto(`${appOrigin}/sign-in`)
   await expect(
     page.getByRole('heading', {
-      name: 'Una memoria di brand che mostra sempre da dove viene.',
+      name: 'You can still see why something was made.',
     })
   ).toBeVisible()
   await expect(
-    page.getByRole('button', { name: 'Continua con l’email' })
+    page.getByRole('button', { name: 'Email me a code' })
   ).toBeVisible()
   await assertAxeClean(page)
   await page.keyboard.press('Tab')
@@ -782,7 +782,7 @@ test('landing and sign-in expose accessible Phase 0 boundaries', async ({
   )
   await page.keyboard.press('Tab')
   await assertVisibleFocusIndicator(
-    page.getByRole('button', { name: 'Continua con l’email' })
+    page.getByRole('button', { name: 'Email me a code' })
   )
 })
 
@@ -812,7 +812,7 @@ test('public shells reflow at 200% and 400% zoom equivalents', async ({
     })
   }
   const signInHeading = page.getByRole('heading', {
-    name: 'Una memoria di brand che mostra sempre da dove viene.',
+    name: 'You can still see why something was made.',
   })
 
   await captureReflowProof({
@@ -891,22 +891,21 @@ test('every app route family exposes an instant shell before streamed data', asy
       path: '/',
       ready: (page) =>
         page.getByRole('heading', {
-          name: 'Una memoria di brand che mostra sempre da dove viene.',
+          name: 'You can still see why something was made.',
         }),
       settledPath: '/sign-in',
       shell: {
-        heading: 'Apro il tuo spazio.',
-        status: 'Apertura dello spazio personale.',
+        heading: 'Opening your workspace.',
+        status: 'Taking you to your brand.',
       },
     })
     await assertInstantHardNavigation({
       context: anonymousContext,
       path: '/sign-in',
-      ready: (page) =>
-        page.getByRole('button', { name: 'Continua con l’email' }),
+      ready: (page) => page.getByRole('button', { name: 'Email me a code' }),
       shell: {
-        heading: 'Verifico la sessione.',
-        status: 'Verifica della sessione in corso.',
+        heading: 'Checking your session.',
+        status: 'Checking for an existing session.',
       },
     })
   } finally {
@@ -926,29 +925,27 @@ test('every app route family exposes an instant shell before streamed data', asy
       forbiddenCopy: [ownerEmail, ownerName],
       path: '/onboarding',
       ready: (page) =>
-        page.getByRole('button', { name: 'Crea brand e continua' }),
+        page.getByRole('button', { name: 'Create brand and continue' }),
       shell: {
-        heading: 'Preparo il primo punto fermo.',
-        status: 'Preparazione del nuovo brand in corso.',
+        heading: 'Preparing the first record.',
+        status: 'Setting up the new brand.',
       },
     })
 
     const setupPage = await owner.context.newPage()
     await setupPage.goto('/onboarding')
     await setupPage
-      .getByLabel('Nome organizzazione')
+      .getByLabel('Organization name')
       .fill(`Instant Org ${suffix}`)
-    await setupPage.getByLabel('Slug organizzazione').fill(organizationSlug)
-    await setupPage.getByLabel('Nome brand').fill(brandName)
-    await setupPage.getByLabel('Slug brand').fill(brandSlug)
+    await setupPage.getByLabel('Organization slug').fill(organizationSlug)
+    await setupPage.getByLabel('Brand name').fill(brandName)
+    await setupPage.getByLabel('Brand slug').fill(brandSlug)
+    await setupPage.getByLabel('Website').fill(`https://${brandSlug}.example`)
     await setupPage
-      .getByLabel('Sito canonico')
-      .fill(`https://${brandSlug}.example`)
-    await setupPage
-      .getByLabel('Intent iniziale')
+      .getByLabel('First goal')
       .fill(`Intent instant navigation ${suffix}`)
     await setupPage
-      .getByRole('button', { name: 'Crea brand e continua' })
+      .getByRole('button', { name: 'Create brand and continue' })
       .click()
     await expect(setupPage).toHaveURL(BRAND_CONTEXT_URL_PATTERN)
     const brandId = readPathIdentifier({
@@ -995,8 +992,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       ready: intentListReady,
       settledPath: intentPath,
       shell: {
-        heading: 'Apro gli Intent.',
-        status: 'Apertura del registro Intent.',
+        heading: 'Opening Intents.',
+        status: 'Opening the Intent register.',
       },
     })
     await assertInstantHardNavigation({
@@ -1006,8 +1003,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       path: intentPath,
       ready: intentListReady,
       shell: {
-        heading: 'Il risultato prima del lavoro.',
-        status: 'Caricamento Intent.',
+        heading: 'The result before the work.',
+        status: 'Loading Intents.',
       },
     })
     await assertInstantHardNavigation({
@@ -1021,8 +1018,8 @@ test('every app route family exposes an instant shell before streamed data', asy
           name: fixture.intentStatement,
         }),
       shell: {
-        heading: "Apro l'Intent.",
-        status: 'Caricamento del dettaglio Intent.',
+        heading: 'Opening the Intent.',
+        status: 'Loading the Intent.',
       },
     })
     await assertInstantHardNavigation({
@@ -1032,8 +1029,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       path: contextPath,
       ready: objectListReady,
       shell: {
-        heading: 'Fonti, trasformazioni, prova.',
-        status: 'Caricamento Brand Context.',
+        heading: 'Sources, then proof.',
+        status: 'Loading Brand Context.',
       },
     })
     await assertInstantHardNavigation({
@@ -1047,8 +1044,8 @@ test('every app route family exposes an instant shell before streamed data', asy
           name: fixture.objectType,
         }),
       shell: {
-        heading: 'Apro contenuto e provenienza.',
-        status: "Caricamento dell'Object.",
+        heading: 'Opening the record.',
+        status: 'Loading the Object.',
       },
     })
     await assertInstantHardNavigation({
@@ -1058,8 +1055,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       path: workPath,
       ready: taskListReady,
       shell: {
-        heading: 'Il lavoro lascia ricevute.',
-        status: 'Caricamento Work.',
+        heading: 'Work leaves a receipt.',
+        status: 'Loading Work.',
       },
     })
     await assertInstantHardNavigation({
@@ -1069,8 +1066,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       path: taskDetailPath,
       ready: (page) => page.getByText(fixture.taskId, { exact: true }),
       shell: {
-        heading: 'Apro il lavoro tracciato.',
-        status: 'Caricamento del task.',
+        heading: 'Opening the work.',
+        status: 'Loading the task.',
       },
     })
     await assertInstantHardNavigation({
@@ -1080,8 +1077,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       path: cmoPath,
       ready: conversationListReady,
       shell: {
-        heading: 'Uno spazio solo tuo, dentro il brand.',
-        status: 'Caricamento CMO.',
+        heading: 'Yours alone, inside the brand.',
+        status: 'Loading CMO.',
       },
     })
     await assertInstantHardNavigation({
@@ -1095,8 +1092,8 @@ test('every app route family exposes an instant shell before streamed data', asy
           name: fixture.conversationTitle,
         }),
       shell: {
-        heading: 'Apro la conversazione privata.',
-        status: 'Caricamento della conversazione CMO.',
+        heading: 'Opening the private conversation.',
+        status: 'Loading the CMO conversation.',
       },
     })
 
@@ -1106,8 +1103,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       link: (page) => page.getByRole('link', { exact: true, name: 'Intent' }),
       ready: intentListReady,
       shell: {
-        heading: 'Il risultato prima del lavoro.',
-        status: 'Caricamento Intent.',
+        heading: 'The result before the work.',
+        status: 'Loading Intents.',
       },
       sourcePath: contextPath,
       targetPath: intentPath,
@@ -1122,8 +1119,8 @@ test('every app route family exposes an instant shell before streamed data', asy
           name: fixture.intentStatement,
         }),
       shell: {
-        heading: "Apro l'Intent.",
-        status: 'Caricamento del dettaglio Intent.',
+        heading: 'Opening the Intent.',
+        status: 'Loading the Intent.',
       },
       sourcePath: intentPath,
       targetPath: intentDetailPath,
@@ -1135,8 +1132,8 @@ test('every app route family exposes an instant shell before streamed data', asy
         page.getByRole('link', { exact: true, name: 'Brand Context' }),
       ready: objectListReady,
       shell: {
-        heading: 'Fonti, trasformazioni, prova.',
-        status: 'Caricamento Brand Context.',
+        heading: 'Sources, then proof.',
+        status: 'Loading Brand Context.',
       },
       sourcePath: intentDetailPath,
       targetPath: contextPath,
@@ -1151,8 +1148,8 @@ test('every app route family exposes an instant shell before streamed data', asy
           name: fixture.objectType,
         }),
       shell: {
-        heading: 'Apro contenuto e provenienza.',
-        status: "Caricamento dell'Object.",
+        heading: 'Opening the record.',
+        status: 'Loading the Object.',
       },
       sourcePath: contextPath,
       targetPath: objectDetailPath,
@@ -1163,8 +1160,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       link: (page) => page.getByRole('link', { exact: true, name: 'Work' }),
       ready: taskListReady,
       shell: {
-        heading: 'Il lavoro lascia ricevute.',
-        status: 'Caricamento Work.',
+        heading: 'Work leaves a receipt.',
+        status: 'Loading Work.',
       },
       sourcePath: objectDetailPath,
       targetPath: workPath,
@@ -1175,8 +1172,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       link: taskListReady,
       ready: (page) => page.getByText(fixture.taskId, { exact: true }),
       shell: {
-        heading: 'Apro il lavoro tracciato.',
-        status: 'Caricamento del task.',
+        heading: 'Opening the work.',
+        status: 'Loading the task.',
       },
       sourcePath: workPath,
       targetPath: taskDetailPath,
@@ -1187,8 +1184,8 @@ test('every app route family exposes an instant shell before streamed data', asy
       link: (page) => page.getByRole('link', { exact: true, name: 'CMO' }),
       ready: conversationListReady,
       shell: {
-        heading: 'Uno spazio solo tuo, dentro il brand.',
-        status: 'Caricamento CMO.',
+        heading: 'Yours alone, inside the brand.',
+        status: 'Loading CMO.',
       },
       sourcePath: taskDetailPath,
       targetPath: cmoPath,
@@ -1203,8 +1200,8 @@ test('every app route family exposes an instant shell before streamed data', asy
           name: fixture.conversationTitle,
         }),
       shell: {
-        heading: 'Apro la conversazione privata.',
-        status: 'Caricamento della conversazione CMO.',
+        heading: 'Opening the private conversation.',
+        status: 'Loading the CMO conversation.',
       },
       sourcePath: cmoPath,
       targetPath: conversationDetailPath,
@@ -1236,19 +1233,19 @@ test('authenticated console stays stable across every Phase 0 app breakpoint', a
   try {
     const page = await owner.context.newPage()
     await page.goto('/onboarding')
-    await page.getByLabel('Nome organizzazione').fill(`Visual Org ${suffix}`)
-    await page.getByLabel('Slug organizzazione').fill(organizationSlug)
-    await page.getByLabel('Nome brand').fill(`Visual Brand ${suffix}`)
-    await page.getByLabel('Slug brand').fill(brandSlug)
-    await page.getByLabel('Sito canonico').fill('https://visual.example')
+    await page.getByLabel('Organization name').fill(`Visual Org ${suffix}`)
+    await page.getByLabel('Organization slug').fill(organizationSlug)
+    await page.getByLabel('Brand name').fill(`Visual Brand ${suffix}`)
+    await page.getByLabel('Brand slug').fill(brandSlug)
+    await page.getByLabel('Website').fill('https://visual.example')
+    await page.getByLabel('First goal').fill(`Intent visuale stabile ${suffix}`)
     await page
-      .getByLabel('Intent iniziale')
-      .fill(`Intent visuale stabile ${suffix}`)
-    await page.getByRole('button', { name: 'Crea brand e continua' }).click()
+      .getByRole('button', { name: 'Create brand and continue' })
+      .click()
     await expect(page).toHaveURL(BRAND_CONTEXT_URL_PATTERN)
     await expect(
       page.getByRole('heading', {
-        name: 'Il Brand Context non è ancora canonico.',
+        name: 'The site is not in Brand Context yet.',
       })
     ).toBeVisible()
     await assertAxeClean(page)
@@ -1264,7 +1261,7 @@ test('authenticated console stays stable across every Phase 0 app breakpoint', a
     await assertVisibleFocusIndicator(page.getByLabel('Brand', { exact: true }))
     await page.keyboard.press('Tab')
     await assertVisibleFocusIndicator(
-      page.getByRole('button', { name: 'Apri il brand selezionato' })
+      page.getByRole('button', { name: 'Open the selected brand' })
     )
     await page.keyboard.press('Tab')
     await assertVisibleFocusIndicator(
@@ -1293,7 +1290,7 @@ test('authenticated console stays stable across every Phase 0 app breakpoint', a
       await assertNoHorizontalOverflow(page)
       if (width === 320) {
         await assertNoElementHorizontalOverflow(
-          page.getByRole('navigation', { name: 'Navigazione principale' })
+          page.getByRole('navigation', { name: 'Primary' })
         )
       }
       await captureDeterministicScreenshot({
@@ -1397,27 +1394,25 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     const ownerPage = await owner.context.newPage()
     await ownerPage.goto('/')
     await expect(ownerPage).toHaveURL(`${appOrigin}/onboarding`)
-    await ownerPage.getByLabel('Nome organizzazione').fill(organizationName)
-    await ownerPage.getByLabel('Slug organizzazione').fill(organizationSlug)
-    await ownerPage.getByLabel('Nome brand').fill(brandName)
-    await ownerPage.getByLabel('Slug brand').fill(brandSlug)
+    await ownerPage.getByLabel('Organization name').fill(organizationName)
+    await ownerPage.getByLabel('Organization slug').fill(organizationSlug)
+    await ownerPage.getByLabel('Brand name').fill(brandName)
+    await ownerPage.getByLabel('Brand slug').fill(brandSlug)
+    await ownerPage.getByLabel('Website').fill(`https://${brandSlug}.example`)
+    await ownerPage.getByLabel('First goal').fill(intentStatement)
     await ownerPage
-      .getByLabel('Sito canonico')
-      .fill(`https://${brandSlug}.example`)
-    await ownerPage.getByLabel('Intent iniziale').fill(intentStatement)
-    await ownerPage
-      .getByRole('button', { name: 'Crea brand e continua' })
+      .getByRole('button', { name: 'Create brand and continue' })
       .click()
     await expect(ownerPage).toHaveURL(BRAND_CONTEXT_URL_PATTERN)
 
     const brandId = readPathIdentifier({ position: 1, url: ownerPage.url() })
     await expect(
       ownerPage.getByRole('heading', {
-        name: 'Il Brand Context non è ancora canonico.',
+        name: 'The site is not in Brand Context yet.',
       })
     ).toBeVisible()
     await expect(
-      ownerPage.getByText('Nessun Object è stato prodotto per questo brand.')
+      ownerPage.getByText('No Objects have been produced for this brand.')
     ).toBeVisible()
     await expect(
       ownerPage.locator('.sidebar__foot').getByText('owner', { exact: true })
@@ -1476,31 +1471,31 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     await outsiderPage.goto('/')
     await expect(outsiderPage).toHaveURL(`${appOrigin}/onboarding`)
     await outsiderPage
-      .getByLabel('Nome organizzazione')
+      .getByLabel('Organization name')
       .fill(outsiderOrganizationName)
     await outsiderPage
-      .getByLabel('Slug organizzazione')
+      .getByLabel('Organization slug')
       .fill(outsiderOrganizationSlug)
-    await outsiderPage.getByLabel('Nome brand').fill(outsiderBrandName)
-    await outsiderPage.getByLabel('Slug brand').fill(outsiderBrandSlug)
+    await outsiderPage.getByLabel('Brand name').fill(outsiderBrandName)
+    await outsiderPage.getByLabel('Brand slug').fill(outsiderBrandSlug)
     await outsiderPage
-      .getByLabel('Sito canonico')
+      .getByLabel('Website')
       .fill(`https://${outsiderBrandSlug}.example`)
     await outsiderPage
-      .getByLabel('Intent iniziale')
+      .getByLabel('First goal')
       .fill(`Intent altro tenant ${suffix}`)
     await outsiderPage
-      .getByRole('button', { name: 'Crea brand e continua' })
+      .getByRole('button', { name: 'Create brand and continue' })
       .click()
     await expect(outsiderPage).toHaveURL(BRAND_CONTEXT_URL_PATTERN)
 
-    await ownerPage.getByRole('button', { name: 'Avvia import' }).click()
+    await ownerPage.getByRole('button', { name: 'Start import' }).click()
     await expect(
       ownerPage.getByRole('heading', {
-        name: 'Il brand ha una testa canonica attiva.',
+        name: 'The brand has an active Brand Context.',
       })
     ).toBeVisible({ timeout: 30_000 })
-    await expect(ownerPage.getByText('2 oggetti visibili')).toBeVisible()
+    await expect(ownerPage.getByText('2 visible objects')).toBeVisible()
 
     const contextProof = await databasePool.query<ContextImportProofRow>(
       `SELECT
@@ -1561,7 +1556,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     await expect(ownerPage.getByText('system:context-dev')).toBeVisible()
     await expect(ownerPage.getByText('image/svg+xml')).toBeVisible()
     await expect(
-      ownerPage.getByRole('link', { name: 'Anteprima ↗' })
+      ownerPage.getByRole('link', { name: 'Preview ↗' })
     ).toBeVisible()
 
     const deliveredArtifact = await ownerPage.evaluate(
@@ -1621,8 +1616,8 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     await expect(ownerPage.getByText('Root', { exact: true })).toBeVisible()
 
     await ownerPage.getByRole('link', { exact: true, name: 'CMO' }).click()
-    await ownerPage.getByLabel('Nuova conversazione').fill(conversationTitle)
-    await ownerPage.getByRole('button', { exact: true, name: 'Apri' }).click()
+    await ownerPage.getByLabel('New conversation').fill(conversationTitle)
+    await ownerPage.getByRole('button', { exact: true, name: 'Open' }).click()
     await expect(ownerPage).toHaveURL(CMO_CONVERSATION_URL_PATTERN)
     const conversationId = readPathIdentifier({
       position: 3,
@@ -1649,8 +1644,8 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
       status: 200,
     })
 
-    await ownerPage.getByLabel('Messaggio al CMO').fill(CMO_SPECIALIST_PROMPT)
-    await ownerPage.getByRole('button', { name: 'Invia' }).click()
+    await ownerPage.getByLabel('Message to the CMO').fill(CMO_SPECIALIST_PROMPT)
+    await ownerPage.getByRole('button', { name: 'Send' }).click()
     await expect(ownerPage.getByText(CMO_SPECIALIST_PROMPT)).toBeVisible()
 
     let requestedTask: TaskRequestProofRow | undefined
@@ -1821,7 +1816,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     ).toBeVisible()
     await expect(ownerPage.getByText('Completion · completed')).toBeVisible()
     await ownerPage
-      .getByRole('link', { name: 'Apri l’Object prodotto →' })
+      .getByRole('link', { name: 'Open the produced Object →' })
       .click()
     await expect(
       ownerPage.getByRole('heading', { name: 'brand-context' })
@@ -2363,8 +2358,8 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     const secondIntentStatement = `Mandatory blocked enterprise Intent ${suffix}`
     const secondIntentPrompt = `Declare a second root Intent exactly as "${secondIntentStatement}" and call request_specialist_work for the returned Intent.`
     await ownerPage.goto(`/brands/${brandId}/cmo/${conversationId}`)
-    await ownerPage.getByLabel('Messaggio al CMO').fill(secondIntentPrompt)
-    await ownerPage.getByRole('button', { name: 'Invia' }).click()
+    await ownerPage.getByLabel('Message to the CMO').fill(secondIntentPrompt)
+    await ownerPage.getByRole('button', { name: 'Send' }).click()
     await expect(
       ownerPage.getByText(secondIntentPrompt, { exact: true })
     ).toBeVisible()
@@ -2423,15 +2418,19 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
       status: 'active',
     })
 
-    await ownerPage.getByLabel('Messaggio al CMO').fill(CMO_CONSULTATION_PROMPT)
-    await ownerPage.getByRole('button', { name: 'Invia' }).click()
+    await ownerPage
+      .getByLabel('Message to the CMO')
+      .fill(CMO_CONSULTATION_PROMPT)
+    await ownerPage.getByRole('button', { name: 'Send' }).click()
     await expect(
       ownerPage.getByText(`Product Marketer asks: ${PRODUCT_MARKETER_QUESTION}`)
     ).toBeVisible({ timeout: 30_000 })
     await expect(ownerPage.locator('.cmo-status')).toContainText('Pronto')
 
-    await ownerPage.getByLabel('Messaggio al CMO').fill(CMO_CONSULTATION_ANSWER)
-    await ownerPage.getByRole('button', { name: 'Invia' }).click()
+    await ownerPage
+      .getByLabel('Message to the CMO')
+      .fill(CMO_CONSULTATION_ANSWER)
+    await ownerPage.getByRole('button', { name: 'Send' }).click()
     await expect(
       ownerPage.getByText(
         'The active Intent now records the unambiguous audience answer.'
@@ -2573,27 +2572,25 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     const blockedTaskBeforeOpening = await readBlockedTaskStability()
     await ownerPage.goto(`/brands/${brandId}/work/${blockedTaskProof.taskId}`)
     await expect(
-      ownerPage.getByRole('heading', { name: 'Domande aperte' })
+      ownerPage.getByRole('heading', { name: 'Open questions' })
     ).toBeVisible()
     await expect(ownerPage.getByText(PRODUCT_MARKETER_QUESTION)).toBeVisible()
     await expect(
-      ownerPage.getByRole('link', { name: 'Rispondi con il CMO' })
+      ownerPage.getByRole('link', { name: 'Answer with the CMO' })
     ).toBeVisible()
     await ownerPage.reload()
     await expect(
-      ownerPage.getByRole('heading', { name: 'Domande aperte' })
+      ownerPage.getByRole('heading', { name: 'Open questions' })
     ).toBeVisible()
     expect(await readBlockedTaskStability()).toEqual(blockedTaskBeforeOpening)
 
-    await ownerPage.getByRole('link', { name: 'Rispondi con il CMO' }).click()
+    await ownerPage.getByRole('link', { name: 'Answer with the CMO' }).click()
     await expect(
-      ownerPage.getByText('Il prossimo turno può attestare il task')
+      ownerPage.getByText('The next turn can attest the task')
     ).toBeVisible()
     await ownerPage.getByRole('link', { name: conversationTitle }).click()
     await expect(
-      ownerPage.getByText(
-        `Questo turno attesta il task ${blockedTaskProof.taskId}.`
-      )
+      ownerPage.getByText(`This turn attests task ${blockedTaskProof.taskId}.`)
     ).toBeVisible()
     const resolutionsBeforeAnswer = await databasePool.query<
       QueryResultRow & { readonly count: number }
@@ -2606,8 +2603,8 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     )
     expect(resolutionsBeforeAnswer.rows[0]?.count).toBe(0)
 
-    await ownerPage.getByLabel('Messaggio al CMO').fill(CMO_RESOLUTION_PROMPT)
-    await ownerPage.getByRole('button', { name: 'Invia' }).click()
+    await ownerPage.getByLabel('Message to the CMO').fill(CMO_RESOLUTION_PROMPT)
+    await ownerPage.getByRole('button', { name: 'Send' }).click()
     await expect(
       ownerPage.getByText(
         'The question bundle is resolved and its Intent is refined.'
@@ -2651,10 +2648,10 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
 
     await ownerPage.goto(`/brands/${brandId}/work/${blockedTaskProof.taskId}`)
     await expect(
-      ownerPage.getByRole('heading', { name: 'Domande aperte' })
+      ownerPage.getByRole('heading', { name: 'Open questions' })
     ).toHaveCount(0)
     await expect(
-      ownerPage.getByRole('link', { name: 'Rispondi con il CMO' })
+      ownerPage.getByRole('link', { name: 'Answer with the CMO' })
     ).toHaveCount(0)
     expect(await readBlockedTaskStability()).toEqual(blockedTaskBeforeOpening)
 
@@ -2662,7 +2659,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     await collaboratorPage.goto(`/brands/${brandId}/intent`)
     await expect(
       collaboratorPage.getByRole('heading', {
-        name: 'Questa pagina non appartiene al tuo spazio.',
+        name: 'This page is not in your workspace.',
       })
     ).toBeVisible()
     const collaboratorActorsBeforeMembership = await databasePool.query<
@@ -2770,14 +2767,14 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     await collaboratorPage.goto(`/brands/${brandId}/intent`)
     await expect(
       collaboratorPage.getByRole('heading', {
-        name: 'Questa pagina non appartiene al tuo spazio.',
+        name: 'This page is not in your workspace.',
       })
     ).toBeVisible()
 
     await outsiderPage.goto(`/brands/${brandId}/intent`)
     await expect(
       outsiderPage.getByRole('heading', {
-        name: 'Questa pagina non appartiene al tuo spazio.',
+        name: 'This page is not in your workspace.',
       })
     ).toBeVisible()
     const crossTenantArtifact = await outsider.context.request.get(
@@ -2939,8 +2936,8 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     )
     const boundarySequence = Number(turnBoundary.rows[0]?.sequence ?? '0')
     await ownerPage.goto(`/brands/${brandId}/cmo/${conversationId}`)
-    await ownerPage.getByLabel('Messaggio al CMO').fill(CMO_HOLD_PROMPT)
-    await ownerPage.getByRole('button', { name: 'Invia' }).click()
+    await ownerPage.getByLabel('Message to the CMO').fill(CMO_HOLD_PROMPT)
+    await ownerPage.getByRole('button', { name: 'Send' }).click()
     await expect(
       ownerPage.getByText(CMO_HOLD_PROMPT, { exact: true })
     ).toBeVisible()
@@ -2987,9 +2984,9 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
         .filter({ visible: true })
     ).toBeVisible()
     await expect(
-      ownerPage.getByRole('button', { name: 'Ferma turno' })
+      ownerPage.getByRole('button', { name: 'Stop turn' })
     ).toBeVisible({ timeout: 30_000 })
-    await expect(ownerPage.getByLabel('Messaggio al CMO')).toBeDisabled()
+    await expect(ownerPage.getByLabel('Message to the CMO')).toBeDisabled()
 
     const wrongTurnCancellation = await owner.context.request.post(
       `/api/brands/${brandId}/cmo/${conversationId}/eve/v1/session/${encodeURIComponent(requestedTaskProof.cmoSessionId)}/cancel`,
@@ -3016,10 +3013,10 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
       'CMO al lavoro'
     )
     await expect(
-      ownerPage.getByRole('button', { name: 'Ferma turno' })
+      ownerPage.getByRole('button', { name: 'Stop turn' })
     ).toBeVisible()
 
-    await ownerPage.getByRole('button', { name: 'Ferma turno' }).click()
+    await ownerPage.getByRole('button', { name: 'Stop turn' }).click()
     await expect
       .poll(
         async () => {

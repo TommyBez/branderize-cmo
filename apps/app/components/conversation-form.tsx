@@ -23,14 +23,14 @@ export const ConversationForm = ({
       <input name="brandId" type="hidden" value={brandId} />
       <input name="sourceTaskId" type="hidden" value={sourceTaskId ?? ''} />
       <label className="field field--grow">
-        <span>Nuova conversazione</span>
+        <span>New conversation</span>
         <input
           maxLength={160}
           name="title"
-          placeholder="Es. Come posizioniamo il nuovo lancio?"
+          placeholder="e.g. How do we position the new launch?"
         />
       </label>
-      <SubmitButton idleLabel="Apri" pendingLabel="Apertura…" />
+      <SubmitButton idleLabel="Open" pendingLabel="Opening…" />
       <FormFeedback state={state} />
     </form>
   )

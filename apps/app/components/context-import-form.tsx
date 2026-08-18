@@ -19,7 +19,7 @@ export const ContextImportForm = ({
   return (
     <form action={action} className="inline-form">
       <input name="brandId" type="hidden" value={brandId} />
-      <SubmitButton idleLabel="Avvia import" pendingLabel="Importazione…" />
+      <SubmitButton idleLabel="Start import" pendingLabel="Importing…" />
       <FormFeedback state={state} />
     </form>
   )

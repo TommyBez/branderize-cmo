@@ -52,7 +52,7 @@ const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
   return (
     <div className="page-stack">
       <Link className="back-link" href={`/brands/${brandId}/intent`}>
-        ← Tutti gli Intent
+        ← All Intents
       </Link>
       <header className="detail-hero">
         <div>
@@ -63,49 +63,49 @@ const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
         </div>
         <dl className="mini-facts">
           <div>
-            <dt>Autore</dt>
+            <dt>Author</dt>
             <dd>{intent.author.actorKey}</dd>
           </div>
           <div>
-            <dt>Aggiornato</dt>
+            <dt>Updated</dt>
             <dd>{formatDateTime(intent.updatedAt)}</dd>
           </div>
           <div>
-            <dt>Origine</dt>
-            <dd>{intent.parentIntentId === null ? 'Root' : 'Derivato'}</dd>
+            <dt>Origin</dt>
+            <dd>{intent.parentIntentId === null ? 'Root' : 'Derived'}</dd>
           </div>
         </dl>
       </header>
 
       <div className="two-column-detail">
         <section className="paper-panel">
-          <p className="eyebrow">Condizioni</p>
-          <h2>Criteri di accettazione</h2>
+          <p className="eyebrow">Conditions</p>
+          <h2>Acceptance criteria</h2>
           <ValueList
-            empty="Nessun criterio ancora dichiarato."
+            empty="No criteria declared yet."
             value={intent.acceptanceCriteria}
           />
           <div className="rule" />
-          <h2>Vincoli</h2>
+          <h2>Constraints</h2>
           <ValueList
-            empty="Nessun vincolo ancora dichiarato."
+            empty="No constraints declared yet."
             value={intent.constraints}
           />
         </section>
 
         {access.role === 'viewer' ? (
           <aside className="read-only-note">
-            <p className="eyebrow">Sola lettura</p>
-            <h2>Puoi seguire questo Intent senza modificarlo.</h2>
-            <p>Un membro editor o admin può pubblicare una nuova revisione.</p>
+            <p className="eyebrow">Read only</p>
+            <h2>You can follow this Intent without changing it.</h2>
+            <p>An editor or admin can publish a new revision.</p>
           </aside>
         ) : (
           <aside className="refine-panel">
-            <p className="eyebrow">Nuova revisione</p>
-            <h2>Raffina senza perdere la storia.</h2>
+            <p className="eyebrow">New revision</p>
+            <h2>Refine without losing the history.</h2>
             <p>
-              Ogni riga diventa una condizione distinta. Il testo principale
-              resta invariato in questa operazione.
+              Each line becomes its own condition. This save does not change the
+              main statement.
             </p>
             <RefineIntentForm
               acceptanceCriteria={lines(intent.acceptanceCriteria)}
@@ -128,8 +128,8 @@ export default function IntentDetailPage(props: IntentDetailPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Intent"
-          status="Caricamento del dettaglio Intent."
-          title="Apro l'Intent."
+          status="Loading the Intent."
+          title="Opening the Intent."
           variant="detail"
         />
       }

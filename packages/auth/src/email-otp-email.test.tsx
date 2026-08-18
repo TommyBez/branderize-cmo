@@ -19,10 +19,10 @@ describe('email OTP delivery', () => {
       plainText: true,
     })
 
-    expect(html).toContain('Il tuo codice di accesso')
+    expect(html).toContain('Your sign-in code')
     expect(html).toContain('731204')
     expect(text).toContain('731204')
-    expect(text).toContain('5 minuti')
+    expect(text).toContain('5 minutes')
   })
 
   it('sends the React Email template through Resend', async () => {
@@ -45,7 +45,7 @@ describe('email OTP delivery', () => {
       expect.objectContaining({
         from: 'Branderize <access@example.test>',
         react: expect.any(Object),
-        subject: 'Il tuo codice di accesso a Branderize',
+        subject: 'Your Branderize sign-in code',
         text: expect.stringContaining('731204'),
         to: 'owner@example.test',
       }),

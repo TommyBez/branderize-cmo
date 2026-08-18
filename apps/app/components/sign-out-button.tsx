@@ -22,7 +22,7 @@ export const SignOutButton = () => {
       onClick={signOut}
       type="button"
     >
-      {pending ? 'Uscita…' : 'Esci'}
+      {pending ? 'Signing out…' : 'Sign out'}
     </button>
   )
 }

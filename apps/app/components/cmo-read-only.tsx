@@ -9,15 +9,15 @@ export const CmoReadOnly = ({
 }) => (
   <div className="cmo-console cmo-console--readonly">
     <div className="read-only-banner">
-      <p className="eyebrow">Runtime non raggiungibile</p>
-      <strong>La proiezione resta disponibile in sola lettura.</strong>
-      <p>Nessun runtime locale o transcript inventato sostituisce il CMO.</p>
+      <p className="eyebrow">Runtime unreachable</p>
+      <strong>The projection stays available as read-only.</strong>
+      <p>No local runtime or invented transcript stands in for the CMO.</p>
     </div>
     <div className="chat-transcript">
       {messages.length === 0 ? (
         <div className="chat-empty">
-          <h2>Nessun messaggio audit disponibile.</h2>
-          <p>Riprova quando l’endpoint CMO è configurato e raggiungibile.</p>
+          <h2>No audit messages available.</h2>
+          <p>Try again when the CMO endpoint is configured and reachable.</p>
         </div>
       ) : (
         messages.map((message) => (

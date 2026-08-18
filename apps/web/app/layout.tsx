@@ -5,21 +5,20 @@ export const instant = true
 
 export const metadata: Metadata = {
   description:
-    'Branderize organizza Intent, contesto verificabile, conversazioni private con il CMO e provenienza del lavoro di marketing.',
+    'Write what the brand is trying to do, add the website, and talk to your CMO in private.',
   openGraph: {
-    description:
-      'Un punto di partenza verificabile per il lavoro di marketing del tuo brand.',
-    locale: 'it_IT',
+    description: 'Write the goal. Add the website. Keep the chat private.',
+    locale: 'en_US',
     siteName: 'Branderize',
-    title: 'Branderize | Il sistema operativo del tuo marketing',
+    title: 'Branderize | Direction before the work',
     type: 'website',
   },
-  title: 'Branderize | Il sistema operativo del tuo marketing',
+  title: 'Branderize | Direction before the work',
 }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="it">
+    <html lang="en">
       <body>{children}</body>
     </html>
   )

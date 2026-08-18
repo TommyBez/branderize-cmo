@@ -7,7 +7,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   description:
-    'La console operativa per Intent, Brand Context e lavoro tracciabile.',
+    'The workspace for goals, Brand Context, and work you can trace.',
   title: {
     default: 'Branderize',
     template: '%s | Branderize',
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   const posthogToken = resolveProductionPostHogToken(process.env)
 
   return (
-    <html lang="it">
+    <html lang="en">
       <body>
         <PostHogBootstrap token={posthogToken} />
         {children}

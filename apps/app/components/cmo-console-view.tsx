@@ -12,12 +12,11 @@ export const CmoTranscript = ({
   <div className="chat-transcript">
     {messages.length === 0 ? (
       <div className="chat-empty">
-        <p className="eyebrow">Conversazione privata</p>
-        <h2>Parti da un risultato, non da una lista di task.</h2>
+        <p className="eyebrow">Private conversation</p>
+        <h2>Start from an outcome, not a task list.</h2>
         <p>
-          Il CMO può dichiarare e raffinare Intent o richiedere lavoro al
-          Product Marketer quando il tuo turno identifica un obiettivo attivo
-          senza ambiguità.
+          The CMO can declare or refine an Intent, or ask Product Marketer to
+          work, when your turn names one active goal.
         </p>
       </div>
     ) : (
@@ -41,20 +40,22 @@ export const RecoveryComposer = ({
 }) => (
   <div className="cmo-composer">
     <label className="sr-only" htmlFor="cmo-message">
-      Messaggio al CMO
+      Message to the CMO
     </label>
     <textarea
       disabled
       id="cmo-message"
       placeholder={
         readOnly
-          ? 'La conversazione è disponibile in sola lettura.'
-          : 'Il turno corrente è in recupero…'
+          ? 'This conversation is read-only.'
+          : 'The current turn is recovering…'
       }
       rows={3}
     />
     <div className="cmo-composer__actions">
-      <small>Il transcript viene riallineato allo stream autorevole.</small>
+      <small>
+        The transcript is being aligned to the authoritative stream.
+      </small>
       {busy ? (
         <button
           className="button button--quiet"
@@ -62,7 +63,7 @@ export const RecoveryComposer = ({
           onClick={onCancel}
           type="button"
         >
-          {cancellationState === 'idle' ? 'Ferma turno' : 'Arresto…'}
+          {cancellationState === 'idle' ? 'Stop turn' : 'Stopping…'}
         </button>
       ) : null}
     </div>
@@ -78,14 +79,11 @@ export const RecoveryAuditFallback = ({
 }) => (
   <div className="cmo-console cmo-console--readonly">
     <div className="read-only-banner">
-      <p className="eyebrow">Recupero runtime interrotto</p>
-      <strong>La proiezione persistita resta disponibile.</strong>
-      <p>
-        Il prefisso audit può essere incompleto. Nessun turno sostitutivo è
-        stato inviato.
-      </p>
+      <p className="eyebrow">Runtime recovery interrupted</p>
+      <strong>The saved projection is still available.</strong>
+      <p>The audit prefix may be incomplete. No replacement turn was sent.</p>
       <button className="text-button" onClick={onRetry} type="button">
-        Riprova il recupero
+        Retry recovery
       </button>
     </div>
     <CmoTranscript messages={messages} />
@@ -102,13 +100,13 @@ export const UnavailableRecovery = ({
   <div className="cmo-console">
     <div aria-live="polite" className="cmo-status">
       <span aria-hidden="true" className="status-dot status-dot--error" />
-      Recupero non disponibile
+      Recovery unavailable
       <button className="text-button" onClick={onRefresh} type="button">
-        Ricarica
+        Reload
       </button>
     </div>
     <p className="form-feedback form-feedback--error" role="alert">
-      Lo stream non espone una sessione autorevole. Ricarica per riprovare.
+      The stream does not expose an authoritative session. Reload to try again.
     </p>
     <CmoTranscript messages={projectCmoMessages(events)} />
   </div>

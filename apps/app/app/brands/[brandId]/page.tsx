@@ -21,8 +21,8 @@ export default function BrandIndexPage(props: BrandIndexPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Intent register"
-          status="Apertura del registro Intent."
-          title="Apro gli Intent."
+          status="Opening the Intent register."
+          title="Opening Intents."
         />
       }
     >

@@ -41,11 +41,11 @@ const WorkDetailContent = async ({ params }: WorkDetailPageProps) => {
         </div>
         <dl className="mini-facts">
           <div>
-            <dt>Creato</dt>
+            <dt>Created</dt>
             <dd>{formatDateTime(task.createdAt)}</dd>
           </div>
           <div>
-            <dt>Aggiornato</dt>
+            <dt>Updated</dt>
             <dd>{formatDateTime(task.updatedAt)}</dd>
           </div>
           <div>
@@ -65,15 +65,15 @@ const WorkDetailContent = async ({ params }: WorkDetailPageProps) => {
 
       {completion.kind === 'invalid' ? (
         <section className="read-only-note read-only-note--wide">
-          <p className="eyebrow">Output non proiettabile</p>
-          <h2>La completion non rispetta il contratto Phase 0.</h2>
-          <p>Nessun dato parziale viene interpretato come risultato valido.</p>
+          <p className="eyebrow">Output cannot be shown</p>
+          <h2>This completion does not match the current contract.</h2>
+          <p>Partial data is never treated as a valid result.</p>
         </section>
       ) : null}
 
       {completion.kind === 'none' ? (
         <section className="empty-state empty-state--compact">
-          <p>Il task non ha ancora una completion canonica.</p>
+          <p>This task has no completion yet.</p>
         </section>
       ) : null}
 
@@ -87,33 +87,33 @@ const WorkDetailContent = async ({ params }: WorkDetailPageProps) => {
                 className="text-link"
                 href={`/brands/${brandId}/objects/${completion.value.result.brandContextObjectId}`}
               >
-                Apri l’Object prodotto →
+                Open the produced Object →
               </Link>
             ) : (
               <p className="muted">
-                Motivo: {completion.value.result.reason.replaceAll('_', ' ')}
+                Reason: {completion.value.result.reason.replaceAll('_', ' ')}
               </p>
             )}
           </section>
 
           {hasOpenQuestions ? (
             <aside className="question-detail">
-              <p className="eyebrow">Contesto richiesto</p>
-              <h2>Domande aperte</h2>
+              <p className="eyebrow">Context needed</p>
+              <h2>Open questions</h2>
               <ol>
                 {completion.value.openQuestions.map((question) => (
                   <li key={question}>{question}</li>
                 ))}
               </ol>
               <p>
-                Apri una tua conversazione CMO e rispondi indicando questo task.
-                La vecchia esecuzione non viene riavviata.
+                Open your own CMO conversation and answer with this task
+                attached. The old run is not restarted.
               </p>
               <Link
                 className="button"
                 href={`/brands/${brandId}/cmo?sourceTaskId=${task.id}`}
               >
-                Rispondi con il CMO
+                Answer with the CMO
               </Link>
             </aside>
           ) : null}
@@ -129,8 +129,8 @@ export default function WorkDetailPage(props: WorkDetailPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Work ledger"
-          status="Caricamento del task."
-          title="Apro il lavoro tracciato."
+          status="Loading the task."
+          title="Opening the work."
           variant="detail"
         />
       }

@@ -45,10 +45,10 @@ const CmoIndexContent = async ({ params, searchParams }: CmoIndexPageProps) => {
       <header className="page-header page-header--split">
         <div>
           <p className="eyebrow">Private CMO</p>
-          <h1>Uno spazio solo tuo, dentro il brand.</h1>
+          <h1>Yours alone, inside the brand.</h1>
           <p className="lede">
-            Gli Intent e gli Objects sono leggibili dall’organizzazione. Queste
-            conversazioni appartengono invece soltanto al loro proprietario.
+            Intents and Objects are visible to the organization. These
+            conversations belong only to their owner.
           </p>
         </div>
         <div className="privacy-mark">
@@ -59,11 +59,10 @@ const CmoIndexContent = async ({ params, searchParams }: CmoIndexPageProps) => {
 
       {sourceTaskId === null ? null : (
         <aside className="context-note">
-          <p className="eyebrow">Contesto da Work</p>
+          <p className="eyebrow">Context from Work</p>
           <p>
-            Il prossimo turno può attestare il task <code>{sourceTaskId}</code>.
-            L’attestazione viene rivalidata prima dell’invio e vale per un solo
-            turno.
+            The next turn can attest the task <code>{sourceTaskId}</code>. That
+            claim is checked again before send and lasts for one turn.
           </p>
         </aside>
       )}
@@ -72,8 +71,8 @@ const CmoIndexContent = async ({ params, searchParams }: CmoIndexPageProps) => {
         <aside className="read-only-note read-only-note--wide">
           <p className="eyebrow">Viewer</p>
           <p>
-            Puoi rileggere le conversazioni che possiedi, ma non aprirne o
-            inviarne di nuove con il ruolo corrente.
+            You can reread conversations you own. Your current role cannot open
+            or send new ones.
           </p>
         </aside>
       ) : (
@@ -85,14 +84,14 @@ const CmoIndexContent = async ({ params, searchParams }: CmoIndexPageProps) => {
       <section>
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Il tuo archivio</p>
+            <p className="eyebrow">Your archive</p>
             <h2>Conversazioni</h2>
           </div>
           <span>{conversations.items.length} private</span>
         </div>
         {conversations.items.length === 0 ? (
           <div className="empty-state empty-state--compact">
-            <p>Non hai ancora una conversazione per questo brand.</p>
+            <p>You do not have a conversation for this brand yet.</p>
           </div>
         ) : (
           <ol className="record-list">
@@ -106,12 +105,12 @@ const CmoIndexContent = async ({ params, searchParams }: CmoIndexPageProps) => {
                   </span>
                   <span className="record-list__body">
                     <span className="record-list__title">
-                      {conversation.title ?? 'Conversazione senza titolo'}
+                      {conversation.title ?? 'Untitled conversation'}
                     </span>
                     <span className="record-list__meta">
                       {conversation.session.kind === 'bound'
-                        ? 'sessione collegata'
-                        : 'non ancora avviata'}{' '}
+                        ? 'session bound'
+                        : 'not started yet'}{' '}
                       · {formatDateTime(conversation.updatedAt)}
                     </span>
                   </span>
@@ -134,8 +133,8 @@ export default function CmoIndexPage(props: CmoIndexPageProps) {
       fallback={
         <NavigationPending
           eyebrow="Private CMO"
-          status="Caricamento CMO."
-          title="Uno spazio solo tuo, dentro il brand."
+          status="Loading CMO."
+          title="Yours alone, inside the brand."
         />
       }
     >

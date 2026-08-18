@@ -16,14 +16,11 @@ export default function GlobalError({
 
   return (
     <main className="system-page">
-      <p className="eyebrow">Confine non disponibile</p>
-      <h1>Non possiamo proiettare questo stato adesso.</h1>
-      <p>
-        Nessuna alternativa locale è stata usata. Riprova quando il servizio è
-        tornato disponibile.
-      </p>
+      <p className="eyebrow">Service unavailable</p>
+      <h1>We can’t show this state right now.</h1>
+      <p>Nothing was invented locally. Try again when the service is back.</p>
       <button className="button" onClick={reset} type="button">
-        Riprova
+        Try again
       </button>
     </main>
   )
