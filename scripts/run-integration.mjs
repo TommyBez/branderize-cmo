@@ -78,8 +78,9 @@ try {
     ? (process.env.DIRECT_DATABASE_URL ?? databaseUrl)
     : localDatabaseUrl
 
+  const extraTurboArguments = process.argv.slice(2)
   const testCode = await run({
-    args: ['exec', 'turbo', 'run', 'test:integration'],
+    args: ['exec', 'turbo', 'run', 'test:integration', ...extraTurboArguments],
     command: 'pnpm',
     env: {
       ...process.env,

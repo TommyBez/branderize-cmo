@@ -21,14 +21,12 @@
         "CRON_SECRET",
         "DATABASE_URL",
         "DISPATCH_SECRET",
+        "E2E_EXPOSE_NEXT_TESTING_API",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
         "NEXT_PUBLIC_APP_URL"
       ],
-      "inputs": [
-        "$TURBO_EXTENDS$",
-        "$TURBO_ROOT$/scripts/upload-posthog-sourcemaps.mjs"
-      ]
+      "inputs": ["$TURBO_EXTENDS$", "$TURBO_ROOT$/scripts/upload-posthog-sourcemaps.mjs"]
     }
   }
 }

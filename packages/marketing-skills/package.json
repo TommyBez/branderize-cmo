@@ -18,8 +18,7 @@
   ],
   "scripts": {
     "build": "eve extension build",
-    "check-types": "tsc --noEmit",
-    "transit": "eve extension build"
+    "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

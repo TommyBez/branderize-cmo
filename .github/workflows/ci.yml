@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   verify:
@@ -72,11 +73,23 @@ jobs:
           corepack enable
           corepack prepare pnpm@11.22.0 --activate
 
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          key: turbo-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          path: .turbo
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ github.ref_name }}-
+            turbo-${{ runner.os }}-
+
+      - name: Enable Turborepo Remote Cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        uses: vercel/setup-turborepo-remote-cache-action@v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Check runtime contract
-        run: pnpm check:runtime
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
@@ -85,13 +98,13 @@ jobs:
         run: pnpm check
 
       - name: Check types
-        run: pnpm check-types
+        run: pnpm check-types ${{ github.event_name == 'pull_request' && '-- --affected' || '' }}
 
       - name: Run unit and contract tests
-        run: pnpm test
+        run: pnpm test ${{ github.event_name == 'pull_request' && '-- --affected' || '' }}
 
       - name: Run PostgreSQL integration tests
-        run: pnpm test:integration
+        run: pnpm test:integration ${{ github.event_name == 'pull_request' && '-- --affected' || '' }}
 
       - name: Run browser journeys
         run: pnpm test:e2e
@@ -115,7 +128,7 @@ jobs:
           fi
 
       - name: Build every package
-        run: pnpm build
+        run: pnpm build ${{ github.event_name == 'pull_request' && '-- --affected' || '' }}
 
       - name: Upload verification evidence
         if: always()

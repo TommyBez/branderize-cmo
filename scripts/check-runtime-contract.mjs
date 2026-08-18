@@ -102,6 +102,14 @@ check(
   'CI must read Node from .node-version'
 )
 check(
+  !ciWorkflow.includes('pnpm check:runtime') &&
+    ciWorkflow.includes('run: pnpm check') &&
+    ciWorkflow.includes('actions/cache@v4') &&
+    ciWorkflow.includes('path: .turbo') &&
+    ciWorkflow.includes('vercel/setup-turborepo-remote-cache-action@v1.0.0'),
+  'CI must run contract checks through Turbo and cache Turbo artifacts'
+)
+check(
   ciWorkflow.includes(`corepack prepare pnpm@${ROOT_PNPM_VERSION} --activate`),
   `CI must activate pnpm@${ROOT_PNPM_VERSION} through Corepack`
 )

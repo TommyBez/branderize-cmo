@@ -10,6 +10,18 @@
   },
   "overrides": [
     {
+      "includes": ["**/turbo.json"],
+      "formatter": {
+        "enabled": false
+      },
+      "json": {
+        "parser": {
+          "allowComments": false,
+          "allowTrailingCommas": false
+        }
+      }
+    },
+    {
       "includes": [
         "apps/agent-*/agent/tools/**",
         "apps/agent-cmo/agent/subagents/*/tools/**"

@@ -113,6 +113,23 @@ const run = ({ args, command, cwd = REPOSITORY_ROOT, env = process.env }) =>
     })
   })
 
+const runTurboBuild = async ({ env, filters, label }) => {
+  const code = await run({
+    args: [
+      'exec',
+      'turbo',
+      'run',
+      'build',
+      ...filters.map((filter) => `--filter=${filter}`),
+    ],
+    command: 'pnpm',
+    env,
+  })
+  if (code !== 0) {
+    throw new Error(`${label} turbo run build exited with code ${code}`)
+  }
+}
+
 const runSequentially = async ({ items, operation, position = 0 }) => {
   const item = items.at(position)
   if (item === undefined) {
@@ -716,51 +733,15 @@ try {
     },
   })
 
-  await runSequentially({
-    items: AGENT_APP_DIRECTORIES,
-    operation: async (appDirectoryName) => {
-      const appDirectory = resolve(REPOSITORY_ROOT, 'apps', appDirectoryName)
-      const materializeCode = await run({
-        args: [
-          resolve(REPOSITORY_ROOT, 'scripts/materialize-marketing-skills.mjs'),
-        ],
-        command: process.execPath,
-        cwd: appDirectory,
-        env: e2eEnvironment,
-      })
-      if (materializeCode !== 0) {
-        throw new Error(
-          `${appDirectoryName} marketing-skills materialization exited with code ${materializeCode}`
-        )
-      }
-      const buildCode = await run({
-        args: ['build'],
-        command: resolve(appDirectory, 'node_modules/eve/bin/eve.js'),
-        cwd: appDirectory,
-        env: e2eEnvironment,
-      })
-      if (buildCode !== 0) {
-        throw new Error(
-          `${appDirectoryName} Eve build exited with code ${buildCode}`
-        )
-      }
-    },
+  await runTurboBuild({
+    env: e2eEnvironment,
+    filters: AGENT_APP_DIRECTORIES,
+    label: 'Eve agent',
   })
-
-  await runSequentially({
-    items: NEXT_APPLICATIONS,
-    operation: async (application) => {
-      const buildCode = await run({
-        args: ['--filter', application.packageName, 'build'],
-        command: 'pnpm',
-        env: nextBuildEnvironment,
-      })
-      if (buildCode !== 0) {
-        throw new Error(
-          `apps/${application.directoryName} Next build exited with code ${buildCode}`
-        )
-      }
-    },
+  await runTurboBuild({
+    env: nextBuildEnvironment,
+    filters: NEXT_APPLICATIONS.map(({ packageName }) => packageName),
+    label: 'Next.js',
   })
 
   await Promise.all(

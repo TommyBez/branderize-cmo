@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -35,6 +35,8 @@ const webManifest = readJson('apps/web/package.json')
 const webPage = readText('apps/web/app/page.tsx')
 const webTurbo = readJson('apps/web/turbo.json')
 const appVercel = readJson('apps/app/vercel.json')
+const webVercel = readJson('apps/web/vercel.json')
+const marketingSkillsTurbo = readJson('packages/marketing-skills/turbo.json')
 const appEnvironmentSchema = readText('packages/env/src/schema.ts')
 const appBlobAdapter = readText('apps/app/lib/blob.ts')
 const appCmoProxy = readText(
@@ -63,6 +65,10 @@ const instantRouteFamilyStatuses = [
 check(
   JSON.stringify(appVercel.regions) === JSON.stringify(['fra1']),
   'apps/app must run in fra1'
+)
+check(
+  appVercel.ignoreCommand === 'npx turbo-ignore',
+  'apps/app must skip unaffected Vercel deployments with turbo-ignore'
 )
 check(
   JSON.stringify(appVercel.crons) ===
@@ -133,6 +139,7 @@ check(
     'CRON_SECRET',
     'DATABASE_URL',
     'DISPATCH_SECRET',
+    'E2E_EXPOSE_NEXT_TESTING_API',
     'GOOGLE_CLIENT_ID',
     'GOOGLE_CLIENT_SECRET',
     'NEXT_PUBLIC_APP_URL',
@@ -162,6 +169,7 @@ check(
     !webPage.includes('localhost:3001') &&
     webTurbo.extends?.includes('//') &&
     webTurbo.tasks?.build?.env?.includes('$TURBO_EXTENDS$') &&
+    webTurbo.tasks?.build?.env?.includes('E2E_EXPOSE_NEXT_TESTING_API') &&
     webTurbo.tasks?.build?.env?.includes('NEXT_PUBLIC_APP_URL'),
   'apps/web must validate and receive the canonical application origin'
 )
@@ -221,6 +229,28 @@ check(
   rootManifest.devDependencies?.['@next/playwright'] === '16.3.0' &&
     e2eRunner.includes("E2E_EXPOSE_NEXT_TESTING_API: '1'") &&
     e2eRunner.match(/E2E_EXPOSE_NEXT_TESTING_API/gu)?.length === 1 &&
+    e2eRunner.includes('const runTurboBuild') &&
+    !e2eRunner.includes("'--filter', application.packageName, 'build'") &&
+    rootManifest.scripts?.e2e === 'node scripts/run-e2e.mjs' &&
+    rootManifest.scripts?.['test:e2e'] === 'turbo run "//#e2e"' &&
+    rootTurbo.tasks?.['//#e2e']?.cache === false &&
+    rootTurbo.tasks?.['test:e2e'] === undefined &&
+    Array.isArray(rootTurbo.tasks?.build?.outputs) &&
+    rootTurbo.tasks.build.outputs.includes('.output/**') &&
+    rootTurbo.tasks.build.outputs.includes('dist/**') &&
+    rootTurbo.tasks?.transit?.outputs === undefined &&
+    rootTurbo.tasks?.['//#check:quality']?.inputs?.includes(
+      '$TURBO_ROOT$/apps/**'
+    ) &&
+    rootTurbo.tasks?.['//#check:quality']?.inputs?.includes(
+      '$TURBO_ROOT$/packages/**'
+    ) &&
+    rootTurbo.tasks?.['check-types']?.dependsOn?.includes(
+      '@repo/marketing-skills#build'
+    ) &&
+    rootTurbo.tasks?.test?.dependsOn?.includes(
+      '@repo/marketing-skills#build'
+    ) &&
     e2eBrowserContract.includes("from '@next/playwright'") &&
     (e2eBrowserContract.match(/await instant\(/gu)?.length ?? 0) >= 3 &&
     e2eBrowserContract.includes(
@@ -242,14 +272,19 @@ check(
   'apps/web must use native Next.js prerendering instead of static-export mode'
 )
 check(
-  !existsSync(resolve(rootDirectory, 'apps/web/vercel.json')),
-  'apps/web must not pin a compute region or declare a Cron'
+  webVercel.ignoreCommand === 'npx turbo-ignore' &&
+    webVercel.regions === undefined &&
+    webVercel.crons === undefined &&
+    webVercel.buildCommand === undefined,
+  'apps/web must skip unaffected deployments without pinning a region or Cron'
 )
 check(
   marketingSkillsManifest.eve?.extension?.source === './extension' &&
     marketingSkillsManifest.eve?.extension?.dist === './dist/extension' &&
     marketingSkillsManifest.scripts?.build === 'eve extension build' &&
-    marketingSkillsManifest.scripts?.transit === 'eve extension build',
+    marketingSkillsManifest.scripts?.transit === undefined &&
+    marketingSkillsTurbo.extends?.includes('//') &&
+    marketingSkillsTurbo.tasks?.build?.outputs?.includes('dist/**'),
   'packages/marketing-skills must be a production-built Eve workspace extension'
 )
 check(
@@ -268,11 +303,25 @@ check(
 for (const agentRoot of agentRoots) {
   const rootPath = `apps/${agentRoot}`
   const manifest = readJson(`${rootPath}/package.json`)
+  const agentTurbo = readJson(`${rootPath}/turbo.json`)
   const vercel = readJson(`${rootPath}/vercel.json`)
 
   check(
     JSON.stringify(vercel.regions) === JSON.stringify(['fra1']),
     `${rootPath} must run in fra1`
+  )
+  check(
+    vercel.ignoreCommand === 'npx turbo-ignore',
+    `${rootPath} must skip unaffected Vercel deployments with turbo-ignore`
+  )
+  check(
+    agentTurbo.extends?.includes('//') &&
+      agentTurbo.tasks?.build?.inputs?.includes('$TURBO_EXTENDS$') &&
+      agentTurbo.tasks?.build?.inputs?.includes(
+        '$TURBO_ROOT$/scripts/materialize-marketing-skills.mjs'
+      ) &&
+      agentTurbo.tasks?.build?.outputs?.includes('.output/**'),
+    `${rootPath} build cache must include Eve output and the marketing-skills materializer`
   )
   check(
     vercel.crons === undefined,

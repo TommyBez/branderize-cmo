@@ -10,9 +10,10 @@
     "check:runtime": "node scripts/check-runtime-contract.mjs",
     "check-types": "turbo run check-types",
     "dev": "turbo run dev",
+    "e2e": "node scripts/run-e2e.mjs",
     "fix": "ultracite fix",
     "test": "turbo run test \"//#test:root\"",
-    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:e2e": "turbo run \"//#e2e\"",
     "test:integration": "node scripts/run-integration.mjs",
     "test:root": "vitest run tests/eve"
   },
