@@ -1,0 +1,39 @@
+{
+  "name": "@repo/brain",
+  "version": "0.0.0",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    "./canonical": "./src/canonical.ts",
+    "./context": "./src/context.ts",
+    "./conversations": "./src/conversations.ts",
+    "./errors": "./src/errors.ts",
+    "./intents": "./src/intents.ts",
+    "./member-access": "./src/member-access.ts",
+    "./onboarding": "./src/onboarding.ts",
+    "./objects": "./src/objects.ts",
+    "./projections": "./src/projections.ts",
+    "./schedules": "./src/schedules.ts",
+    "./session-events": "./src/session-events.ts",
+    "./tasks": "./src/tasks.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "vitest run --root ../.. packages/brain/src",
+    "test:integration": "vitest run --root ../.. packages/brain"
+  },
+  "dependencies": {
+    "@repo/agents": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/policy": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "24.13.3",
+    "typescript": "5.9.2",
+    "vitest": "4.1.10"
+  }
+}

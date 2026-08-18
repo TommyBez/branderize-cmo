@@ -1,0 +1,19 @@
+@font-face {
+  font-family: "Branderize E2E Snapshot";
+  src: url("https://snapshot-font.invalid/geist-regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+}
+
+*,
+*::before,
+*::after {
+  font-family: "Branderize E2E Snapshot", sans-serif !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+nextjs-portal {
+  display: none !important;
+}

@@ -1,0 +1,25 @@
+{
+  "root": {
+    "id": "session_root_fixture_01",
+    "turn": {
+      "id": "turn_root_fixture_01",
+      "sequence": 0
+    }
+  },
+  "child": {
+    "id": "session_child_fixture_01",
+    "parent": {
+      "callId": "call_fixture_01",
+      "rootSessionId": "session_root_fixture_01",
+      "sessionId": "session_root_fixture_01",
+      "turn": {
+        "id": "turn_root_fixture_01",
+        "sequence": 0
+      }
+    },
+    "turn": {
+      "id": "turn_child_fixture_01",
+      "sequence": 0
+    }
+  }
+}

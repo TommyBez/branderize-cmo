@@ -1,29 +1,30 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+
+import { PostHogBootstrap } from '@/components/posthog-bootstrap'
+import { resolveProductionPostHogToken } from '@/lib/posthog-config'
+
 import './globals.css'
 
-const geistSans = Geist({
-  subsets: ['latin'],
-  variable: '--font-geist-sans',
-})
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
-})
-
 export const metadata: Metadata = {
-  description: 'App powered by @repo/ui',
-  title: 'App',
+  description:
+    'La console operativa per Intent, Brand Context e lavoro tracciabile.',
+  title: {
+    default: 'Branderize',
+    template: '%s | Branderize',
+  },
 }
 
+export const instant = true
+
 export default function RootLayout({ children }: LayoutProps<'/'>) {
+  const posthogToken = resolveProductionPostHogToken(process.env)
+
   return (
-    <html
-      className={`${geistSans.variable} ${geistMono.variable} dark`}
-      lang="en"
-    >
-      <body className="antialiased">{children}</body>
+    <html lang="it">
+      <body>
+        <PostHogBootstrap token={posthogToken} />
+        {children}
+      </body>
     </html>
   )
 }

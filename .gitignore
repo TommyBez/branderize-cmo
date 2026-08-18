@@ -2,6 +2,7 @@
 
 # Dependencies
 node_modules
+.pnpm-store/
 .pnp
 .pnp.js
 
@@ -14,6 +15,8 @@ node_modules
 
 # Testing
 coverage
+playwright-report/
+test-results/
 
 # Turbo
 .turbo
@@ -23,6 +26,9 @@ coverage
 
 # Build Outputs
 .next/
+.eve/
+.eve-extension-build-*/
+.output/
 out/
 build
 dist

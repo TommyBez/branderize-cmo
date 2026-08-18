@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Full repository gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AGENT_CMO_URL: https://agent-cmo.ci.invalid
+      AGENT_CONTENT_URL: https://agent-content.ci.invalid
+      AGENT_DISTRIBUTION_URL: https://agent-distribution.ci.invalid
+      AGENT_GROWTH_URL: https://agent-growth.ci.invalid
+      AGENT_LIFECYCLE_URL: https://agent-lifecycle.ci.invalid
+      AGENT_PRODUCT_MARKETER_URL: https://agent-product-marketer.ci.invalid
+      AGENT_SEO_DISCOVERY_URL: https://agent-seo-discovery.ci.invalid
+      BETTER_AUTH_SECRET: ci-better-auth-secret-0000000000000000
+      BETTER_AUTH_TRUSTED_ORIGINS: https://app.ci.invalid
+      BETTER_AUTH_URL: https://app.ci.invalid
+      BLOB_STORE_ID: ci-private-blob-store
+      CMO_BRIDGE_SECRET: ci-cmo-bridge-secret-000000000000000
+      CONTEXT_DEV_API_KEY: ci-context-dev-key
+      CRON_SECRET: ci-cron-secret-000000000000000000000
+      CI: "true"
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/branderize_test
+      DIRECT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/branderize_test
+      DISPATCH_SECRET: ci-dispatch-secret-000000000000000000
+      GOOGLE_CLIENT_ID: ci-google-client-id
+      GOOGLE_CLIENT_SECRET: ci-google-client-secret
+      INTEGRATION_USE_EXISTING_DATABASE: "1"
+      NEXT_PUBLIC_APP_URL: https://app.ci.invalid
+      TURBO_LOG_ORDER: grouped
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: branderize_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres -d branderize_test"
+          --health-interval 1s
+          --health-timeout 5s
+          --health-retries 30
+        ports:
+          - 5432:5432
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Activate pnpm 11
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.22.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check runtime contract
+        run: pnpm check:runtime
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Check formatting and lint
+        run: pnpm check
+
+      - name: Check types
+        run: pnpm check-types
+
+      - name: Run unit and contract tests
+        run: pnpm test
+
+      - name: Run PostgreSQL integration tests
+        run: pnpm test:integration
+
+      - name: Run browser journeys
+        run: pnpm test:e2e
+
+      - name: Verify migration evidence
+        if: always()
+        shell: bash
+        run: |
+          evidence_path="test-results/migration.log"
+          test -s "$evidence_path"
+          grep -Fxq "status: succeeded" "$evidence_path"
+          if grep -Eiq 'postgres(ql)?://' "$evidence_path"; then
+            echo "Migration evidence contains a database connection URL"
+            exit 1
+          fi
+          if grep -Eiq \
+            '(password|token|secret|api[_-]?key)[[:space:]]*[:=][[:space:]]*[^[:space:][]' \
+            "$evidence_path"; then
+            echo "Migration evidence contains an unredacted sensitive assignment"
+            exit 1
+          fi
+
+      - name: Build every package
+        run: pnpm build
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: ignore
+          name: verification-evidence
+          path: |
+            playwright-report/
+            test-results/

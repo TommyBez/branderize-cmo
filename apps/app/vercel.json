@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm run db:migrate && pnpm run build",
+  "crons": [
+    {
+      "path": "/api/internal/cron/dispatch",
+      "schedule": "* * * * *"
+    }
+  ],
+  "regions": ["fra1"]
+}

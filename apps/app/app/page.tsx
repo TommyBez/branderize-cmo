@@ -1,28 +1,33 @@
-import { Badge } from '@repo/ui/components/badge'
-import { Button } from '@repo/ui/components/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@repo/ui/components/card'
+import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
+import { StandaloneNavigationPending } from '@/components/navigation-pending'
+import { firstAvailableBrand, requirePageSession } from '@/lib/dal'
 
-export default function Home() {
+export const instant = true
+
+const HomeRedirect = async () => {
+  const session = await requirePageSession()
+  const brand = await firstAvailableBrand(session.user.id)
+
+  if (brand === null) {
+    redirect('/onboarding')
+  }
+
+  redirect(`/brands/${brand.id}/intent`)
+}
+
+export default function HomePage() {
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <Badge className="w-fit">@repo/ui</Badge>
-          <CardTitle>app</CardTitle>
-          <CardDescription>
-            shadcn/ui components served from the shared workspace package.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button>Get started</Button>
-        </CardContent>
-      </Card>
-    </main>
+    <Suspense
+      fallback={
+        <StandaloneNavigationPending
+          eyebrow="Area riservata"
+          status="Apertura dello spazio personale."
+          title="Apro il tuo spazio."
+        />
+      }
+    >
+      <HomeRedirect />
+    </Suspense>
   )
 }

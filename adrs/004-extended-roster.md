@@ -40,7 +40,7 @@ Design rules carried over from the template and extended:
 
 ## Consequences
 
-- **A build step exists**: skill materialization runs before `eve build`/`eve dev`, and `npx eve info` is the discovery diagnostic that verifies the resulting surface.
+- **A build step exists**: skill materialization runs before `eve build`/`eve dev`, and `pnpm exec eve info` is the discovery diagnostic that verifies the resulting surface.
 - **Connections arrive in phases**, not with the roster: Notion/Typefully in Phase 1, Resend in Phase 3, analytics in Phase 3, ad platforms in Phase 4. A specialist without its connections still works — it recommends instead of operating, and says so (the CRM's "plan around what you actually have" rule).
 - **Every durable root is standalone from the beginning**: `growth` is not a special Phase-4 graduation. The CMO and all six specialists each have their own eve application and Vercel deployment; the six specialist definitions are also materialized locally as consultative CMO subagents from the shared registry.
 - **The roster is data, not dogma**: adding a specialist means adding one registry entry plus its generated standalone root app; hand-maintained copies of its consultative and durable definitions are forbidden. This ADR is superseded the day empirical routing failures show a boundary is wrong.

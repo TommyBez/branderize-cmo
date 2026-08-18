@@ -1,0 +1,26 @@
+{
+  "name": "@repo/env",
+  "version": "0.0.0",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    "./agent-server": "./src/agent-server.ts",
+    "./app-server": "./src/app-server.ts",
+    "./cmo-agent-server": "./src/cmo-agent-server.ts",
+    "./client": "./src/client.ts",
+    "./migration-server": "./src/migration-server.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "vitest run --root ../.. packages/env/src"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "5.9.2",
+    "vitest": "4.1.10"
+  }
+}

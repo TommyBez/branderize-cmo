@@ -360,7 +360,8 @@ earlier, separate "UI phase."
 
 #### Platform and quality
 
-- align the repository, local tooling, CI, and every Vercel project on pnpm 9,
+- align the repository, local tooling, CI, and every Vercel project on the
+  exact pinned pnpm `11.22.0`,
   Node `24.x`, and Turbo;
 - pin `apps/app` and `agent-cmo` to the same exact Eve version, with no semver
   range, and fail CI on manifest or resolved-version drift;
