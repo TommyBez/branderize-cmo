@@ -1,8 +1,8 @@
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(22rem, 0.9fr);
-  max-width: 94rem;
-  min-height: calc(100dvh - 4.5rem);
+  grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
+  max-width: var(--page);
+  min-height: calc(100dvh - var(--header-height));
   margin: 0 auto;
 }
 
@@ -11,30 +11,46 @@
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  padding: 4.5rem clamp(3rem, 6vw, 7rem) 4rem 3rem;
+  padding: var(--space-12) clamp(var(--space-6), 6vw, var(--space-12))
+    var(--space-8) var(--page-pad);
 }
 
 .hero h1 {
   max-width: 11ch;
-  margin: 0 0 1.5rem;
+  margin: 0 0 var(--space-4);
   font-family: var(--font-display), serif;
-  font-size: clamp(3.4rem, 6.2vw, 5.75rem);
-  font-weight: 500;
-  line-height: 1.02;
+  font-size: clamp(3.5rem, 8vw, 7rem);
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: -0.035em;
   text-wrap: balance;
 }
 
 .hero-lede {
-  max-width: 36rem;
+  max-width: var(--measure);
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 400;
   line-height: 1.5;
   color: var(--ink-soft);
   text-wrap: pretty;
 }
 
 .hero-actions {
-  margin-top: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-top: var(--space-6);
+}
+
+.hero-risk {
+  max-width: 28rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  text-wrap: pretty;
 }
 
 .primary-cta {
@@ -42,16 +58,17 @@
   align-items: center;
   justify-content: center;
   min-height: 3.25rem;
-  padding: 0.75rem 1.35rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   color: var(--paper-bright);
   white-space: nowrap;
   background: var(--forest);
   border: 1px solid var(--forest);
   transition:
     background 160ms ease-out,
-    color 160ms ease-out;
+    color 160ms ease-out,
+    transform 160ms ease-out;
 }
 
 .primary-cta:hover {
@@ -59,11 +76,16 @@
   background: transparent;
 }
 
+.primary-cta:active {
+  transform: scale(0.98);
+}
+
 .hero-proof {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 3.5rem clamp(2rem, 4vw, 4rem);
+  min-width: 0;
+  padding: var(--space-8) clamp(var(--space-4), 4vw, var(--space-8));
   color: var(--paper-bright);
   background: var(--forest-deep);
 }
@@ -71,16 +93,20 @@
 .proof-label,
 .proof-meta {
   margin: 0;
-  font-size: 0.85rem;
-  color: rgba(250, 248, 241, 0.7);
+  font-size: 0.8125rem;
+  color: color-mix(in srgb, var(--paper-bright) 70%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .proof-goal {
   max-width: 14ch;
-  margin: 1.25rem 0 1.75rem;
+  margin: var(--space-3) 0 var(--space-4);
   font-family: var(--font-display), serif;
-  font-size: clamp(2rem, 3.2vw, 3rem);
-  font-weight: 500;
-  line-height: 1.1;
+  font-size: clamp(2rem, 3.4vw, 3.25rem);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }

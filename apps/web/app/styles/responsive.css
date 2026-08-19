@@ -5,19 +5,24 @@
   }
 
   .hero-copy {
-    padding-right: 3rem;
+    padding-right: var(--page-pad-right);
   }
 
   .hero-proof {
-    min-height: 22rem;
+    min-height: auto;
   }
 }
 
 @media (max-width: 48rem) {
+  :root {
+    --page-pad: max(1.25rem, env(safe-area-inset-left, 0px));
+    --page-pad-right: max(1.25rem, env(safe-area-inset-right, 0px));
+    --header-height: 4.25rem;
+  }
+
   .site-header {
     grid-template-columns: 1fr auto;
-    min-height: 4.25rem;
-    padding: 0 1.2rem;
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   .primary-nav {
@@ -25,45 +30,54 @@
   }
 
   .brand {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
   }
 
   .brand-mark {
-    font-size: 1.7rem;
+    font-size: 1.625rem;
   }
 
   .hero-copy {
-    padding: 3.5rem 1.2rem 2.5rem;
+    padding-top: var(--space-8);
+    padding-bottom: var(--space-6);
   }
 
   .hero h1 {
-    font-size: clamp(2.7rem, 13vw, 4rem);
+    font-size: clamp(2.75rem, 14vw, 4rem);
   }
 
   .hero-lede {
-    font-size: 1.1rem;
+    font-size: 1.125rem;
   }
 
   .hero-proof {
     min-height: auto;
-    padding: 2.5rem 1.2rem 3rem;
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-8);
   }
 
   .method-section,
   .boundary-section,
+  .benefit-section,
+  .question-section,
   .closing-section {
-    gap: 2.25rem;
-    padding: 4.5rem 1.2rem;
+    gap: var(--space-6);
+    padding-top: var(--space-8);
+    padding-bottom: var(--space-8);
   }
 
   .method-list,
-  .boundary-ledger {
+  .boundary-ledger,
+  .question-list {
     grid-template-columns: 1fr;
   }
 
   .method-list li,
-  .method-list li:nth-child(even) {
-    padding: 1.4rem 0;
+  .method-list li:nth-child(even),
+  .benefit-list li,
+  .question-list div,
+  .question-list div:nth-child(even) {
+    padding: var(--space-4) 0;
     border-left: 0;
   }
 
@@ -75,7 +89,8 @@
     grid-template-columns: 1fr;
     gap: 0.75rem;
     align-items: start;
-    padding: 2rem 1.2rem;
+    padding-top: var(--space-4);
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom, 0px));
   }
 
   .footer-phase {

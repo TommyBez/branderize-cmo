@@ -2,11 +2,12 @@ footer {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  max-width: 94rem;
+  max-width: var(--page);
   min-height: 5.5rem;
-  padding: 1.5rem 3rem;
+  padding: var(--space-4) var(--page-pad-right) var(--space-4) var(--page-pad);
   margin: 0 auto;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
   border-top: 1px solid var(--line);
 }
 
@@ -17,14 +18,16 @@ footer {
 
 .footer-phase {
   justify-self: end;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 footer .brand {
-  font-size: 1.15rem;
+  font-size: 1.125rem;
 }
 
 footer .brand-mark {
-  font-size: 1.45rem;
+  font-size: 1.375rem;
 }
 
 a:focus-visible {
