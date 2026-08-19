@@ -5,6 +5,9 @@
     },
     "thermos": {
       "enabled": true
+    },
+    "pstack": {
+      "enabled": true
     }
   }
 }
