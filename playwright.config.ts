@@ -54,6 +54,7 @@ const productMarketerOrigin =
 const seoDiscoveryOrigin =
   process.env.E2E_SEO_DISCOVERY_ORIGIN ?? DEFAULT_SEO_DISCOVERY_ORIGIN
 const webOrigin = process.env.E2E_WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN
+const webPort = new URL(webOrigin).port || '3000'
 const isCi = process.env.CI === 'true'
 const agentEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(
@@ -103,7 +104,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'pnpm exec next start --hostname 127.0.0.1 --port 3000',
+      command: `pnpm exec next start --hostname 127.0.0.1 --port ${webPort}`,
       cwd: 'apps/web',
       reuseExistingServer: false,
       stderr: 'pipe',

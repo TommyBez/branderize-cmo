@@ -34,7 +34,7 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
 const BRAND_CONTEXT_URL_PATTERN = /\/brands\/[0-9a-f-]+\/context$/u
 const CMO_CONVERSATION_URL_PATTERN = /\/cmo\/[0-9a-f-]+$/u
-const LANDING_HEADING_PATTERN = /A clear direction/i
+const LANDING_HEADING_PATTERN = /The AI CMO/i
 const PRIVATE_ROUTE_BOUNDARY_PATTERN =
   /This page is not in your workspace|We can’t show this state right now/u
 const PRODUCT_MARKETER_SOURCE_PATTERN = /product-marketer/u

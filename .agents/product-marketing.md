@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-**Document version:** v11
+**Document version:** v12
 **Last updated:** 2026-08-19
 
 > Auto-drafted from the public site, console copy, and architecture. Sections marked **inferred** are reasoned from product design, not from interviews or live customers. Correct those first.
@@ -94,7 +94,7 @@ Do not describe Branderize as “Magister with different internals,” “our Ma
 - “Write what the brand is trying to do. Add the website.”
 - “You can still see why something was made.”
 - “Name the outcome the brand must get. Not a task list.”
-Current site still uses “A clear direction. Before the work.” and “The goal is shared. The chat is not.” Treat both as residual UI copy, not lines to repeat.
+Public landing now leads with the official one-liner. Do not revive “A clear direction. Before the work.” or “The goal is shared. The chat is not.”
 **Words to use:** Branderize, Branderize CMO, The AI CMO you can trust, goal, website, brand context, shared work, why it was made, early access. Work graph is allowed when you mean the connected record — once, not as the product name. Specialists, not a headcount.
 **Words to avoid:** Object, Action, provenance, Intent (in public copy — say goal), “external commitment,” owner-private, selling “private CMO chat,” “six specialists” or any roster count. Do not repeat “work graph” in every section or use it to explain internals. Magister in customer-facing copy. chatbot, copilot, autopilot, “set and forget,” “AI that runs your marketing,” growth hacking, magic, “just chat with it,” unattended publish/spend. Do not call the CMO chat the product. Do not promise public pricing or customer logos we do not have. Never say the application is Magister.
 **Glossary:**
@@ -135,6 +135,7 @@ Current site still uses “A clear direction. Before the work.” and “The goa
 
 ## Changelog
 *Newest first. One line per revision: what changed and why.*
+- v12 (2026-08-19) — Landing copy moved off architecture (shared vs private chat, provenance) onto the product: AI CMO, goal, specialists, human approval.
 - v11 (2026-08-19) — Set the one-liner to “The AI CMO you can trust.” Tournament lines rejected; this is the official line.
 - v10 (2026-08-19) — Replaced the one-liner with a category-and-promise line: “The AI CMO that keeps the goal on the work.”
 - v9 (2026-08-19) — Rewrote the one-liner off the method list; hid the specialist count from public copy because the roster can change.

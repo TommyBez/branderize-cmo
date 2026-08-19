@@ -74,7 +74,7 @@ const TEST_CMO_SECRET = 'branderize-e2e-cmo-secret-at-least-32-bytes'
 const TEST_CRON_SECRET = 'branderize-e2e-cron-secret-at-least-32-bytes'
 const TEST_DISPATCH_SECRET = 'branderize-e2e-dispatch-secret-at-least-32-bytes'
 const PRODUCT_MARKETER_ORIGIN = 'http://127.0.0.1:2001'
-const WEB_ORIGIN = 'http://127.0.0.1:3000'
+const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://127.0.0.1:3000'
 const playwrightArguments = ['test', '--config', 'playwright.config.ts']
 if (process.env.E2E_UPDATE_SNAPSHOTS === '1') {
   playwrightArguments.push('--update-snapshots=all')
