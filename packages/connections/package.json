@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./canonical-json": "./src/canonical-json.ts",
+    "./connect": "./src/connect.ts",
     "./context-dev": "./src/context-dev.ts",
     "./delivery": "./src/delivery.ts",
     "./domain": "./src/domain.ts",

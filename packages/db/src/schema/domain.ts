@@ -65,6 +65,14 @@ export const brandOnboardingStatus = pgEnum('brand_onboarding_status', [
   'importing',
   'ready',
 ])
+export const connectionProviderSlot = pgEnum('connection_provider_slot', [
+  'notion',
+  'typefully',
+])
+export const connectionStatus = pgEnum('connection_status', [
+  'active',
+  'inactive',
+])
 
 export const brands = pgTable(
   'brands',
@@ -95,6 +103,54 @@ export const brands = pgTable(
     check(
       'brands_website_url_nonempty',
       sql`length(btrim(${table.websiteUrl})) > 0`
+    ),
+  ]
+)
+
+export const brandConnections = pgTable(
+  'brand_connections',
+  {
+    accountLabel: text('account_label').notNull(),
+    brandId: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    connectorUid: text('connector_uid').notNull(),
+    createdAt: timestampWithTimezone('created_at').defaultNow().notNull(),
+    id: uuid('id').defaultRandom().primaryKey(),
+    installationId: text('installation_id'),
+    providerSlot: connectionProviderSlot('provider_slot').notNull(),
+    scopes: jsonb('scopes').default([]).notNull(),
+    status: connectionStatus('status').notNull(),
+    updatedAt: timestampWithTimezone('updated_at')
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique('brand_connections_brand_id_id_unique').on(table.brandId, table.id),
+    uniqueIndex('brand_connections_active_slot_unique')
+      .on(table.brandId, table.providerSlot)
+      .where(sql`${table.status} = 'active'`),
+    index('brand_connections_brand_status_idx').on(
+      table.brandId,
+      table.status,
+      table.providerSlot
+    ),
+    check(
+      'brand_connections_account_label_nonempty',
+      sql`length(btrim(${table.accountLabel})) > 0`
+    ),
+    check(
+      'brand_connections_connector_uid_nonempty',
+      sql`length(btrim(${table.connectorUid})) > 0`
+    ),
+    check(
+      'brand_connections_installation_id_nonempty',
+      sql`${table.installationId} IS NULL OR length(btrim(${table.installationId})) > 0`
+    ),
+    check(
+      'brand_connections_scopes_array',
+      sql`jsonb_typeof(${table.scopes}) = 'array'`
     ),
   ]
 )
