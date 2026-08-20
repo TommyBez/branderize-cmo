@@ -131,7 +131,10 @@ export const agentServerEnvironmentSchema = z
 
 export const cmoAgentServerEnvironmentSchema = agentServerEnvironmentSchema
   .extend({
+    AGENT_CONTENT_URL: originSchema,
+    AGENT_DISTRIBUTION_URL: originSchema,
     AGENT_PRODUCT_MARKETER_URL: originSchema,
+    AGENT_SEO_DISCOVERY_URL: originSchema,
     CMO_BRIDGE_SECRET: secretSchema,
   })
   .strict()

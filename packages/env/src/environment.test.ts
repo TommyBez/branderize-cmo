@@ -6,7 +6,6 @@ import { parseCmoAgentServerEnvironment } from './cmo-agent-server'
 import { parseMigrationServerEnvironment } from './migration-server'
 
 const validAppEnvironment = {
-  AGENT_PRODUCT_MARKETER_URL: 'http://localhost:2001/',
   BETTER_AUTH_SECRET: 'a-high-entropy-secret-with-more-than-32-characters',
   BETTER_AUTH_TRUSTED_ORIGINS: 'http://localhost:3000, http://localhost:3001/',
   BETTER_AUTH_URL: 'http://localhost:3001/',
@@ -18,6 +17,17 @@ const validAppEnvironment = {
   NODE_ENV: 'test',
   RESEND_API_KEY: 're_test_api_key',
   RESEND_FROM_EMAIL: 'access@example.test',
+} satisfies Readonly<Record<string, string>>
+
+const validCmoAgentEnvironment = {
+  AGENT_CONTENT_URL: 'http://localhost:2002/',
+  AGENT_DISTRIBUTION_URL: 'http://localhost:2003/',
+  AGENT_PRODUCT_MARKETER_URL: 'http://localhost:2001/',
+  AGENT_SEO_DISCOVERY_URL: 'http://localhost:2004/',
+  CMO_BRIDGE_SECRET: validAppEnvironment.CMO_BRIDGE_SECRET,
+  DATABASE_URL: validAppEnvironment.DATABASE_URL,
+  DISPATCH_SECRET: validAppEnvironment.DISPATCH_SECRET,
+  NODE_ENV: 'test',
 } satisfies Readonly<Record<string, string>>
 
 describe('app server environment', () => {
@@ -164,14 +174,9 @@ describe('deployment-specific database credentials', () => {
   })
 
   it('keeps the human bridge credential exclusive to the CMO parser', () => {
-    const cmoEnvironment = parseCmoAgentServerEnvironment({
-      AGENT_PRODUCT_MARKETER_URL:
-        validAppEnvironment.AGENT_PRODUCT_MARKETER_URL,
-      CMO_BRIDGE_SECRET: validAppEnvironment.CMO_BRIDGE_SECRET,
-      DATABASE_URL: validAppEnvironment.DATABASE_URL,
-      DISPATCH_SECRET: validAppEnvironment.DISPATCH_SECRET,
-      NODE_ENV: 'test',
-    })
+    const cmoEnvironment = parseCmoAgentServerEnvironment(
+      validCmoAgentEnvironment
+    )
     const specialistEnvironment = parseAgentServerEnvironment({
       CMO_BRIDGE_SECRET: validAppEnvironment.CMO_BRIDGE_SECRET,
       DATABASE_URL: validAppEnvironment.DATABASE_URL,
@@ -188,22 +193,61 @@ describe('deployment-specific database credentials', () => {
     expect('CMO_BRIDGE_SECRET' in specialistEnvironment).toBe(false)
   })
 
-  it('gives the CMO only the Product Marketer endpoint', () => {
+  it('gives the CMO the four specialist endpoints and no coordinator or measurement URLs', () => {
     const cmoEnvironment = parseCmoAgentServerEnvironment({
       AGENT_CMO_URL: 'https://cmo.example.test',
-      AGENT_CONTENT_URL: 'https://content.example.test',
+      AGENT_CONTENT_URL: 'https://content.example.test/',
+      AGENT_DISTRIBUTION_URL: 'https://distribution.example.test/',
+      AGENT_GROWTH_URL: 'https://growth.example.test',
+      AGENT_LIFECYCLE_URL: 'https://lifecycle.example.test',
       AGENT_PRODUCT_MARKETER_URL: 'https://product-marketer.example.test/',
+      AGENT_SEO_DISCOVERY_URL: 'https://seo-discovery.example.test/',
       CMO_BRIDGE_SECRET: validAppEnvironment.CMO_BRIDGE_SECRET,
       DATABASE_URL: validAppEnvironment.DATABASE_URL,
       DISPATCH_SECRET: validAppEnvironment.DISPATCH_SECRET,
       NODE_ENV: 'production',
     })
 
+    expect(cmoEnvironment.AGENT_CONTENT_URL).toBe(
+      'https://content.example.test'
+    )
+    expect(cmoEnvironment.AGENT_DISTRIBUTION_URL).toBe(
+      'https://distribution.example.test'
+    )
     expect(cmoEnvironment.AGENT_PRODUCT_MARKETER_URL).toBe(
       'https://product-marketer.example.test'
     )
+    expect(cmoEnvironment.AGENT_SEO_DISCOVERY_URL).toBe(
+      'https://seo-discovery.example.test'
+    )
     expect('AGENT_CMO_URL' in cmoEnvironment).toBe(false)
-    expect('AGENT_CONTENT_URL' in cmoEnvironment).toBe(false)
+    expect('AGENT_GROWTH_URL' in cmoEnvironment).toBe(false)
+    expect('AGENT_LIFECYCLE_URL' in cmoEnvironment).toBe(false)
+  })
+
+  it('rejects a direct database URL in the CMO deployment', () => {
+    expect(() =>
+      parseCmoAgentServerEnvironment({
+        ...validCmoAgentEnvironment,
+        DIRECT_DATABASE_URL:
+          'postgresql://postgres:postgres@localhost:5432/branderize',
+      })
+    ).toThrow(
+      'DIRECT_DATABASE_URL must not be present in the CMO agent deployment'
+    )
+  })
+
+  it.each([
+    'AGENT_CONTENT_URL',
+    'AGENT_DISTRIBUTION_URL',
+    'AGENT_SEO_DISCOVERY_URL',
+  ] as const)('requires %s in the CMO deployment', (key) => {
+    expect(() =>
+      parseCmoAgentServerEnvironment({
+        ...validCmoAgentEnvironment,
+        [key]: undefined,
+      })
+    ).toThrow()
   })
 
   it('requires the direct URL at the migration boundary', () => {

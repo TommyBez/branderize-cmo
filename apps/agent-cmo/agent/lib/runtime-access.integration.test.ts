@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
+import { getTaskKind, type RegisteredTaskKindKey } from '@repo/agents'
 import {
   PRODUCT_MARKETER_TASK_KIND,
   PRODUCT_MARKETER_WORKER_KEY,
@@ -24,6 +25,10 @@ import type { ToolContext } from 'eve/tools'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import refineIntentTool from '../tools/refine_intent'
+import requestSpecialistWorkTool, {
+  type CmoSpecialistPurpose,
+  resolveCmoSpecialistRequest,
+} from '../tools/request_specialist_work'
 import resolveProductMarketerQuestionsTool from '../tools/resolve_product_marketer_questions'
 import {
   loadCmoIntentTarget,
@@ -590,4 +595,146 @@ describe('CMO canonical tool replay on PostgreSQL', () => {
         )
     ).resolves.toHaveLength(1)
   })
+})
+
+describe('CMO specialist work allowlist on PostgreSQL', () => {
+  const insertQueuedSpecialistTask = async ({
+    fixture,
+    kind,
+    payload,
+  }: {
+    readonly fixture: IntentFixture
+    readonly kind: RegisteredTaskKindKey
+    readonly payload: { readonly purpose: CmoSpecialistPurpose }
+  }): Promise<string> => {
+    const taskKind = getTaskKind(kind)
+    const taskId = randomUUID()
+    await requireDatabase()
+      .insert(tasks)
+      .values({
+        activation: 'automatic',
+        brandId: fixture.brandId,
+        executionMode: 'agent',
+        id: taskId,
+        intentId: fixture.secondIntentId,
+        intentSnapshot: {
+          acceptance_criteria: null,
+          brand_id: fixture.brandId,
+          constraints: null,
+          intent_id: fixture.secondIntentId,
+          intent_revision: 1,
+          preauthorizations: [],
+          statement: 'Add a second root objective through the CMO.',
+        },
+        kind,
+        payload,
+        payloadHash: `queued-${kind}`,
+        status: 'queued',
+        subjectKey: taskKind.subjectKey(payload),
+        workerKey: taskKind.workerKey,
+      })
+    return taskId
+  }
+
+  it.each([
+    'enrich_brand_context',
+    'draft_content_brief',
+    'draft_channel_plan',
+    'draft_seo_opportunity',
+  ] as const)(
+    'creates the %s specialist kind on the current-turn Intent',
+    async (purpose) => {
+      const fixture = await createIntentFixture()
+      const turnId = `turn:${randomUUID()}`
+      await insertCmoIntentAction({
+        fixture,
+        intentId: fixture.secondIntentId,
+        turnId,
+      })
+      const specialistRequest = resolveCmoSpecialistRequest(purpose)
+
+      const result = await requestSpecialistWorkTool.execute(
+        { purpose },
+        toolContext({
+          callId: `call:${randomUUID()}`,
+          fixture,
+          toolName: 'request_specialist_work',
+          turnId,
+        })
+      )
+      if (isAsyncIterable(result)) {
+        throw new Error('The specialist work tool unexpectedly streamed')
+      }
+
+      expect(result.disposition).toBe('created')
+      expect(result.immediateDispatch.outcome).toBe('deferred')
+      await expect(
+        requireDatabase()
+          .select({
+            intentId: tasks.intentId,
+            kind: tasks.kind,
+            workerKey: tasks.workerKey,
+          })
+          .from(tasks)
+          .where(eq(tasks.intentId, fixture.secondIntentId))
+      ).resolves.toEqual([
+        {
+          intentId: fixture.secondIntentId,
+          kind: specialistRequest.kind,
+          workerKey: specialistRequest.workerKey,
+        },
+      ])
+    },
+    TEST_TIMEOUT_MS
+  )
+
+  it.each([
+    'enrich_brand_context',
+    'draft_content_brief',
+    'draft_channel_plan',
+    'draft_seo_opportunity',
+  ] as const)(
+    'observes an already-active %s specialist kind',
+    async (purpose) => {
+      const fixture = await createIntentFixture()
+      const turnId = `turn:${randomUUID()}`
+      await insertCmoIntentAction({
+        fixture,
+        intentId: fixture.secondIntentId,
+        turnId,
+      })
+      const specialistRequest = resolveCmoSpecialistRequest(purpose)
+      const queuedTaskId = await insertQueuedSpecialistTask({
+        fixture,
+        kind: specialistRequest.kind,
+        payload: specialistRequest.payload,
+      })
+
+      const result = await requestSpecialistWorkTool.execute(
+        { purpose },
+        toolContext({
+          callId: `call:${randomUUID()}`,
+          fixture,
+          toolName: 'request_specialist_work',
+          turnId,
+        })
+      )
+      if (isAsyncIterable(result)) {
+        throw new Error('The specialist work tool unexpectedly streamed')
+      }
+
+      expect(result).toMatchObject({
+        disposition: 'already_active',
+        immediateDispatch: { outcome: 'not_needed' },
+        taskId: queuedTaskId,
+      })
+      await expect(
+        requireDatabase()
+          .select({ id: tasks.id, kind: tasks.kind })
+          .from(tasks)
+          .where(eq(tasks.intentId, fixture.secondIntentId))
+      ).resolves.toEqual([{ id: queuedTaskId, kind: specialistRequest.kind }])
+    },
+    TEST_TIMEOUT_MS
+  )
 })
