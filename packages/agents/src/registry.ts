@@ -3,8 +3,34 @@ import { z } from 'zod'
 
 import type { TaskIntentSnapshot } from './task-snapshot'
 import {
+  buildContentBriefTaskPrompt,
+  buildDistributionChannelPlanTaskPrompt,
   buildProductMarketerTaskPrompt,
+  buildSeoDiscoveryOpportunityTaskPrompt,
+  CONTENT_BRIEF_TASK_KIND,
+  CONTENT_WORKER_KEY,
+  type ContentBriefClaimContext,
+  type ContentBriefCompletion,
+  type ContentBriefPayload,
+  type ContentBriefResult,
+  contentBriefClaimContextSchema,
+  contentBriefCompletionSchema,
+  contentBriefPayloadSchema,
+  contentBriefResultSchema,
+  DISTRIBUTION_CHANNEL_PLAN_TASK_KIND,
+  DISTRIBUTION_WORKER_KEY,
+  type DistributionChannelPlanClaimContext,
+  type DistributionChannelPlanCompletion,
+  type DistributionChannelPlanPayload,
+  type DistributionChannelPlanResult,
+  distributionChannelPlanClaimContextSchema,
+  distributionChannelPlanCompletionSchema,
+  distributionChannelPlanPayloadSchema,
+  distributionChannelPlanResultSchema,
+  hasOpenContentBriefQuestions,
+  hasOpenDistributionChannelPlanQuestions,
   hasOpenProductMarketerQuestions,
+  hasOpenSeoDiscoveryOpportunityQuestions,
   PRODUCT_MARKETER_TASK_KIND,
   PRODUCT_MARKETER_WORKER_KEY,
   type ProductMarketerClaimContext,
@@ -15,7 +41,20 @@ import {
   productMarketerCompletionSchema,
   productMarketerPayloadSchema,
   productMarketerResultSchema,
+  requiredContentBriefOutputIds,
+  requiredDistributionChannelPlanOutputIds,
   requiredProductMarketerOutputIds,
+  requiredSeoDiscoveryOpportunityOutputIds,
+  SEO_DISCOVERY_OPPORTUNITY_TASK_KIND,
+  SEO_DISCOVERY_WORKER_KEY,
+  type SeoDiscoveryOpportunityClaimContext,
+  type SeoDiscoveryOpportunityCompletion,
+  type SeoDiscoveryOpportunityPayload,
+  type SeoDiscoveryOpportunityResult,
+  seoDiscoveryOpportunityClaimContextSchema,
+  seoDiscoveryOpportunityCompletionSchema,
+  seoDiscoveryOpportunityPayloadSchema,
+  seoDiscoveryOpportunityResultSchema,
 } from './tasks'
 
 export const AGENT_KEYS = [
@@ -77,8 +116,8 @@ export interface RegisteredTaskKind<
   readonly buildTaskPrompt: (input: {
     readonly claimContext: TClaimContext
     readonly intentSnapshot: TaskIntentSnapshot
-    readonly kind: TKind
-    readonly payload: TBrief
+    readonly kind: string
+    readonly payload: unknown
   }) => string
   readonly claimContextSchema: z.ZodType<TClaimContext>
   readonly completionResultSchema: z.ZodType<TResult>
@@ -123,6 +162,17 @@ export const modelProfiles = {
     },
   },
 } as const satisfies Readonly<Record<string, ModelProfile>>
+
+const graphInternalKindDefaults = {
+  acceptsPlanRouteOrigin: false,
+  activation: 'automatic',
+  budgetClass: 'standard',
+  effectPhase: 'graph-internal',
+  executionMode: 'agent',
+  intentAcceptance: 'ineligible',
+  requires: [],
+  schedulableBy: ['agent'],
+} as const
 
 const productMarketerTaskKind = {
   acceptsPlanRouteOrigin: false,
@@ -173,10 +223,145 @@ const productMarketerTaskKind = {
   ProductMarketerClaimContext
 >
 
+const contentBriefTaskKind = {
+  ...graphInternalKindDefaults,
+  briefSchema: contentBriefPayloadSchema,
+  buildTaskPrompt: buildContentBriefTaskPrompt,
+  claimContextSchema: contentBriefClaimContextSchema,
+  completionResultSchema: contentBriefResultSchema,
+  completionSchema: contentBriefCompletionSchema,
+  kind: CONTENT_BRIEF_TASK_KIND,
+  outputContract: ['report'],
+  questionPolicy: {
+    hasOpenQuestions: (completion: unknown) =>
+      hasOpenContentBriefQuestions(
+        contentBriefCompletionSchema.parse(completion)
+      ),
+    projectOpenQuestions: (completion: unknown) => {
+      const parsed = contentBriefCompletionSchema.parse(completion)
+      if (parsed.status === 'completed') {
+        return null
+      }
+      return {
+        questions: parsed.openQuestions,
+        reason: parsed.result.reason,
+        status: parsed.status,
+        summary: parsed.summary,
+      }
+    },
+  },
+  requiredOutputObjectIds: (result: unknown) =>
+    requiredContentBriefOutputIds(contentBriefResultSchema.parse(result)),
+  subjectKey: (payload: unknown) => {
+    contentBriefPayloadSchema.parse(payload)
+    return `${CONTENT_WORKER_KEY}:brief`
+  },
+  workerKey: CONTENT_WORKER_KEY,
+} as const satisfies RegisteredTaskKind<
+  typeof CONTENT_BRIEF_TASK_KIND,
+  ContentBriefPayload,
+  ContentBriefResult,
+  ContentBriefCompletion,
+  ContentBriefClaimContext
+>
+
+const distributionChannelPlanTaskKind = {
+  ...graphInternalKindDefaults,
+  briefSchema: distributionChannelPlanPayloadSchema,
+  buildTaskPrompt: buildDistributionChannelPlanTaskPrompt,
+  claimContextSchema: distributionChannelPlanClaimContextSchema,
+  completionResultSchema: distributionChannelPlanResultSchema,
+  completionSchema: distributionChannelPlanCompletionSchema,
+  kind: DISTRIBUTION_CHANNEL_PLAN_TASK_KIND,
+  outputContract: ['report'],
+  questionPolicy: {
+    hasOpenQuestions: (completion: unknown) =>
+      hasOpenDistributionChannelPlanQuestions(
+        distributionChannelPlanCompletionSchema.parse(completion)
+      ),
+    projectOpenQuestions: (completion: unknown) => {
+      const parsed = distributionChannelPlanCompletionSchema.parse(completion)
+      if (parsed.status === 'completed') {
+        return null
+      }
+      return {
+        questions: parsed.openQuestions,
+        reason: parsed.result.reason,
+        status: parsed.status,
+        summary: parsed.summary,
+      }
+    },
+  },
+  requiredOutputObjectIds: (result: unknown) =>
+    requiredDistributionChannelPlanOutputIds(
+      distributionChannelPlanResultSchema.parse(result)
+    ),
+  subjectKey: (payload: unknown) => {
+    distributionChannelPlanPayloadSchema.parse(payload)
+    return `${DISTRIBUTION_WORKER_KEY}:channel-plan`
+  },
+  workerKey: DISTRIBUTION_WORKER_KEY,
+} as const satisfies RegisteredTaskKind<
+  typeof DISTRIBUTION_CHANNEL_PLAN_TASK_KIND,
+  DistributionChannelPlanPayload,
+  DistributionChannelPlanResult,
+  DistributionChannelPlanCompletion,
+  DistributionChannelPlanClaimContext
+>
+
+const seoDiscoveryOpportunityTaskKind = {
+  ...graphInternalKindDefaults,
+  briefSchema: seoDiscoveryOpportunityPayloadSchema,
+  buildTaskPrompt: buildSeoDiscoveryOpportunityTaskPrompt,
+  claimContextSchema: seoDiscoveryOpportunityClaimContextSchema,
+  completionResultSchema: seoDiscoveryOpportunityResultSchema,
+  completionSchema: seoDiscoveryOpportunityCompletionSchema,
+  kind: SEO_DISCOVERY_OPPORTUNITY_TASK_KIND,
+  outputContract: ['evidence'],
+  questionPolicy: {
+    hasOpenQuestions: (completion: unknown) =>
+      hasOpenSeoDiscoveryOpportunityQuestions(
+        seoDiscoveryOpportunityCompletionSchema.parse(completion)
+      ),
+    projectOpenQuestions: (completion: unknown) => {
+      const parsed = seoDiscoveryOpportunityCompletionSchema.parse(completion)
+      if (parsed.status === 'completed') {
+        return null
+      }
+      return {
+        questions: parsed.openQuestions,
+        reason: parsed.result.reason,
+        status: parsed.status,
+        summary: parsed.summary,
+      }
+    },
+  },
+  requiredOutputObjectIds: (result: unknown) =>
+    requiredSeoDiscoveryOpportunityOutputIds(
+      seoDiscoveryOpportunityResultSchema.parse(result)
+    ),
+  subjectKey: (payload: unknown) => {
+    seoDiscoveryOpportunityPayloadSchema.parse(payload)
+    return `${SEO_DISCOVERY_WORKER_KEY}:opportunity`
+  },
+  workerKey: SEO_DISCOVERY_WORKER_KEY,
+} as const satisfies RegisteredTaskKind<
+  typeof SEO_DISCOVERY_OPPORTUNITY_TASK_KIND,
+  SeoDiscoveryOpportunityPayload,
+  SeoDiscoveryOpportunityResult,
+  SeoDiscoveryOpportunityCompletion,
+  SeoDiscoveryOpportunityClaimContext
+>
+
 export const agentRegistry = {
   cmo: {
     actorKey: 'agent:cmo',
-    consultationTargets: ['product-marketer'],
+    consultationTargets: [
+      'product-marketer',
+      'content',
+      'distribution',
+      'seo-discovery',
+    ],
     defaultModelProfileKey: PHASE_ZERO_MODEL_PROFILE_KEY,
     description: 'Private strategic conversation and trusted work routing.',
     displayName: 'CMO',
@@ -189,23 +374,23 @@ export const agentRegistry = {
     actorKey: 'agent:content',
     consultationTargets: [],
     defaultModelProfileKey: PHASE_ZERO_MODEL_PROFILE_KEY,
-    description: 'Content specialist reserved for a later phase.',
+    description: 'Long-form briefs and prose from Brand Context.',
     displayName: 'Content',
     key: 'content',
     reportingFeature: 'content',
-    status: 'health-only',
-    taskKinds: [],
+    status: 'functional',
+    taskKinds: [CONTENT_BRIEF_TASK_KIND],
   },
   distribution: {
     actorKey: 'agent:distribution',
     consultationTargets: [],
     defaultModelProfileKey: PHASE_ZERO_MODEL_PROFILE_KEY,
-    description: 'Distribution specialist reserved for a later phase.',
+    description: 'Channel plans that reach an audience.',
     displayName: 'Distribution',
     key: 'distribution',
     reportingFeature: 'distribution',
-    status: 'health-only',
-    taskKinds: [],
+    status: 'functional',
+    taskKinds: [DISTRIBUTION_CHANNEL_PLAN_TASK_KIND],
   },
   growth: {
     actorKey: 'agent:growth',
@@ -244,34 +429,46 @@ export const agentRegistry = {
     actorKey: 'agent:seo-discovery',
     consultationTargets: [],
     defaultModelProfileKey: PHASE_ZERO_MODEL_PROFILE_KEY,
-    description: 'SEO discovery specialist reserved for a later phase.',
+    description: 'Search opportunities and page evidence.',
     displayName: 'SEO Discovery',
     key: 'seo-discovery',
     reportingFeature: 'seo-discovery',
-    status: 'health-only',
-    taskKinds: [],
+    status: 'functional',
+    taskKinds: [SEO_DISCOVERY_OPPORTUNITY_TASK_KIND],
   },
 } as const satisfies Readonly<Record<AgentKey, RegisteredAgent>>
 
 export const taskKindRegistry = {
   [productMarketerTaskKind.kind]: productMarketerTaskKind,
+  [contentBriefTaskKind.kind]: contentBriefTaskKind,
+  [distributionChannelPlanTaskKind.kind]: distributionChannelPlanTaskKind,
+  [seoDiscoveryOpportunityTaskKind.kind]: seoDiscoveryOpportunityTaskKind,
 } as const
 
 export type RegisteredTaskKindKey = keyof typeof taskKindRegistry
 
-export type ClaimContextOf<TKind extends RegisteredTaskKindKey> = z.output<
-  (typeof taskKindRegistry)[TKind]['claimContextSchema']
->
+export type ClaimContextOf<TKind extends RegisteredTaskKindKey> = {
+  readonly [K in TKind]: z.output<
+    (typeof taskKindRegistry)[K]['claimContextSchema']
+  >
+}[TKind]
 
-export type TaskPayloadOf<TKind extends RegisteredTaskKindKey> = z.output<
-  (typeof taskKindRegistry)[TKind]['briefSchema']
->
+export type TaskPayloadOf<TKind extends RegisteredTaskKindKey> = {
+  readonly [K in TKind]: z.output<(typeof taskKindRegistry)[K]['briefSchema']>
+}[TKind]
 
-export type RegisteredTaskCompletionValue = z.output<
-  (typeof taskKindRegistry)[RegisteredTaskKindKey]['completionSchema']
->
+export type RegisteredTaskCompletionValue = {
+  readonly [K in RegisteredTaskKindKey]: z.output<
+    (typeof taskKindRegistry)[K]['completionSchema']
+  >
+}[RegisteredTaskKindKey]
 
-export const REGISTERED_TASK_KIND_KEYS = [PRODUCT_MARKETER_TASK_KIND] as const
+export const REGISTERED_TASK_KIND_KEYS = [
+  CONTENT_BRIEF_TASK_KIND,
+  DISTRIBUTION_CHANNEL_PLAN_TASK_KIND,
+  PRODUCT_MARKETER_TASK_KIND,
+  SEO_DISCOVERY_OPPORTUNITY_TASK_KIND,
+] as const
 
 export const registeredTaskKindKeySchema = z.enum(REGISTERED_TASK_KIND_KEYS)
 

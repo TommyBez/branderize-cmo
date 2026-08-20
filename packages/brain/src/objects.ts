@@ -1,4 +1,17 @@
 // biome-ignore-all lint/performance/noBarrelFile: Stable public compatibility facade for existing Object consumers.
+
+export {
+  type ChannelPlanContent,
+  type ChannelPlanObjectReceipt,
+  channelPlanContentSchema,
+  produceChannelPlan,
+} from './channel-plan'
+export {
+  type ContentBriefContent,
+  type ContentBriefObjectReceipt,
+  contentBriefContentSchema,
+  produceContentBrief,
+} from './content-brief'
 export {
   type ClaimedContextBootstrap,
   CONTEXT_BOOTSTRAP_CLAIM_STALE_AFTER_MS,
@@ -19,3 +32,13 @@ export {
   produceProductMarketerContext,
   productMarketerContextContentSchema,
 } from './product-marketer-context'
+export {
+  produceSeoOpportunity,
+  type SeoOpportunityContent,
+  type SeoOpportunityObjectReceipt,
+  seoOpportunityContentSchema,
+} from './seo-opportunity'
+export {
+  loadActiveBrandContext,
+  readBrandContextProjection,
+} from './task-claim-adapters'

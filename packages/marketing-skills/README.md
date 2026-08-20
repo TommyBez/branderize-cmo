@@ -1,9 +1,9 @@
 # Marketing skills extension
 
-This workspace Eve extension is the deterministic mount point for approved
-marketing skills. Phase 0 intentionally contributes no skills or instruction
-fragments: functional roots use only their local core instructions.
+This workspace Eve extension mounts the reviewed Content, Distribution, and SEO
+Discovery skills. The materializer copies `copywriting`, `content-strategy`,
+`copy-editing`, `seo-audit`, and `ai-seo` from `.agents/skills` and rewrites
+brand-file lookups to `get_brand_context`.
 
 The root materialization command mounts this package before every agent build.
-Phase 1 may add reviewed contributions under `extension/` without changing the
-consumer mount or build order.
+Ads, pricing, and SMS skills stay out of this subset.
