@@ -11,7 +11,13 @@ import {
   getBrandProjection,
 } from '@repo/brain/projections'
 import {
+  type ApprovalInboxItemProjection as ApprovalInboxItemProjectionValue,
+  type BrandTaskDetailProjection as BrandTaskDetailProjectionValue,
+  type BrandTaskProjection as BrandTaskProjectionValue,
+  getBrandTask as getBrandTaskProjection,
   getProductMarketerTask as getProductMarketerTaskProjection,
+  listBrandApprovalInbox as listBrandApprovalInboxProjection,
+  listBrandTasks as listBrandTaskProjections,
   listProductMarketerTasks as listProductMarketerTaskProjections,
   type ProductMarketerTaskDetailProjection as ProductMarketerTaskDetailProjectionValue,
   type ProductMarketerTaskProjection as ProductMarketerTaskProjectionValue,
@@ -272,7 +278,37 @@ export const getProductMarketerTask = async ({
 }): Promise<ProductMarketerTaskDetailProjectionValue | null> =>
   await getProductMarketerTaskProjection({ access, database: db, taskId })
 
+export const listBrandTasks = async ({
+  access,
+  limit = 50,
+}: {
+  readonly access: TrustedMemberAccess
+  readonly limit?: number
+}): Promise<readonly BrandTaskProjectionValue[]> =>
+  await listBrandTaskProjections({ access, database: db, limit })
+
+export const getBrandTask = async ({
+  access,
+  taskId,
+}: {
+  readonly access: TrustedMemberAccess
+  readonly taskId: string
+}): Promise<BrandTaskDetailProjectionValue | null> =>
+  await getBrandTaskProjection({ access, database: db, taskId })
+
+export const listBrandApprovalInbox = async ({
+  access,
+  limit = 50,
+}: {
+  readonly access: TrustedMemberAccess
+  readonly limit?: number
+}): Promise<readonly ApprovalInboxItemProjectionValue[]> =>
+  await listBrandApprovalInboxProjection({ access, database: db, limit })
+
 export type {
+  ApprovalInboxItemProjection,
+  BrandTaskDetailProjection,
+  BrandTaskProjection,
   ProductMarketerTaskDetailProjection,
   ProductMarketerTaskProjection,
   TaskCompletionProjection,

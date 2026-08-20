@@ -22,6 +22,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  ne,
   or,
   sql,
 } from 'drizzle-orm'
@@ -89,12 +90,22 @@ export const listTaskQuestionBundlesInputSchema = z
   })
   .strict()
 
+export const listBrandIntentProposalsInputSchema = z
+  .object({
+    cursor: pageCursorSchema.nullable().default(null),
+    limit: pageLimitSchema,
+  })
+  .strict()
+
 export type ListBrandIntentsInput = z.input<typeof listBrandIntentsInputSchema>
 export type GetBrandIntentInput = z.input<typeof getBrandIntentInputSchema>
 export type ListBrandObjectsInput = z.input<typeof listBrandObjectsInputSchema>
 export type GetBrandObjectInput = z.input<typeof getBrandObjectInputSchema>
 export type ListTaskQuestionBundlesInput = z.input<
   typeof listTaskQuestionBundlesInputSchema
+>
+export type ListBrandIntentProposalsInput = z.input<
+  typeof listBrandIntentProposalsInputSchema
 >
 
 export interface BrandProjection {
@@ -599,7 +610,9 @@ export const listBrandIntents = async ({
             )
           )
     const statusCondition =
-      parsed.status === null ? undefined : eq(intents.status, parsed.status)
+      parsed.status === null
+        ? ne(intents.status, 'draft')
+        : eq(intents.status, parsed.status)
     const rows = await transaction
       .select(intentProjectionSelection)
       .from(intents)
@@ -608,6 +621,53 @@ export const listBrandIntents = async ({
         and(
           eq(intents.brandId, access.brandId),
           statusCondition,
+          cursorCondition
+        )
+      )
+      .orderBy(desc(intents.createdAt), desc(intents.id))
+      .limit(parsed.limit + 1)
+
+    const items = rows.slice(0, parsed.limit).map((row) => projectIntent(row))
+    const lastItem = items.at(-1)
+    const nextCursor =
+      rows.length > parsed.limit && lastItem !== undefined
+        ? { createdAt: lastItem.createdAt, id: lastItem.id }
+        : null
+    return { items, nextCursor }
+  })
+}
+
+export const listBrandIntentProposals = async ({
+  access,
+  database,
+  input,
+}: {
+  readonly access: TrustedMemberAccess
+  readonly database: Database
+  readonly input: ListBrandIntentProposalsInput
+}): Promise<IntentProjectionPage> => {
+  const parsed = listBrandIntentProposalsInputSchema.parse(input)
+
+  return await database.transaction(async (transaction) => {
+    await requireCurrentBrandMember(transaction, access)
+    const cursorCondition =
+      parsed.cursor === null
+        ? undefined
+        : or(
+            lt(intents.createdAt, parsed.cursor.createdAt),
+            and(
+              eq(intents.createdAt, parsed.cursor.createdAt),
+              lt(intents.id, parsed.cursor.id)
+            )
+          )
+    const rows = await transaction
+      .select(intentProjectionSelection)
+      .from(intents)
+      .innerJoin(actors, eq(actors.id, intents.authorActorId))
+      .where(
+        and(
+          eq(intents.brandId, access.brandId),
+          eq(intents.status, 'draft'),
           cursorCondition
         )
       )

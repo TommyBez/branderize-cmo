@@ -1,8 +1,14 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { NavigationPending } from '@/components/navigation-pending'
-import { listProductMarketerTasks, requireBrandPageContext } from '@/lib/dal'
-import { formatDateTime } from '@/lib/presentation'
+import { WorkRefresh } from '@/components/work-refresh'
+import { listBrandTasks, requireBrandPageContext } from '@/lib/dal'
+import {
+  formatDateTime,
+  isActiveWorkStatus,
+  statusLabel,
+  taskKindLabel,
+} from '@/lib/presentation'
 
 export const instant = true
 
@@ -13,17 +19,20 @@ interface WorkIndexPageProps {
 const WorkIndexContent = async ({ params }: WorkIndexPageProps) => {
   const { brandId } = await params
   const { access } = await requireBrandPageContext(brandId)
-  const tasks = await listProductMarketerTasks({ access, limit: 50 })
+  const tasks = await listBrandTasks({ access, limit: 50 })
+  const pollingStatus =
+    tasks.find((task) => isActiveWorkStatus(task.status))?.status ?? 'succeeded'
 
   return (
     <div className="page-stack">
+      <WorkRefresh status={pollingStatus} />
       <header className="page-header page-header--split">
         <div>
           <p className="eyebrow">Work ledger</p>
           <h1>Work leaves a receipt.</h1>
           <p className="lede">
-            Early access shows Product Marketer only. Status, output, and open
-            questions stay on the task.
+            Content, Distribution, SEO, and commitment rows sit with Product
+            Marketer. Awaiting approval is human attention, not active work.
           </p>
         </div>
         <div className="counter-mark">
@@ -35,10 +44,12 @@ const WorkIndexContent = async ({ params }: WorkIndexPageProps) => {
       <section>
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Product Marketer</p>
+            <p className="eyebrow">Every kind</p>
             <h2>Recent tasks</h2>
           </div>
-          <span>{tasks.length} task</span>
+          <Link className="text-link" href={`/brands/${brandId}/approvals`}>
+            Approval inbox →
+          </Link>
         </div>
         {tasks.length === 0 ? (
           <div className="empty-state empty-state--compact">
@@ -57,7 +68,7 @@ const WorkIndexContent = async ({ params }: WorkIndexPageProps) => {
                   </span>
                   <span className="record-list__body">
                     <span className="record-list__title">
-                      Product Marketer · {task.status}
+                      {taskKindLabel(task.kind)} · {statusLabel(task.status)}
                     </span>
                     <span className="record-list__meta">
                       {task.id.slice(0, 8)} · {formatDateTime(task.updatedAt)}

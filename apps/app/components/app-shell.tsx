@@ -5,6 +5,7 @@ import type { BrandNavigationItem, BrandPageContext } from '@/lib/dal'
 import { SignOutButton } from './sign-out-button'
 
 const navigation = [
+  { label: 'Today', path: 'today' },
   { label: 'Intent', path: 'intent' },
   { label: 'Brand Context', path: 'context' },
   { label: 'Work', path: 'work' },
@@ -24,7 +25,7 @@ export const AppShell = ({
 }) => (
   <div className="app-frame">
     <aside className="sidebar">
-      <Link className="wordmark" href={`/brands/${context.brand.id}/intent`}>
+      <Link className="wordmark" href={`/brands/${context.brand.id}/today`}>
         Branderize<span>CMO</span>
       </Link>
 

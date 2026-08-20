@@ -13,6 +13,7 @@ import {
   test,
 } from '@playwright/test'
 import { Client } from '../../apps/agent-cmo/node_modules/eve/dist/src/client/index.js'
+import { requestHash } from '../../packages/brain/src/canonical'
 import type { QueryResultRow } from '../../packages/db/node_modules/@types/pg'
 import { createAuthenticatedBrowser } from './support/auth'
 import {
@@ -37,6 +38,9 @@ const CMO_CONVERSATION_URL_PATTERN = /\/cmo\/[0-9a-f-]+$/u
 const LANDING_HEADING_PATTERN = /The AI CMO/i
 const PRIVATE_ROUTE_BOUNDARY_PATTERN =
   /This page is not in your workspace|We can’t show this state right now/u
+const TOKEN_WORD_PATTERN = /token/i
+const TOKEN_LIKE_PATTERN =
+  /(?:access|refresh|id)_token|api[_-]?key|client_secret|sk_live|re_[A-Za-z0-9]{16,}/iu
 const PRODUCT_MARKETER_SOURCE_PATTERN = /product-marketer/u
 const GATEWAY_TRACE_FILE_PATTERN = /^gateway-\d+-\d{4}\.json$/u
 const STREAM_TAIL_INDEX_PATTERN = /^-?\d+$/u
@@ -966,6 +970,7 @@ test('every app route family exposes an instant shell before streamed data', asy
     registry.organizationIds.add(fixture.organizationId)
 
     const brandPath = `/brands/${brandId}`
+    const todayPath = `${brandPath}/today`
     const intentPath = `${brandPath}/intent`
     const intentDetailPath = `${intentPath}/${fixture.intentId}`
     const contextPath = `${brandPath}/context`
@@ -983,17 +988,33 @@ test('every app route family exposes an instant shell before streamed data', asy
       page.getByRole('link').filter({ hasText: fixture.taskId.slice(0, 8) })
     const conversationListReady = (page: Page): Locator =>
       page.getByRole('link').filter({ hasText: fixture.conversationTitle })
+    const todayReady = (page: Page): Locator =>
+      page.getByRole('heading', {
+        exact: true,
+        name: 'What needs attention.',
+      })
 
     await assertInstantHardNavigation({
       context: owner.context,
       expectProtectedLayout: true,
       forbiddenCopy: protectedCopy,
       path: brandPath,
-      ready: intentListReady,
-      settledPath: intentPath,
+      ready: todayReady,
+      settledPath: todayPath,
       shell: {
-        heading: 'Opening Intents.',
-        status: 'Opening the Intent register.',
+        heading: 'Opening Today.',
+        status: 'Opening Today.',
+      },
+    })
+    await assertInstantHardNavigation({
+      context: owner.context,
+      expectProtectedLayout: true,
+      forbiddenCopy: protectedCopy,
+      path: todayPath,
+      ready: todayReady,
+      shell: {
+        heading: 'What needs attention.',
+        status: 'Loading Today.',
       },
     })
     await assertInstantHardNavigation({
@@ -1100,13 +1121,25 @@ test('every app route family exposes an instant shell before streamed data', asy
     await assertInstantClientNavigation({
       context: owner.context,
       forbiddenCopy: protectedCopy,
+      link: (page) => page.getByRole('link', { exact: true, name: 'Today' }),
+      ready: todayReady,
+      shell: {
+        heading: 'What needs attention.',
+        status: 'Loading Today.',
+      },
+      sourcePath: contextPath,
+      targetPath: todayPath,
+    })
+    await assertInstantClientNavigation({
+      context: owner.context,
+      forbiddenCopy: protectedCopy,
       link: (page) => page.getByRole('link', { exact: true, name: 'Intent' }),
       ready: intentListReady,
       shell: {
         heading: 'The result before the work.',
         status: 'Loading Intents.',
       },
-      sourcePath: contextPath,
+      sourcePath: todayPath,
       targetPath: intentPath,
     })
     await assertInstantClientNavigation({
@@ -1262,6 +1295,10 @@ test('authenticated console stays stable across every Phase 0 app breakpoint', a
     await page.keyboard.press('Tab')
     await assertVisibleFocusIndicator(
       page.getByRole('button', { name: 'Open the selected brand' })
+    )
+    await page.keyboard.press('Tab')
+    await assertVisibleFocusIndicator(
+      page.getByRole('link', { exact: true, name: 'Today' })
     )
     await page.keyboard.press('Tab')
     await assertVisibleFocusIndicator(
@@ -1707,7 +1744,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     })
     expect(requestedTaskProof.cmoSessionId).not.toHaveLength(0)
     expect(requestedTaskProof.taskSessionId).not.toBeNull()
-    await expect(ownerPage.locator('.cmo-status')).toContainText('Pronto', {
+    await expect(ownerPage.locator('.cmo-status')).toContainText('Ready', {
       timeout: 30_000,
     })
     let writerCheckpoint: ConversationCheckpointProofRow | undefined
@@ -2368,7 +2405,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
         'The second root Intent and its Product Marketer work are canonical.'
       )
     ).toBeVisible({ timeout: 30_000 })
-    await expect(ownerPage.locator('.cmo-status')).toContainText('Pronto')
+    await expect(ownerPage.locator('.cmo-status')).toContainText('Ready')
 
     let secondIntent: IntentMutationProofRow | undefined
     await expect
@@ -2425,7 +2462,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     await expect(
       ownerPage.getByText(`Product Marketer asks: ${PRODUCT_MARKETER_QUESTION}`)
     ).toBeVisible({ timeout: 30_000 })
-    await expect(ownerPage.locator('.cmo-status')).toContainText('Pronto')
+    await expect(ownerPage.locator('.cmo-status')).toContainText('Ready')
 
     await ownerPage
       .getByLabel('Message to the CMO')
@@ -2436,7 +2473,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
         'The active Intent now records the unambiguous audience answer.'
       )
     ).toBeVisible({ timeout: 30_000 })
-    await expect(ownerPage.locator('.cmo-status')).toContainText('Pronto')
+    await expect(ownerPage.locator('.cmo-status')).toContainText('Ready')
 
     let refinedSecondIntent: IntentMutationProofRow | undefined
     await expect
@@ -2610,7 +2647,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
         'The question bundle is resolved and its Intent is refined.'
       )
     ).toBeVisible({ timeout: 30_000 })
-    await expect(ownerPage.locator('.cmo-status')).toContainText('Pronto')
+    await expect(ownerPage.locator('.cmo-status')).toContainText('Ready')
 
     let resolution: QuestionResolutionProofRow | undefined
     await expect
@@ -2941,9 +2978,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
     await expect(
       ownerPage.getByText(CMO_HOLD_PROMPT, { exact: true })
     ).toBeVisible()
-    await expect(ownerPage.locator('.cmo-status')).toContainText(
-      'CMO al lavoro'
-    )
+    await expect(ownerPage.locator('.cmo-status')).toContainText('CMO at work')
 
     let observedTurn: TurnProofRow | undefined
     await expect
@@ -3009,9 +3044,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
       [conversationId, boundarySequence]
     )
     expect(cancellationEventsAfterWrongTarget.rows[0]?.count).toBe(0)
-    await expect(ownerPage.locator('.cmo-status')).toContainText(
-      'CMO al lavoro'
-    )
+    await expect(ownerPage.locator('.cmo-status')).toContainText('CMO at work')
     await expect(
       ownerPage.getByRole('button', { name: 'Stop turn' })
     ).toBeVisible()
@@ -3049,7 +3082,7 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
         { timeout: 30_000 }
       )
       .toEqual({ cancelled: true, waiting: true })
-    await expect(ownerPage.locator('.cmo-status')).toContainText('Sola lettura')
+    await expect(ownerPage.locator('.cmo-status')).toContainText('Read only')
     await expect(
       ownerPage
         .getByText(CMO_HOLD_PROMPT, { exact: true })
@@ -3147,6 +3180,554 @@ test('the four Phase 0 mandatory journeys cross browser, boundaries, and Postgre
       [brandId, [conversationTitle, CMO_HOLD_PROMPT]]
     )
     expect(sharedTranscriptLeakResult.rows[0]?.count).toBe(0)
+  } finally {
+    try {
+      await Promise.all(contextsToClose.map(async (context) => context.close()))
+    } finally {
+      await cleanTestData(registry)
+    }
+  }
+})
+
+const insertIntent = async ({
+  authorActorId,
+  brandId,
+  statement,
+  status,
+}: {
+  readonly authorActorId: string
+  readonly brandId: string
+  readonly statement: string
+  readonly status: 'abandoned' | 'active' | 'draft' | 'settled'
+}): Promise<string> => {
+  const intentId = randomUUID()
+  await databasePool.query(
+    `INSERT INTO intents (
+       id, brand_id, author_actor_id, statement, status, revision
+     ) VALUES ($1, $2, $3, $4, $5, 1)`,
+    [intentId, brandId, authorActorId, statement, status]
+  )
+  return intentId
+}
+
+const insertProducedReport = async ({
+  actorId,
+  brandId,
+}: {
+  readonly actorId: string
+  readonly brandId: string
+}): Promise<string> => {
+  const actionId = randomUUID()
+  const reportObjectId = randomUUID()
+  await databasePool.query(
+    `INSERT INTO actions (
+       id, brand_id, actor_id, type, rationale, effect_class, payload,
+       policy_snapshot
+     ) VALUES (
+       $1, $2, $3, 'content_brief_seeded',
+       'Seed a Content report for the Notion commitment',
+       'graph-internal', jsonb_build_object('objectId', $4::text),
+       jsonb_build_object('source', 'e2e')
+     )`,
+    [actionId, brandId, actorId, reportObjectId]
+  )
+  await databasePool.query(
+    `INSERT INTO objects (
+       id, brand_id, type, status, content, content_text, produced_by
+     ) VALUES (
+       $1, $2, 'report', 'active',
+       jsonb_build_object('title', 'Content report'),
+       'Content report', $3
+     )`,
+    [reportObjectId, brandId, actionId]
+  )
+  return reportObjectId
+}
+
+const insertGenericTask = async ({
+  activation = 'automatic',
+  brandId,
+  executionMode = 'agent',
+  kind,
+  status,
+  workerKey,
+}: {
+  readonly activation?: 'automatic' | 'human'
+  readonly brandId: string
+  readonly executionMode?: 'agent' | 'direct'
+  readonly kind: string
+  readonly status: string
+  readonly workerKey: string
+}): Promise<string> => {
+  const taskId = randomUUID()
+  const payload = { fixture: kind }
+  await databasePool.query(
+    `INSERT INTO tasks (
+       id, brand_id, kind, subject_key, worker_key, execution_mode,
+       activation, status, payload, payload_hash
+     ) VALUES (
+       $1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10
+     )`,
+    [
+      taskId,
+      brandId,
+      kind,
+      `${kind}:${taskId}`,
+      workerKey,
+      executionMode,
+      activation,
+      status,
+      JSON.stringify(payload),
+      requestHash(payload),
+    ]
+  )
+  return taskId
+}
+
+const insertNotionCommitment = async ({
+  actorId,
+  brandId,
+  title,
+}: {
+  readonly actorId: string
+  readonly brandId: string
+  readonly title: string
+}): Promise<{ readonly reportObjectId: string; readonly taskId: string }> => {
+  const reportObjectId = await insertProducedReport({ actorId, brandId })
+  const taskId = randomUUID()
+  const payload = { reportObjectId, title }
+  await databasePool.query(
+    `INSERT INTO tasks (
+       id, brand_id, kind, subject_key, worker_key, execution_mode,
+       activation, status, payload, payload_hash, revision
+     ) VALUES (
+       $1, $2, 'content.notion-page.v1', $3, 'content', 'direct',
+       'human', 'awaiting_approval', $4::jsonb, $5, 1
+     )`,
+    [
+      taskId,
+      brandId,
+      `commitment:${taskId}`,
+      JSON.stringify(payload),
+      requestHash(payload),
+    ]
+  )
+  return { reportObjectId, taskId }
+}
+
+const latestDismissalFact = async ({
+  brandId,
+  payloadHash,
+}: {
+  readonly brandId: string
+  readonly payloadHash: string
+}): Promise<string | null> => {
+  const result = await databasePool.query<
+    QueryResultRow & { readonly type: string }
+  >(
+    `SELECT type
+       FROM actions
+      WHERE brand_id = $1
+        AND type IN ('commitment_dismissed', 'commitment_reopened')
+        AND payload->>'payloadHash' = $2
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1`,
+    [brandId, payloadHash]
+  )
+  return result.rows[0]?.type ?? null
+}
+
+test('Phase 1 console journeys prove proposals, approvals, work, and connections', async ({
+  browser,
+}) => {
+  test.setTimeout(180_000)
+  const suffix = randomUUID().slice(0, 8)
+  const registry = createTestDataRegistry()
+  const ownerEmail = `phase1-owner-${suffix}@e2e.branderize.test`
+  const memberEmail = `phase1-member-${suffix}@e2e.branderize.test`
+  const viewerEmail = `phase1-viewer-${suffix}@e2e.branderize.test`
+  const organizationSlug = `phase1-org-${suffix}`
+  const brandSlug = `phase1-brand-${suffix}`
+  const draftStatement = `Draft proposal ${suffix}`
+  const settledStatement = `Settled register ${suffix}`
+  const abandonedStatement = `Abandoned register ${suffix}`
+  const notionTitle = `Launch page ${suffix}`
+  registry.organizationSlugs.add(organizationSlug)
+  registry.userEmails.add(ownerEmail)
+  registry.userEmails.add(memberEmail)
+  registry.userEmails.add(viewerEmail)
+  const contextsToClose: BrowserContext[] = []
+
+  try {
+    const owner = await createAuthenticatedBrowser({
+      browser,
+      email: ownerEmail,
+      name: `Phase1 Owner ${suffix}`,
+    })
+    contextsToClose.push(owner.context)
+    registry.userIds.add(owner.userId)
+    const memberUser = await createAuthenticatedBrowser({
+      browser,
+      email: memberEmail,
+      name: `Phase1 Member ${suffix}`,
+    })
+    contextsToClose.push(memberUser.context)
+    registry.userIds.add(memberUser.userId)
+    const viewerUser = await createAuthenticatedBrowser({
+      browser,
+      email: viewerEmail,
+      name: `Phase1 Viewer ${suffix}`,
+    })
+    contextsToClose.push(viewerUser.context)
+    registry.userIds.add(viewerUser.userId)
+
+    const ownerPage = await owner.context.newPage()
+    await ownerPage.goto('/onboarding')
+    await ownerPage.getByLabel('Organization name').fill(`Phase1 Org ${suffix}`)
+    await ownerPage.getByLabel('Organization slug').fill(organizationSlug)
+    await ownerPage.getByLabel('Brand name').fill(`Phase1 Brand ${suffix}`)
+    await ownerPage.getByLabel('Brand slug').fill(brandSlug)
+    await ownerPage.getByLabel('Website').fill(`https://${brandSlug}.example`)
+    await ownerPage
+      .getByLabel('First goal')
+      .fill(`Phase1 active goal ${suffix}`)
+    await ownerPage
+      .getByRole('button', { name: 'Create brand and continue' })
+      .click()
+    await expect(ownerPage).toHaveURL(BRAND_CONTEXT_URL_PATTERN)
+    const brandId = readPathIdentifier({
+      position: 1,
+      url: ownerPage.url(),
+    })
+
+    const brandRow = await databasePool.query<
+      QueryResultRow & {
+        readonly actorId: string
+        readonly organizationId: string
+      }
+    >(
+      `SELECT
+         brands.organization_id AS "organizationId",
+         intents.author_actor_id AS "actorId"
+       FROM brands
+       INNER JOIN intents ON intents.brand_id = brands.id
+       WHERE brands.id = $1
+       ORDER BY intents.created_at ASC
+       LIMIT 1`,
+      [brandId]
+    )
+    const [brandFacts] = brandRow.rows
+    if (brandFacts === undefined) {
+      throw new Error('Phase 1 onboarding did not persist a brand actor')
+    }
+    registry.organizationIds.add(brandFacts.organizationId)
+
+    await databasePool.query(
+      `INSERT INTO member (id, organization_id, user_id, role)
+       VALUES ($1, $2, $3, 'member'), ($4, $2, $5, 'viewer')`,
+      [
+        randomUUID(),
+        brandFacts.organizationId,
+        memberUser.userId,
+        randomUUID(),
+        viewerUser.userId,
+      ]
+    )
+
+    const draftId = await insertIntent({
+      authorActorId: brandFacts.actorId,
+      brandId,
+      statement: draftStatement,
+      status: 'draft',
+    })
+    const settledId = await insertIntent({
+      authorActorId: brandFacts.actorId,
+      brandId,
+      statement: settledStatement,
+      status: 'settled',
+    })
+    const abandonedId = await insertIntent({
+      authorActorId: brandFacts.actorId,
+      brandId,
+      statement: abandonedStatement,
+      status: 'abandoned',
+    })
+
+    await ownerPage.goto(`/brands/${brandId}/intent`)
+    await expect(
+      ownerPage.getByRole('link', { name: draftStatement })
+    ).toHaveCount(0)
+    await expect(
+      ownerPage.getByRole('link', { name: settledStatement })
+    ).toBeVisible()
+    await expect(
+      ownerPage.getByRole('link', { name: abandonedStatement })
+    ).toBeVisible()
+
+    await ownerPage.goto(`/brands/${brandId}/intent/proposals`)
+    await expect(
+      ownerPage.getByRole('link', { name: draftStatement })
+    ).toBeVisible()
+    await expect(
+      ownerPage.getByRole('link', { name: settledStatement })
+    ).toHaveCount(0)
+
+    await ownerPage.goto(`/brands/${brandId}/intent/${draftId}`)
+    await expect(
+      ownerPage.getByRole('heading', {
+        name: PRIVATE_ROUTE_BOUNDARY_PATTERN,
+      })
+    ).toBeVisible()
+    await expect(ownerPage.getByText('Save revision')).toHaveCount(0)
+
+    const viewerPage = await viewerUser.context.newPage()
+    await viewerPage.goto(`/brands/${brandId}/intent/proposals/${draftId}`)
+    await expect(
+      viewerPage.getByRole('heading', { name: draftStatement })
+    ).toBeVisible()
+    await expect(viewerPage.getByRole('button', { name: 'Adopt' })).toHaveCount(
+      0
+    )
+    await expect(
+      viewerPage.getByRole('button', { name: 'Abandon' })
+    ).toHaveCount(0)
+
+    const memberPage = await memberUser.context.newPage()
+    const memberAdoptPage = await memberUser.context.newPage()
+    await memberPage.goto(`/brands/${brandId}/intent/proposals/${draftId}`)
+    await memberAdoptPage.goto(`/brands/${brandId}/intent/proposals/${draftId}`)
+    await Promise.all([
+      memberPage.getByRole('button', { name: 'Adopt' }).click(),
+      memberAdoptPage.getByRole('button', { name: 'Adopt' }).click(),
+    ])
+    const adopted = await databasePool.query<
+      QueryResultRow & {
+        readonly actionCount: number
+        readonly status: string
+      }
+    >(
+      `SELECT
+         intents.status,
+         (
+           SELECT count(*)::int
+           FROM actions
+           WHERE actions.intent_id = intents.id
+             AND actions.type = 'intent_adopted'
+         ) AS "actionCount"
+       FROM intents
+       WHERE intents.id = $1`,
+      [draftId]
+    )
+    expect(adopted.rows[0]).toMatchObject({
+      actionCount: 1,
+      status: 'active',
+    })
+
+    await ownerPage.goto(`/brands/${brandId}/intent`)
+    await expect(
+      ownerPage.getByRole('link', { name: draftStatement })
+    ).toBeVisible()
+    await ownerPage.goto(`/brands/${brandId}/intent/proposals`)
+    await expect(
+      ownerPage.getByRole('link', { name: draftStatement })
+    ).toHaveCount(0)
+
+    await memberPage.goto(`/brands/${brandId}/intent/${settledId}`)
+    await expect(memberPage.getByText('Save revision')).toHaveCount(0)
+    await memberPage.goto(`/brands/${brandId}/intent/${abandonedId}`)
+    await expect(
+      memberPage.getByRole('button', { name: 'Abandon' })
+    ).toHaveCount(0)
+
+    const contentTaskId = await insertGenericTask({
+      brandId,
+      kind: 'content.brief.v1',
+      status: 'succeeded',
+      workerKey: 'content',
+    })
+    const distributionTaskId = await insertGenericTask({
+      brandId,
+      kind: 'distribution.channel-plan.v1',
+      status: 'failed',
+      workerKey: 'distribution',
+    })
+    const seoTaskId = await insertGenericTask({
+      brandId,
+      kind: 'seo-discovery.opportunity.v1',
+      status: 'cancelled',
+      workerKey: 'seo-discovery',
+    })
+    const notion = await insertNotionCommitment({
+      actorId: brandFacts.actorId,
+      brandId,
+      title: notionTitle,
+    })
+    const dismissible = await insertNotionCommitment({
+      actorId: brandFacts.actorId,
+      brandId,
+      title: `Dismiss ${suffix}`,
+    })
+
+    await ownerPage.goto(`/brands/${brandId}/connections`)
+    await expect(
+      ownerPage.getByRole('heading', { name: 'Notion' })
+    ).toBeVisible()
+    await expect(
+      ownerPage.getByRole('heading', { name: 'Typefully' })
+    ).toBeVisible()
+    await expect(
+      ownerPage.getByText('no active Notion connection')
+    ).toBeVisible()
+    await expect(ownerPage.getByText(TOKEN_WORD_PATTERN)).toHaveCount(0)
+    await ownerPage
+      .locator('article')
+      .filter({ hasText: 'Notion' })
+      .getByLabel('Account label')
+      .fill('Acme Notion workspace')
+    await ownerPage
+      .locator('article')
+      .filter({ hasText: 'Notion' })
+      .getByLabel('Connector')
+      .fill('notion/branderize-e2e')
+    await ownerPage
+      .locator('article')
+      .filter({ hasText: 'Notion' })
+      .getByLabel('Scopes')
+      .fill('read\nwrite')
+    await ownerPage
+      .locator('article')
+      .filter({ hasText: 'Notion' })
+      .getByRole('button', { name: 'Connect Notion' })
+      .click()
+    await expect(ownerPage.getByText('Acme Notion workspace')).toBeVisible()
+    await expect(ownerPage.getByText('Scopes: read, write')).toBeVisible()
+    const connectionBody = await ownerPage.locator('main').innerText()
+    expect(connectionBody).not.toMatch(TOKEN_LIKE_PATTERN)
+
+    await ownerPage.goto(`/brands/${brandId}/approvals`)
+    await expect(ownerPage.getByText(notionTitle)).toBeVisible()
+    await expect(
+      ownerPage.getByRole('button', { name: 'Approve Notion page-create' })
+    ).toHaveCount(1)
+    await expect(
+      ownerPage.getByRole('button', { name: 'Approve all' })
+    ).toHaveCount(0)
+    await ownerPage
+      .locator('article')
+      .filter({ hasText: notionTitle })
+      .getByRole('button', { name: 'Approve Notion page-create' })
+      .click()
+    await expect(ownerPage.getByText('Commitment approved.')).toBeVisible()
+
+    const signedCron = async (): Promise<void> => {
+      const dispatchResult = await ownerPage.evaluate(async (secret) => {
+        const response = await fetch('/api/internal/cron/dispatch', {
+          headers: { authorization: `Bearer ${secret}` },
+        })
+        return {
+          body: await response.json(),
+          status: response.status,
+        }
+      }, cronSecret)
+      expect(dispatchResult).toEqual({
+        body: { accepted: 7, attempted: 7, status: 'ok' },
+        status: 200,
+      })
+    }
+    await expect
+      .poll(
+        async () => {
+          await signedCron()
+          const result = await databasePool.query<
+            QueryResultRow & {
+              readonly approvalType: string | null
+              readonly resultType: string | null
+              readonly status: string
+            }
+          >(
+            `SELECT
+               tasks.status,
+               approval.type AS "approvalType",
+               result_action.type AS "resultType"
+             FROM tasks
+             LEFT JOIN actions approval
+               ON approval.id = tasks.approval_action_id
+             LEFT JOIN actions result_action
+               ON result_action.id = tasks.result_action_id
+             WHERE tasks.id = $1`,
+            [notion.taskId]
+          )
+          return result.rows[0] ?? null
+        },
+        { timeout: 60_000 }
+      )
+      .toMatchObject({
+        approvalType: 'commitment_approved',
+        resultType: 'commitment_result',
+        status: 'succeeded',
+      })
+
+    await ownerPage.goto(`/brands/${brandId}/work/${notion.taskId}`)
+    await expect(ownerPage.getByText('Approval')).toBeVisible()
+    await expect(ownerPage.getByText('commitment approved')).toBeVisible()
+    await expect(ownerPage.getByText('Result')).toBeVisible()
+    await expect(ownerPage.getByText('commitment result')).toBeVisible()
+
+    await ownerPage.goto(`/brands/${brandId}/approvals`)
+    await ownerPage
+      .locator('article')
+      .filter({ hasText: `Dismiss ${suffix}` })
+      .getByRole('button', { name: 'Dismiss' })
+      .click()
+    await expect(ownerPage.getByText('Commitment dismissed.')).toBeVisible()
+    const dismissPayload = {
+      reportObjectId: dismissible.reportObjectId,
+      title: `Dismiss ${suffix}`,
+    }
+    const dismissHash = requestHash(dismissPayload)
+    expect(
+      await latestDismissalFact({
+        brandId,
+        payloadHash: dismissHash,
+      })
+    ).toBe('commitment_dismissed')
+
+    const dismissedStatus = await databasePool.query<
+      QueryResultRow & { readonly status: string }
+    >('SELECT status FROM tasks WHERE id = $1', [dismissible.taskId])
+    expect(dismissedStatus.rows[0]?.status).toBe('dismissed')
+
+    await ownerPage.goto(`/brands/${brandId}/work/${dismissible.taskId}`)
+    await expect(
+      ownerPage.getByRole('heading', { name: 'dismissed' })
+    ).toBeVisible()
+    await ownerPage.getByRole('button', { name: 'Reopen' }).click()
+    await expect(ownerPage.getByText('Commitment reopened.')).toBeVisible()
+    expect(
+      await latestDismissalFact({
+        brandId,
+        payloadHash: dismissHash,
+      })
+    ).toBe('commitment_reopened')
+
+    await ownerPage.goto(`/brands/${brandId}/work`)
+    await expect(ownerPage.getByText('Content · succeeded')).toBeVisible()
+    await expect(ownerPage.getByText('Distribution · failed')).toBeVisible()
+    await expect(ownerPage.getByText('SEO · cancelled')).toBeVisible()
+    await expect(ownerPage.getByText('Notion page · succeeded')).toBeVisible()
+    await expect(
+      ownerPage.getByRole('link').filter({ hasText: contentTaskId.slice(0, 8) })
+    ).toBeVisible()
+    await expect(
+      ownerPage
+        .getByRole('link')
+        .filter({ hasText: distributionTaskId.slice(0, 8) })
+    ).toBeVisible()
+    await expect(
+      ownerPage.getByRole('link').filter({ hasText: seoTaskId.slice(0, 8) })
+    ).toBeVisible()
+
+    await signedCron()
   } finally {
     try {
       await Promise.all(contextsToClose.map(async (context) => context.close()))

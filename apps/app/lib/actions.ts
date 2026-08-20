@@ -7,8 +7,14 @@ import {
   createCmoConversation,
 } from '@repo/brain/conversations'
 import { BrainError } from '@repo/brain/errors'
-import { refineIntent } from '@repo/brain/intents'
+import { abandonIntent, adoptIntent, refineIntent } from '@repo/brain/intents'
 import { createBrandOnboarding } from '@repo/brain/onboarding'
+import {
+  approveTask,
+  cancelTask,
+  dismissTask,
+  reopenTask,
+} from '@repo/brain/tasks'
 import { db } from '@repo/db'
 import type { HandledErrorCode } from '@repo/observability/contracts'
 import type { EveMessage } from 'eve/client'
@@ -116,6 +122,24 @@ const conversationSelectorSchema = z
     conversationId: z.uuid(),
   })
   .strict()
+const intentLifecycleSchema = z
+  .object({
+    brandId: z.uuid(),
+    expectedRevision: z.coerce.number().int().positive(),
+    intentId: z.uuid(),
+    rationale: z.string().max(3000).optional(),
+    requestId: nonBlankSchema.max(500),
+  })
+  .strict()
+const taskActionSchema = z
+  .object({
+    brandId: z.uuid(),
+    expectedRevision: z.coerce.number().int().positive().optional(),
+    rationale: z.string().max(3000).optional(),
+    requestId: nonBlankSchema.max(500),
+    taskId: z.uuid(),
+  })
+  .strict()
 
 const formValue = (
   formData: FormData,
@@ -140,6 +164,7 @@ const publicErrorMessage = (error: unknown): string => {
   if (error instanceof BrainError) {
     switch (error.code) {
       case 'stale_intent':
+      case 'stale_revision':
         return 'The Intent changed. Reload the page before trying again.'
       case 'operation_conflict':
       case 'stale_head':
@@ -202,6 +227,7 @@ const closedTelemetryFailure = (error: unknown): ClosedTelemetryFailure => {
       case 'operation_conflict':
       case 'stale_head':
       case 'stale_intent':
+      case 'stale_revision':
         return { code: 'CONFLICT', retryable: true }
       default:
         return { code: 'INTERNAL_FAILURE', retryable: false }
@@ -222,6 +248,7 @@ const scheduleActionFailure = ({
     | 'brand_onboarding'
     | 'cmo_turn'
     | 'intent_management'
+    | 'product_marketer_task'
 }): void => {
   const failure = closedTelemetryFailure(error)
   scheduleAppHandledError({
@@ -508,5 +535,291 @@ export const switchBrandAction = async (formData: FormData): Promise<void> => {
     brandId: formValue(formData, 'brandId'),
   })
   await requireBrandRequestContext(brandId)
-  redirect(`/brands/${brandId}/intent`)
+  redirect(`/brands/${brandId}/today`)
+}
+
+const revalidateIntentPaths = (brandId: string, intentId: string): void => {
+  revalidatePath(`/brands/${brandId}/today`)
+  revalidatePath(`/brands/${brandId}/intent`)
+  revalidatePath(`/brands/${brandId}/intent/proposals`)
+  revalidatePath(`/brands/${brandId}/intent/proposals/${intentId}`)
+  revalidatePath(`/brands/${brandId}/intent/${intentId}`)
+}
+
+const revalidateTaskPaths = (brandId: string, taskId: string): void => {
+  revalidatePath(`/brands/${brandId}/today`)
+  revalidatePath(`/brands/${brandId}/approvals`)
+  revalidatePath(`/brands/${brandId}/work`)
+  revalidatePath(`/brands/${brandId}/work/${taskId}`)
+}
+
+export const adoptIntentAction = async (
+  _state: FormState,
+  formData: FormData
+): Promise<FormState> => {
+  const correlationId = randomUUID()
+  const startedAt = Date.now()
+  try {
+    const parsed = intentLifecycleSchema.parse({
+      brandId: formValue(formData, 'brandId'),
+      expectedRevision: formValue(formData, 'expectedRevision'),
+      intentId: formValue(formData, 'intentId'),
+      requestId: formValue(formData, 'requestId'),
+    })
+    const { access } = await requireBrandRequestContext(parsed.brandId)
+    await adoptIntent({
+      access,
+      database: db,
+      input: {
+        expectedRevision: parsed.expectedRevision,
+        intentId: parsed.intentId,
+        requestId: parsed.requestId,
+      },
+    })
+    scheduleAppOperationalLog({
+      brandId: parsed.brandId,
+      correlationId,
+      durationMs: elapsedTelemetryMilliseconds(startedAt),
+      kind: 'operation_result',
+      operation: 'intent_management',
+      outcome: 'completed',
+    })
+    revalidateIntentPaths(parsed.brandId, parsed.intentId)
+    return { kind: 'success', message: 'Intent adopted.' }
+  } catch (error) {
+    scheduleActionFailure({
+      correlationId,
+      error,
+      operation: 'intent_management',
+    })
+    return { kind: 'error', message: publicErrorMessage(error) }
+  }
+}
+
+export const abandonIntentAction = async (
+  _state: FormState,
+  formData: FormData
+): Promise<FormState> => {
+  const correlationId = randomUUID()
+  const startedAt = Date.now()
+  try {
+    const parsed = intentLifecycleSchema.parse({
+      brandId: formValue(formData, 'brandId'),
+      expectedRevision: formValue(formData, 'expectedRevision'),
+      intentId: formValue(formData, 'intentId'),
+      rationale: formValue(formData, 'rationale') ?? undefined,
+      requestId: formValue(formData, 'requestId'),
+    })
+    const { access } = await requireBrandRequestContext(parsed.brandId)
+    await abandonIntent({
+      access,
+      database: db,
+      input: {
+        expectedRevision: parsed.expectedRevision,
+        intentId: parsed.intentId,
+        rationale:
+          parsed.rationale === undefined || parsed.rationale.trim().length === 0
+            ? undefined
+            : parsed.rationale,
+        requestId: parsed.requestId,
+      },
+    })
+    scheduleAppOperationalLog({
+      brandId: parsed.brandId,
+      correlationId,
+      durationMs: elapsedTelemetryMilliseconds(startedAt),
+      kind: 'operation_result',
+      operation: 'intent_management',
+      outcome: 'completed',
+    })
+    revalidateIntentPaths(parsed.brandId, parsed.intentId)
+    return { kind: 'success', message: 'Intent abandoned.' }
+  } catch (error) {
+    scheduleActionFailure({
+      correlationId,
+      error,
+      operation: 'intent_management',
+    })
+    return { kind: 'error', message: publicErrorMessage(error) }
+  }
+}
+
+export const approveTaskAction = async (
+  _state: FormState,
+  formData: FormData
+): Promise<FormState> => {
+  const correlationId = randomUUID()
+  const startedAt = Date.now()
+  try {
+    const parsed = taskActionSchema.parse({
+      brandId: formValue(formData, 'brandId'),
+      expectedRevision: formValue(formData, 'expectedRevision'),
+      requestId: formValue(formData, 'requestId'),
+      taskId: formValue(formData, 'taskId'),
+    })
+    if (parsed.expectedRevision === undefined) {
+      return { kind: 'error', message: 'Check the fields and try again.' }
+    }
+    const { access } = await requireBrandRequestContext(parsed.brandId)
+    const receipt = await approveTask({
+      access,
+      database: db,
+      input: {
+        expectedRevision: parsed.expectedRevision,
+        requestId: parsed.requestId,
+        taskId: parsed.taskId,
+      },
+    })
+    if (receipt.outcome !== 'approved') {
+      return { kind: 'error', message: 'The operation could not be completed.' }
+    }
+    scheduleAppOperationalLog({
+      brandId: parsed.brandId,
+      correlationId,
+      durationMs: elapsedTelemetryMilliseconds(startedAt),
+      kind: 'operation_result',
+      operation: 'product_marketer_task',
+      outcome: 'completed',
+    })
+    revalidateTaskPaths(parsed.brandId, parsed.taskId)
+    return { kind: 'success', message: 'Commitment approved.' }
+  } catch (error) {
+    scheduleActionFailure({
+      correlationId,
+      error,
+      operation: 'product_marketer_task',
+    })
+    return { kind: 'error', message: publicErrorMessage(error) }
+  }
+}
+
+export const dismissTaskAction = async (
+  _state: FormState,
+  formData: FormData
+): Promise<FormState> => {
+  const correlationId = randomUUID()
+  const startedAt = Date.now()
+  try {
+    const parsed = taskActionSchema.parse({
+      brandId: formValue(formData, 'brandId'),
+      rationale: formValue(formData, 'rationale') ?? undefined,
+      requestId: formValue(formData, 'requestId'),
+      taskId: formValue(formData, 'taskId'),
+    })
+    const { access } = await requireBrandRequestContext(parsed.brandId)
+    await dismissTask({
+      access,
+      database: db,
+      input: {
+        rationale:
+          parsed.rationale === undefined || parsed.rationale.trim().length === 0
+            ? undefined
+            : parsed.rationale,
+        requestId: parsed.requestId,
+        taskId: parsed.taskId,
+      },
+    })
+    scheduleAppOperationalLog({
+      brandId: parsed.brandId,
+      correlationId,
+      durationMs: elapsedTelemetryMilliseconds(startedAt),
+      kind: 'operation_result',
+      operation: 'product_marketer_task',
+      outcome: 'completed',
+    })
+    revalidateTaskPaths(parsed.brandId, parsed.taskId)
+    return { kind: 'success', message: 'Commitment dismissed.' }
+  } catch (error) {
+    scheduleActionFailure({
+      correlationId,
+      error,
+      operation: 'product_marketer_task',
+    })
+    return { kind: 'error', message: publicErrorMessage(error) }
+  }
+}
+
+export const reopenTaskAction = async (
+  _state: FormState,
+  formData: FormData
+): Promise<FormState> => {
+  const correlationId = randomUUID()
+  const startedAt = Date.now()
+  try {
+    const parsed = taskActionSchema.parse({
+      brandId: formValue(formData, 'brandId'),
+      requestId: formValue(formData, 'requestId'),
+      taskId: formValue(formData, 'taskId'),
+    })
+    const { access } = await requireBrandRequestContext(parsed.brandId)
+    await reopenTask({
+      access,
+      database: db,
+      input: {
+        requestId: parsed.requestId,
+        taskId: parsed.taskId,
+      },
+    })
+    scheduleAppOperationalLog({
+      brandId: parsed.brandId,
+      correlationId,
+      durationMs: elapsedTelemetryMilliseconds(startedAt),
+      kind: 'operation_result',
+      operation: 'product_marketer_task',
+      outcome: 'completed',
+    })
+    revalidateTaskPaths(parsed.brandId, parsed.taskId)
+    return { kind: 'success', message: 'Commitment reopened.' }
+  } catch (error) {
+    scheduleActionFailure({
+      correlationId,
+      error,
+      operation: 'product_marketer_task',
+    })
+    return { kind: 'error', message: publicErrorMessage(error) }
+  }
+}
+
+export const cancelTaskAction = async (
+  _state: FormState,
+  formData: FormData
+): Promise<FormState> => {
+  const correlationId = randomUUID()
+  const startedAt = Date.now()
+  try {
+    const parsed = taskActionSchema.parse({
+      brandId: formValue(formData, 'brandId'),
+      requestId: formValue(formData, 'requestId'),
+      taskId: formValue(formData, 'taskId'),
+    })
+    const { access } = await requireBrandRequestContext(parsed.brandId)
+    const receipt = await cancelTask({
+      access,
+      database: db,
+      input: {
+        requestId: parsed.requestId,
+        taskId: parsed.taskId,
+      },
+    })
+    if (receipt.outcome !== 'cancelled') {
+      return { kind: 'error', message: 'The operation could not be completed.' }
+    }
+    scheduleAppOperationalLog({
+      brandId: parsed.brandId,
+      correlationId,
+      durationMs: elapsedTelemetryMilliseconds(startedAt),
+      kind: 'operation_result',
+      operation: 'product_marketer_task',
+      outcome: 'completed',
+    })
+    revalidateTaskPaths(parsed.brandId, parsed.taskId)
+    return { kind: 'success', message: 'Commitment cancelled.' }
+  } catch (error) {
+    scheduleActionFailure({
+      correlationId,
+      error,
+      operation: 'product_marketer_task',
+    })
+    return { kind: 'error', message: publicErrorMessage(error) }
+  }
 }

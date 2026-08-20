@@ -4,11 +4,13 @@ import { db } from '@repo/db'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
-import { AbandonIntentForm } from '@/components/intent-lifecycle-form'
+import {
+  AbandonIntentForm,
+  AdoptIntentForm,
+} from '@/components/intent-lifecycle-form'
 import { NavigationPending } from '@/components/navigation-pending'
-import { RefineIntentForm } from '@/components/refine-intent-form'
 import { requireBrandPageContext } from '@/lib/dal'
-import { formatDateTime, lines, stringList } from '@/lib/presentation'
+import { canMutateRole, formatDateTime, stringList } from '@/lib/presentation'
 
 const ValueList = ({
   empty,
@@ -31,14 +33,16 @@ const ValueList = ({
 
 export const instant = true
 
-interface IntentDetailPageProps {
+interface IntentProposalDetailPageProps {
   readonly params: Promise<{
     readonly brandId: string
     readonly intentId: string
   }>
 }
 
-const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
+const IntentProposalDetailContent = async ({
+  params,
+}: IntentProposalDetailPageProps) => {
   const { brandId, intentId } = await params
   const { access } = await requireBrandPageContext(brandId)
   const intent = await getBrandIntent({
@@ -46,19 +50,15 @@ const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
     database: db,
     input: { intentId },
   })
-  if (intent === null || intent.status === 'draft') {
+  if (intent === null || intent.status !== 'draft') {
     notFound()
   }
-
-  const canRefine = access.role !== 'viewer' && intent.status === 'active'
-  const canAbandon =
-    access.role !== 'viewer' &&
-    (intent.status === 'active' || intent.status === 'draft')
+  const canMutate = canMutateRole(access.role)
 
   return (
     <div className="page-stack">
-      <Link className="back-link" href={`/brands/${brandId}/intent`}>
-        ← All Intents
+      <Link className="back-link" href={`/brands/${brandId}/intent/proposals`}>
+        ← All proposals
       </Link>
       <header className="detail-hero">
         <div>
@@ -75,10 +75,6 @@ const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
           <div>
             <dt>Updated</dt>
             <dd>{formatDateTime(intent.updatedAt)}</dd>
-          </div>
-          <div>
-            <dt>Origin</dt>
-            <dd>{intent.parentIntentId === null ? 'Root' : 'Derived'}</dd>
           </div>
         </dl>
       </header>
@@ -99,18 +95,19 @@ const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
           />
         </section>
 
-        {canRefine ? (
+        {canMutate ? (
           <aside className="refine-panel">
-            <p className="eyebrow">New revision</p>
-            <h2>Refine without losing the history.</h2>
-            <p>
-              Each line becomes its own condition. This save does not change the
-              main statement.
-            </p>
-            <RefineIntentForm
-              acceptanceCriteria={lines(intent.acceptanceCriteria)}
+            <p className="eyebrow">Proposal</p>
+            <h2>Adopt or abandon this draft.</h2>
+            <p>Adoption puts it on the register. Abandon keeps the history.</p>
+            <AdoptIntentForm
               brandId={brandId}
-              constraints={lines(intent.constraints)}
+              intentId={intent.id}
+              requestId={randomUUID()}
+              revision={intent.revision}
+            />
+            <AbandonIntentForm
+              brandId={brandId}
               intentId={intent.id}
               requestId={randomUUID()}
               revision={intent.revision}
@@ -119,48 +116,30 @@ const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
         ) : (
           <aside className="read-only-note">
             <p className="eyebrow">Read only</p>
-            <h2>
-              {access.role === 'viewer'
-                ? 'You can follow this Intent without changing it.'
-                : 'Only an active Intent can be refined.'}
-            </h2>
-            <p>
-              {canAbandon
-                ? 'An editor can still abandon this Intent.'
-                : 'An editor or admin can publish a new revision.'}
-            </p>
+            <h2>You can read this proposal without changing it.</h2>
+            <p>An owner, admin, or member can adopt or abandon it.</p>
           </aside>
         )}
       </div>
-      {canAbandon ? (
-        <aside className="read-only-note">
-          <p className="eyebrow">Leave this goal</p>
-          <h2>Abandon without deleting the history.</h2>
-          <AbandonIntentForm
-            brandId={brandId}
-            intentId={intent.id}
-            requestId={randomUUID()}
-            revision={intent.revision}
-          />
-        </aside>
-      ) : null}
     </div>
   )
 }
 
-export default function IntentDetailPage(props: IntentDetailPageProps) {
+export default function IntentProposalDetailPage(
+  props: IntentProposalDetailPageProps
+) {
   return (
     <Suspense
       fallback={
         <NavigationPending
-          eyebrow="Intent"
-          status="Loading the Intent."
-          title="Opening the Intent."
+          eyebrow="Proposed Intent"
+          status="Loading the proposal."
+          title="Opening the proposal."
           variant="detail"
         />
       }
     >
-      <IntentDetailContent {...props} />
+      <IntentProposalDetailContent {...props} />
     </Suspense>
   )
 }

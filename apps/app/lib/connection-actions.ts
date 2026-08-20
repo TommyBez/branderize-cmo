@@ -105,6 +105,8 @@ export const connectBrandConnectionAction = async (
       },
     })
     revalidatePath(`/brands/${parsed.brandId}`)
+    revalidatePath(`/brands/${parsed.brandId}/today`)
+    revalidatePath(`/brands/${parsed.brandId}/connections`)
     return { kind: 'success', message: 'Connection recorded.' }
   } catch (error) {
     return { kind: 'error', message: publicErrorMessage(error) }
@@ -131,6 +133,8 @@ export const disconnectBrandConnectionAction = async (
       },
     })
     revalidatePath(`/brands/${parsed.brandId}`)
+    revalidatePath(`/brands/${parsed.brandId}/today`)
+    revalidatePath(`/brands/${parsed.brandId}/connections`)
     return { kind: 'success', message: 'Connection disconnected.' }
   } catch (error) {
     return { kind: 'error', message: publicErrorMessage(error) }
