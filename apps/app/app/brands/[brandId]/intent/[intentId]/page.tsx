@@ -51,9 +51,7 @@ const IntentDetailContent = async ({ params }: IntentDetailPageProps) => {
   }
 
   const canRefine = access.role !== 'viewer' && intent.status === 'active'
-  const canAbandon =
-    access.role !== 'viewer' &&
-    (intent.status === 'active' || intent.status === 'draft')
+  const canAbandon = access.role !== 'viewer' && intent.status === 'active'
 
   return (
     <div className="page-stack">
