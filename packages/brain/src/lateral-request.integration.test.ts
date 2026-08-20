@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 import { getTaskKind } from '@repo/agents'
@@ -476,6 +476,10 @@ describe('requestLateralWork on PostgreSQL', () => {
 
       const artifactActionId = randomUUID()
       const artifactObjectId = randomUUID()
+      const artifactContentText = '{"kind":"artifact"}'
+      const artifactSha256 = createHash('sha256')
+        .update(artifactContentText)
+        .digest('hex')
       await currentDatabase.transaction(async (transaction) => {
         await transaction.insert(actions).values({
           actorId: CONTENT_ACTOR_ID,
@@ -490,9 +494,13 @@ describe('requestLateralWork on PostgreSQL', () => {
           type: 'artifact_recorded',
         })
         await transaction.insert(objects).values({
+          blobByteSize: Buffer.byteLength(artifactContentText),
+          blobContentType: 'image/png',
+          blobKey: `brands/${fixture.brandId}/artifacts/sha256/${artifactSha256}.png`,
+          blobSha256: artifactSha256,
           brandId: fixture.brandId,
           content: { kind: 'artifact' },
-          contentText: '{"kind":"artifact"}',
+          contentText: artifactContentText,
           id: artifactObjectId,
           producedBy: artifactActionId,
           status: 'active',
