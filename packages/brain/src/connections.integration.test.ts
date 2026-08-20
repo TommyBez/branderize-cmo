@@ -35,6 +35,7 @@ const schemaName = `brain_connections_${randomUUID().replaceAll('-', '_')}`
 const migrationFiles = [
   '0000_phase0_foundation.sql',
   '0001_brand_connections.sql',
+  '0002_human_commitment_lane.sql',
 ] as const
 
 let adminPool: ReturnType<typeof createDatabasePool> | undefined

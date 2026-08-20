@@ -13,7 +13,7 @@ import {
 
 const STABLE_CONTEXT_REQUEST_PATTERN = /^eve:save-brand-context:[0-9a-f]{64}$/u
 
-const claim: ClaimedTask = {
+const claim: ClaimedTask<'product-marketer.brand-context.v1'> = {
   agentActorId: '00000000-0000-0000-0000-000000000102',
   agentActorKey: 'agent:product-marketer',
   brandId: '00000000-0000-0000-0000-000000000201',

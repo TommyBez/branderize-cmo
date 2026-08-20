@@ -5,9 +5,11 @@ import type { TaskIntentSnapshot } from './task-snapshot'
 import {
   buildContentBriefTaskPrompt,
   buildDistributionChannelPlanTaskPrompt,
+  buildNotionPageTaskPrompt,
   buildProductMarketerTaskPrompt,
   buildSeoDiscoveryOpportunityTaskPrompt,
   CONTENT_BRIEF_TASK_KIND,
+  CONTENT_NOTION_PAGE_TASK_KIND,
   CONTENT_WORKER_KEY,
   type ContentBriefClaimContext,
   type ContentBriefCompletion,
@@ -31,6 +33,15 @@ import {
   hasOpenDistributionChannelPlanQuestions,
   hasOpenProductMarketerQuestions,
   hasOpenSeoDiscoveryOpportunityQuestions,
+  type NotionPageClaimContext,
+  type NotionPageCompletion,
+  type NotionPagePayload,
+  type NotionPageResult,
+  notionPageClaimContextSchema,
+  notionPageCompletionSchema,
+  notionPagePayloadSchema,
+  notionPageReceiptSchema,
+  notionPageResultSchema,
   PRODUCT_MARKETER_TASK_KIND,
   PRODUCT_MARKETER_WORKER_KEY,
   type ProductMarketerClaimContext,
@@ -43,6 +54,7 @@ import {
   productMarketerResultSchema,
   requiredContentBriefOutputIds,
   requiredDistributionChannelPlanOutputIds,
+  requiredNotionPageOutputIds,
   requiredProductMarketerOutputIds,
   requiredSeoDiscoveryOpportunityOutputIds,
   SEO_DISCOVERY_OPPORTUNITY_TASK_KIND,
@@ -102,6 +114,22 @@ export interface RegisteredTaskQuestionPolicy {
   ) => RegisteredOpenQuestionProjection | null
 }
 
+export type RegisteredCommitmentConcurrency = 'independent' | 'serialized'
+export type RegisteredCommitmentEffectClass =
+  | 'communication'
+  | 'irreversible-external'
+  | 'reversible-external'
+export type RegisteredCommitmentProviderSlot = 'notion' | 'typefully'
+
+export interface RegisteredCommitment {
+  readonly billing: 'non_billable'
+  readonly concurrency: RegisteredCommitmentConcurrency
+  readonly conflictKey?: (payload: unknown) => string
+  readonly effectClass: RegisteredCommitmentEffectClass
+  readonly providerSlot: RegisteredCommitmentProviderSlot
+  readonly receiptSchema: z.ZodType
+}
+
 export interface RegisteredTaskKind<
   TKind extends string = string,
   TBrief = unknown,
@@ -110,7 +138,7 @@ export interface RegisteredTaskKind<
   TClaimContext = unknown,
 > {
   readonly acceptsPlanRouteOrigin: false
-  readonly activation: 'automatic'
+  readonly activation: 'automatic' | 'human'
   readonly briefSchema: z.ZodType<TBrief>
   readonly budgetClass: 'standard'
   readonly buildTaskPrompt: (input: {
@@ -120,17 +148,18 @@ export interface RegisteredTaskKind<
     readonly payload: unknown
   }) => string
   readonly claimContextSchema: z.ZodType<TClaimContext>
+  readonly commitment?: RegisteredCommitment
   readonly completionResultSchema: z.ZodType<TResult>
   readonly completionSchema: z.ZodType<TCompletion>
-  readonly effectPhase: 'graph-internal'
-  readonly executionMode: 'agent'
+  readonly effectPhase: 'graph-internal' | 'external-commitment'
+  readonly executionMode: 'agent' | 'direct'
   readonly intentAcceptance: 'ineligible'
   readonly kind: TKind
   readonly outputContract: readonly string[]
   readonly questionPolicy: RegisteredTaskQuestionPolicy | null
   readonly requiredOutputObjectIds: (result: unknown) => readonly string[]
   readonly requires: readonly []
-  readonly schedulableBy: readonly ['agent']
+  readonly schedulableBy: readonly ['agent'] | readonly []
   readonly subjectKey: (payload: unknown) => string
   readonly workerKey: AgentKey
 }
@@ -167,6 +196,7 @@ const graphInternalKindDefaults = {
   acceptsPlanRouteOrigin: false,
   activation: 'automatic',
   budgetClass: 'standard',
+  commitment: undefined,
   effectPhase: 'graph-internal',
   executionMode: 'agent',
   intentAcceptance: 'ineligible',
@@ -181,6 +211,7 @@ const productMarketerTaskKind = {
   budgetClass: 'standard',
   buildTaskPrompt: buildProductMarketerTaskPrompt,
   claimContextSchema: productMarketerClaimContextSchema,
+  commitment: undefined,
   completionResultSchema: productMarketerResultSchema,
   completionSchema: productMarketerCompletionSchema,
   effectPhase: 'graph-internal',
@@ -356,6 +387,45 @@ const seoDiscoveryOpportunityTaskKind = {
   SeoDiscoveryOpportunityClaimContext
 >
 
+const contentNotionPageTaskKind = {
+  acceptsPlanRouteOrigin: false,
+  activation: 'human',
+  briefSchema: notionPagePayloadSchema,
+  budgetClass: 'standard',
+  buildTaskPrompt: buildNotionPageTaskPrompt,
+  claimContextSchema: notionPageClaimContextSchema,
+  commitment: {
+    billing: 'non_billable',
+    concurrency: 'independent',
+    effectClass: 'reversible-external',
+    providerSlot: 'notion',
+    receiptSchema: notionPageReceiptSchema,
+  },
+  completionResultSchema: notionPageResultSchema,
+  completionSchema: notionPageCompletionSchema,
+  effectPhase: 'external-commitment',
+  executionMode: 'direct',
+  intentAcceptance: 'ineligible',
+  kind: CONTENT_NOTION_PAGE_TASK_KIND,
+  outputContract: [],
+  questionPolicy: null,
+  requiredOutputObjectIds: (result: unknown) =>
+    requiredNotionPageOutputIds(notionPageResultSchema.parse(result)),
+  requires: [],
+  schedulableBy: [],
+  subjectKey: (payload: unknown) => {
+    notionPagePayloadSchema.parse(payload)
+    return 'commitment'
+  },
+  workerKey: CONTENT_WORKER_KEY,
+} as const satisfies RegisteredTaskKind<
+  typeof CONTENT_NOTION_PAGE_TASK_KIND,
+  NotionPagePayload,
+  NotionPageResult,
+  NotionPageCompletion,
+  NotionPageClaimContext
+>
+
 export const agentRegistry = {
   cmo: {
     actorKey: 'agent:cmo',
@@ -382,7 +452,7 @@ export const agentRegistry = {
     key: 'content',
     reportingFeature: 'content',
     status: 'functional',
-    taskKinds: [CONTENT_BRIEF_TASK_KIND],
+    taskKinds: [CONTENT_BRIEF_TASK_KIND, CONTENT_NOTION_PAGE_TASK_KIND],
   },
   distribution: {
     actorKey: 'agent:distribution',
@@ -444,6 +514,7 @@ export const agentRegistry = {
 export const taskKindRegistry = {
   [productMarketerTaskKind.kind]: productMarketerTaskKind,
   [contentBriefTaskKind.kind]: contentBriefTaskKind,
+  [contentNotionPageTaskKind.kind]: contentNotionPageTaskKind,
   [distributionChannelPlanTaskKind.kind]: distributionChannelPlanTaskKind,
   [seoDiscoveryOpportunityTaskKind.kind]: seoDiscoveryOpportunityTaskKind,
 } as const
@@ -510,6 +581,7 @@ export type RegisteredTaskCompletionValue = {
 
 export const REGISTERED_TASK_KIND_KEYS = [
   CONTENT_BRIEF_TASK_KIND,
+  CONTENT_NOTION_PAGE_TASK_KIND,
   DISTRIBUTION_CHANNEL_PLAN_TASK_KIND,
   PRODUCT_MARKETER_TASK_KIND,
   SEO_DISCOVERY_OPPORTUNITY_TASK_KIND,

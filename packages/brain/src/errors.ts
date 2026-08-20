@@ -16,6 +16,7 @@ export type BrainErrorCode =
   | 'operation_conflict'
   | 'stale_head'
   | 'stale_intent'
+  | 'stale_revision'
   | 'task_not_found'
   | 'task_not_running'
   | 'unsupported_task_kind'

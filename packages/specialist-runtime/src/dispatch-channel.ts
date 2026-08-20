@@ -11,7 +11,14 @@ import {
   type RouteHandlerArgs,
 } from 'eve/channels'
 
+import { createBrainHumanLifecycle } from './brain-human-lifecycle'
 import { createBrainTaskLifecycle } from './brain-lifecycle'
+import {
+  agentClaimableKindsOf,
+  type DirectHumanHandler,
+  drainDirectHumanCommitments,
+  humanCommitmentKindsOf,
+} from './direct-drain'
 import { drainSpecialistTasks } from './drain'
 
 type SpecialistDispatchRoute = Pick<RouteHandlerArgs, 'from' | 'waitUntil'>
@@ -37,13 +44,36 @@ export const createSpecialistDispatchHandler = ({
   })
 
 export const defineSpecialistDispatchChannel = (
-  contract: SpecialistRootContract
+  contract: SpecialistRootContract,
+  human?: {
+    readonly handler: DirectHumanHandler
+  }
 ) => {
   const handle = createSpecialistDispatchHandler({
     drain: async (from) => {
+      const humanKinds = humanCommitmentKindsOf(
+        contract.dispatch.claimableTaskKinds
+      )
+      const [firstHumanKind, ...restHumanKinds] = humanKinds
+      if (human !== undefined && firstHumanKind !== undefined) {
+        await drainDirectHumanCommitments({
+          handler: human.handler,
+          kinds: [firstHumanKind, ...restHumanKinds],
+          lifecycle: createBrainHumanLifecycle(),
+          now: () => new Date(),
+          workerKey: contract.agentKey,
+        })
+      }
+      const agentKinds = agentClaimableKindsOf(
+        contract.dispatch.claimableTaskKinds
+      )
+      const [firstAgentKind, ...restAgentKinds] = agentKinds
+      if (firstAgentKind === undefined) {
+        return
+      }
       await drainSpecialistTasks({
         from,
-        kinds: contract.dispatch.claimableTaskKinds,
+        kinds: [firstAgentKind, ...restAgentKinds],
         lifecycle: createBrainTaskLifecycle(),
         now: () => new Date(),
         workerKey: contract.agentKey,

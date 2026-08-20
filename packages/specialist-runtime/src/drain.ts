@@ -70,7 +70,7 @@ export const drainSpecialistTasks = async ({
     try {
       const session = await from(taskAddressOf(claim)).send(
         taskKind.buildTaskPrompt({
-          claimContext: claim.claimContext,
+          claimContext: claim.claimContext as never,
           intentSnapshot: claim.intentSnapshot,
           kind: claim.kind,
           payload: claim.payload,
