@@ -1,6 +1,4 @@
 import { notionPagePayloadSchema } from '@repo/agents/tasks'
-import { createActiveBrandConnectionReader } from '@repo/brain/connections'
-import { db } from '@repo/db'
 import { defineSpecialistDispatchChannel } from '@repo/specialist-runtime'
 
 import {
@@ -39,6 +37,10 @@ export default defineSpecialistDispatchChannel(ROOT_RUNTIME_CONTRACT, {
       }
     }
     const payload = notionPagePayloadSchema.parse(claim.payload)
+    const [{ createActiveBrandConnectionReader }, { db }] = await Promise.all([
+      import('@repo/brain/connections'),
+      import('@repo/db'),
+    ])
     return await executeNotionPageCreate({
       brandId: claim.brandId,
       createPage: isScriptedProvider
