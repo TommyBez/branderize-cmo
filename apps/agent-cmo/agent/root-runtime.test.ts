@@ -22,8 +22,10 @@ import productMarketerSubagent, {
 import { declareIntentToolInputSchema } from './tools/declare_intent'
 import { refineIntentToolInputSchema } from './tools/refine_intent'
 import {
-  attachImmediateProductMarketerDispatch,
+  attachImmediateSpecialistDispatch,
   requestSpecialistWorkToolInputSchema,
+  resolveCmoSpecialistDispatchConfiguration,
+  resolveCmoSpecialistRequest,
 } from './tools/request_specialist_work'
 import { resolveProductMarketerQuestionsToolInputSchema } from './tools/resolve_product_marketer_questions'
 
@@ -386,12 +388,18 @@ describe('CMO root runtime', () => {
         intentId: '00000000-0000-0000-0000-000000000203',
       }).success
     ).toBe(false)
+    expect(
+      requestSpecialistWorkToolInputSchema.safeParse({
+        purpose: 'enrich_brand_context',
+      }).success
+    ).toBe(true)
     expect(requestSpecialistWorkToolInputSchema.safeParse({}).success).toBe(
-      true
+      false
     )
     expect(
       requestSpecialistWorkToolInputSchema.safeParse({
         brandId: '00000000-0000-0000-0000-000000000201',
+        purpose: 'enrich_brand_context',
       }).success
     ).toBe(false)
     expect(
@@ -401,6 +409,97 @@ describe('CMO root runtime', () => {
         taskId: '00000000-0000-0000-0000-000000000204',
       }).success
     ).toBe(false)
+  })
+
+  it.each([
+    'enrich_brand_context',
+    'draft_content_brief',
+    'draft_channel_plan',
+    'draft_seo_opportunity',
+  ] as const)('accepts the closed specialist purpose %s', (purpose) => {
+    expect(requestSpecialistWorkToolInputSchema.parse({ purpose })).toEqual({
+      purpose,
+    })
+  })
+
+  it.each([
+    { extra: true, purpose: 'enrich_brand_context' },
+    { kind: 'content.brief.v1', purpose: 'draft_content_brief' },
+    { purpose: 'draft_channel_plan', workerKey: 'distribution' },
+    {
+      endpoint: 'https://attacker.example',
+      purpose: 'draft_seo_opportunity',
+    },
+    {
+      intentId: '00000000-0000-0000-0000-000000000203',
+      purpose: 'enrich_brand_context',
+    },
+    {
+      brandId: '00000000-0000-0000-0000-000000000201',
+      purpose: 'enrich_brand_context',
+    },
+    { kind: 'content.brief.v1' },
+    { workerKey: 'content' },
+    { endpoint: 'https://attacker.example' },
+  ])('rejects a model-facing specialist selector %#', (input) => {
+    expect(requestSpecialistWorkToolInputSchema.safeParse(input).success).toBe(
+      false
+    )
+  })
+
+  it.each([
+    {
+      kind: 'product-marketer.brand-context.v1',
+      operation: 'request-product-marketer',
+      purpose: 'enrich_brand_context',
+      workerKey: 'product-marketer',
+    },
+    {
+      kind: 'content.brief.v1',
+      operation: 'request-content',
+      purpose: 'draft_content_brief',
+      workerKey: 'content',
+    },
+    {
+      kind: 'distribution.channel-plan.v1',
+      operation: 'request-distribution',
+      purpose: 'draft_channel_plan',
+      workerKey: 'distribution',
+    },
+    {
+      kind: 'seo-discovery.opportunity.v1',
+      operation: 'request-seo-discovery',
+      purpose: 'draft_seo_opportunity',
+      workerKey: 'seo-discovery',
+    },
+  ] as const)(
+    'maps $purpose onto $kind without a model-facing selector',
+    ({ kind, operation, purpose, workerKey }) => {
+      expect(resolveCmoSpecialistRequest(purpose)).toEqual({
+        kind,
+        operation,
+        payload: { purpose },
+        workerKey,
+      })
+    }
+  )
+
+  it('varies stable specialist request identity by purpose', () => {
+    const context = trustedSessionContext()
+    const identities = (
+      ['enrich_brand_context', 'draft_content_brief'] as const
+    ).map((purpose) => {
+      const specialistRequest = resolveCmoSpecialistRequest(purpose)
+      return stableCmoRequestId({
+        context,
+        operation: specialistRequest.operation,
+        semantics: {
+          kind: specialistRequest.kind,
+          payload: specialistRequest.payload,
+        },
+      })
+    })
+    expect(identities[0]).not.toBe(identities[1])
   })
 
   it.each([
@@ -434,26 +533,50 @@ describe('CMO root runtime', () => {
     ).toBe(false)
   })
 
-  it('pokes Product Marketer after a created receipt', async () => {
-    const poke = vi.fn(async () => ({ outcome: 'accepted' as const }))
-    const readConfiguration = vi.fn(() => ({
+  it.each([
+    {
       endpoint: 'https://product-marketer.example.test',
-      secret: DISPATCH_SECRET,
-    }))
+      workerKey: 'product-marketer',
+    },
+    {
+      endpoint: 'https://content.example.test',
+      workerKey: 'content',
+    },
+    {
+      endpoint: 'https://distribution.example.test',
+      workerKey: 'distribution',
+    },
+    {
+      endpoint: 'https://seo-discovery.example.test',
+      workerKey: 'seo-discovery',
+    },
+  ] as const)(
+    'pokes $endpoint after a created $workerKey receipt',
+    async ({ endpoint, workerKey }) => {
+      const poke = vi.fn(async () => ({ outcome: 'accepted' as const }))
+      const readConfiguration = vi.fn(() => ({
+        endpoint,
+        secret: DISPATCH_SECRET,
+      }))
 
-    await expect(
-      attachImmediateProductMarketerDispatch({
-        poke,
-        readConfiguration,
-        receipt: CREATED_SPECIALIST_WORK_RECEIPT,
+      await expect(
+        attachImmediateSpecialistDispatch({
+          poke,
+          readConfiguration,
+          receipt: CREATED_SPECIALIST_WORK_RECEIPT,
+          workerKey,
+        })
+      ).resolves.toEqual({
+        ...CREATED_SPECIALIST_WORK_RECEIPT,
+        immediateDispatch: { outcome: 'accepted' },
       })
-    ).resolves.toEqual({
-      ...CREATED_SPECIALIST_WORK_RECEIPT,
-      immediateDispatch: { outcome: 'accepted' },
-    })
-    expect(readConfiguration).toHaveBeenCalledOnce()
-    expect(poke).toHaveBeenCalledOnce()
-  })
+      expect(readConfiguration).toHaveBeenCalledExactlyOnceWith(workerKey)
+      expect(poke).toHaveBeenCalledExactlyOnceWith({
+        endpoint,
+        secret: DISPATCH_SECRET,
+      })
+    }
+  )
 
   it('retries the payload-free poke for an exact created-receipt replay', async () => {
     const poke = vi.fn(async () => ({ outcome: 'accepted' as const }))
@@ -464,40 +587,50 @@ describe('CMO root runtime', () => {
         secret: DISPATCH_SECRET,
       }),
       receipt: CREATED_SPECIALIST_WORK_RECEIPT,
+      workerKey: 'product-marketer',
     } as const
 
-    const first = await attachImmediateProductMarketerDispatch(input)
-    const replay = await attachImmediateProductMarketerDispatch(input)
+    const first = await attachImmediateSpecialistDispatch(input)
+    const replay = await attachImmediateSpecialistDispatch(input)
 
     expect(replay).toEqual(first)
     expect(poke).toHaveBeenCalledTimes(2)
   })
 
-  it('does not poke for an unrelated already-active task', async () => {
-    const poke = vi.fn(async () => ({ outcome: 'accepted' as const }))
-    const readConfiguration = vi.fn(() => ({
-      endpoint: 'https://product-marketer.example.test',
-      secret: DISPATCH_SECRET,
-    }))
+  it.each([
+    'product-marketer',
+    'content',
+    'distribution',
+    'seo-discovery',
+  ] as const)(
+    'does not read configuration or poke for an observed %s receipt',
+    async (workerKey) => {
+      const poke = vi.fn(async () => ({ outcome: 'accepted' as const }))
+      const readConfiguration = vi.fn(() => ({
+        endpoint: 'https://product-marketer.example.test',
+        secret: DISPATCH_SECRET,
+      }))
 
-    await expect(
-      attachImmediateProductMarketerDispatch({
-        poke,
-        readConfiguration,
-        receipt: {
-          disposition: 'already_active',
-          intentId: '11111111-1111-4111-8111-111111111208',
-          intentRevision: 1,
-          outcome: 'specialist_work_observed',
-          taskId: '11111111-1111-4111-8111-111111111209',
-        },
+      await expect(
+        attachImmediateSpecialistDispatch({
+          poke,
+          readConfiguration,
+          receipt: {
+            disposition: 'already_active',
+            intentId: '11111111-1111-4111-8111-111111111208',
+            intentRevision: 1,
+            outcome: 'specialist_work_observed',
+            taskId: '11111111-1111-4111-8111-111111111209',
+          },
+          workerKey,
+        })
+      ).resolves.toMatchObject({
+        immediateDispatch: { outcome: 'not_needed' },
       })
-    ).resolves.toMatchObject({
-      immediateDispatch: { outcome: 'not_needed' },
-    })
-    expect(readConfiguration).not.toHaveBeenCalled()
-    expect(poke).not.toHaveBeenCalled()
-  })
+      expect(readConfiguration).not.toHaveBeenCalled()
+      expect(poke).not.toHaveBeenCalled()
+    }
+  )
 
   it('preserves the created receipt when the immediate poke fails', async () => {
     const poke = vi.fn(async () => ({
@@ -506,13 +639,14 @@ describe('CMO root runtime', () => {
     }))
 
     await expect(
-      attachImmediateProductMarketerDispatch({
+      attachImmediateSpecialistDispatch({
         poke,
         readConfiguration: () => ({
           endpoint: 'https://product-marketer.example.test',
           secret: DISPATCH_SECRET,
         }),
         receipt: CREATED_SPECIALIST_WORK_RECEIPT,
+        workerKey: 'product-marketer',
       })
     ).resolves.toEqual({
       ...CREATED_SPECIALIST_WORK_RECEIPT,
@@ -527,7 +661,7 @@ describe('CMO root runtime', () => {
     const poke = vi.fn(async () => ({ outcome: 'accepted' as const }))
 
     await expect(
-      attachImmediateProductMarketerDispatch({
+      attachImmediateSpecialistDispatch({
         poke,
         readConfiguration: () => {
           throw new Error(
@@ -535,6 +669,7 @@ describe('CMO root runtime', () => {
           )
         },
         receipt: CREATED_SPECIALIST_WORK_RECEIPT,
+        workerKey: 'product-marketer',
       })
     ).resolves.toEqual({
       ...CREATED_SPECIALIST_WORK_RECEIPT,
@@ -544,6 +679,50 @@ describe('CMO root runtime', () => {
       },
     })
     expect(poke).not.toHaveBeenCalled()
+  })
+
+  it('feeds the four specialist URLs into the partial resolver', () => {
+    const environment = {
+      AGENT_CONTENT_URL: 'https://content.example.test',
+      AGENT_DISTRIBUTION_URL: 'https://distribution.example.test',
+      AGENT_PRODUCT_MARKETER_URL: 'https://product-marketer.example.test',
+      AGENT_SEO_DISCOVERY_URL: 'https://seo-discovery.example.test',
+      CMO_BRIDGE_SECRET,
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/branderize',
+      DISPATCH_SECRET,
+      NODE_ENV: 'test' as const,
+    }
+
+    expect(
+      resolveCmoSpecialistDispatchConfiguration({
+        environment,
+        workerKey: 'content',
+      })
+    ).toEqual({
+      endpoint: 'https://content.example.test',
+      secret: DISPATCH_SECRET,
+    })
+    expect(
+      resolveCmoSpecialistDispatchConfiguration({
+        environment,
+        workerKey: 'distribution',
+      }).endpoint
+    ).toBe('https://distribution.example.test')
+    expect(
+      resolveCmoSpecialistDispatchConfiguration({
+        environment,
+        workerKey: 'product-marketer',
+      }).endpoint
+    ).toBe('https://product-marketer.example.test')
+    expect(
+      resolveCmoSpecialistDispatchConfiguration({
+        environment,
+        workerKey: 'seo-discovery',
+      }).endpoint
+    ).toBe('https://seo-discovery.example.test')
+    expect(environment).not.toHaveProperty('AGENT_CMO_URL')
+    expect(environment).not.toHaveProperty('AGENT_GROWTH_URL')
+    expect(environment).not.toHaveProperty('AGENT_LIFECYCLE_URL')
   })
 
   it('fails closed when the dispatch secret is missing or invalid', async () => {

@@ -11,6 +11,7 @@ const endpointLookupSchema = z
   .strict()
 
 export type AgentEndpointMap = Readonly<Record<AgentKey, string>>
+export type PartialAgentEndpointMap = Partial<AgentEndpointMap>
 
 export const normalizeAgentEndpoint = (endpoint: string): string => {
   const parsed = new URL(endpoint)
@@ -41,5 +42,27 @@ export const createAgentEndpointResolver = (endpoints: AgentEndpointMap) => {
   return (input: unknown): string => {
     const { agentKey } = endpointLookupSchema.parse(input)
     return compiledEndpoints[agentKey]
+  }
+}
+
+export const createPartialAgentEndpointResolver = (
+  endpoints: PartialAgentEndpointMap
+) => {
+  const compiledEndpoints = new Map(
+    AGENT_KEYS.flatMap((agentKey) => {
+      const endpoint = endpoints[agentKey]
+      return endpoint === undefined
+        ? []
+        : [[agentKey, normalizeAgentEndpoint(endpoint)] as const]
+    })
+  )
+
+  return (input: unknown): string => {
+    const { agentKey } = endpointLookupSchema.parse(input)
+    const endpoint = compiledEndpoints.get(agentKey)
+    if (endpoint === undefined) {
+      throw new Error(`No compiled endpoint for agent ${agentKey}`)
+    }
+    return endpoint
   }
 }
