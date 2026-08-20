@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
+import { getTaskKind } from '@repo/agents'
 import { CONTENT_NOTION_PAGE_TASK_KIND } from '@repo/agents/tasks'
 import {
   createDatabase,
@@ -17,13 +18,17 @@ import {
   tasks,
 } from '@repo/db/schema/domain'
 import { executeStatementsSequentially } from '@repo/db/test-support'
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, ne } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { requestHash } from './canonical'
 import type { TrustedMemberAccess } from './context'
 import type { BrainError } from './errors'
 import { approveTask } from './task-approval'
-import { claimRegisteredHumanCommitment } from './task-claim-human'
+import {
+  claimNextDueHumanCommitment,
+  type HumanCommitmentClaimResult,
+} from './task-claim-human'
 import { SERIALIZED_COMMITMENT_FIXTURE_KIND } from './task-commitment-contracts'
 import { prepareCommitment } from './task-prepare-commitment'
 import { requestSpecialistWork } from './task-request'
@@ -215,6 +220,34 @@ const connectNotion = async (access: TrustedMemberAccess) => {
       scopes: ['read', 'write'],
       status: 'active',
     })
+}
+
+// The human claim queue is global across brands, so earlier tests leave queued rows behind.
+const queuedCommitmentIdsExcept = async (taskId: string): Promise<string[]> => {
+  const rows = await requireDatabase()
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.status, 'queued'), ne(tasks.id, taskId)))
+  return rows.map((row) => row.id)
+}
+
+const claimOwnCommitment = async ({
+  now,
+  taskId,
+}: {
+  readonly now: Date
+  readonly taskId: string
+}): Promise<
+  HumanCommitmentClaimResult<typeof CONTENT_NOTION_PAGE_TASK_KIND>
+> => {
+  const excludeTaskIds = await queuedCommitmentIdsExcept(taskId)
+  return await claimNextDueHumanCommitment({
+    database: requireDatabase(),
+    excludeTaskIds,
+    kinds: [CONTENT_NOTION_PAGE_TASK_KIND],
+    now,
+    workerKey: getTaskKind(CONTENT_NOTION_PAGE_TASK_KIND).workerKey,
+  })
 }
 
 beforeAll(async () => {
@@ -523,7 +556,7 @@ describe('prepare, approve, claim, and Result settlement', () => {
       idempotencyKey: `task:fixture-blocker:${blockerId}`,
       kind: SERIALIZED_COMMITMENT_FIXTURE_KIND,
       payload: { targetKey: 'shared-target' },
-      payloadHash: 'a'.repeat(64),
+      payloadHash: requestHash({ targetKey: 'shared-target' }),
       revision: 1,
       status: 'awaiting_approval',
       subjectKey: `commitment:${blockerId}`,
@@ -558,7 +591,7 @@ describe('prepare, approve, claim, and Result settlement', () => {
       idempotencyKey: `task:fixture-loser:${loserId}`,
       kind: SERIALIZED_COMMITMENT_FIXTURE_KIND,
       payload: { targetKey: 'shared-target' },
-      payloadHash: 'b'.repeat(64),
+      payloadHash: requestHash({ targetKey: 'shared-target' }),
       revision: 1,
       status: 'awaiting_approval',
       subjectKey: `commitment:${loserId}`,
@@ -604,10 +637,9 @@ describe('prepare, approve, claim, and Result settlement', () => {
         taskId: prepared.receipt.taskId,
       },
     })
-    const claimed = await claimRegisteredHumanCommitment({
-      database: requireDatabase(),
-      kind: CONTENT_NOTION_PAGE_TASK_KIND,
+    const claimed = await claimOwnCommitment({
       now: new Date(),
+      taskId: prepared.receipt.taskId,
     })
     expect(claimed.outcome).toBe('claimed')
     if (claimed.outcome !== 'claimed') {
@@ -667,10 +699,9 @@ describe('prepare, approve, claim, and Result settlement', () => {
         taskId: prepared.receipt.taskId,
       },
     })
-    const claimed = await claimRegisteredHumanCommitment({
-      database: requireDatabase(),
-      kind: CONTENT_NOTION_PAGE_TASK_KIND,
+    const claimed = await claimOwnCommitment({
       now: new Date(),
+      taskId: prepared.receipt.taskId,
     })
     expect(claimed).toMatchObject({
       capabilityKey: 'connection:notion',
@@ -703,10 +734,9 @@ describe('prepare, approve, claim, and Result settlement', () => {
       },
     })
     const claimedAt = new Date('2026-08-20T10:00:00.000Z')
-    const claimed = await claimRegisteredHumanCommitment({
-      database: requireDatabase(),
-      kind: CONTENT_NOTION_PAGE_TASK_KIND,
+    const claimed = await claimOwnCommitment({
       now: claimedAt,
+      taskId: prepared.receipt.taskId,
     })
     expect(claimed.outcome).toBe('claimed')
     const later = new Date(claimedAt.getTime() + 11 * 60 * 1000)
