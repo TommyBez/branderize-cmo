@@ -734,6 +734,22 @@ export const tasks = pgTable(
       'tasks_agent_superseded_shape',
       sql`NOT (${table.executionMode} = 'agent' AND ${table.status} = 'superseded') OR (${table.activation} = 'automatic' AND ${table.outcomeCode} = 'plan_move_excluded' AND ${table.startedAt} IS NULL AND ${table.intentId} IS NULL AND ${table.intentSnapshot} IS NULL AND ${table.planObjectId} IS NOT NULL AND ${table.moveCandidateId} IS NOT NULL AND ${table.retryOfTaskId} IS NULL AND ${table.supersedesTaskId} IS NULL AND ${table.scheduleId} IS NULL AND ${table.sessionId} IS NULL AND ${table.completion} IS NULL AND ${table.nextDueAt} IS NULL AND ${table.nextPayload} IS NULL AND ${table.nextRationale} IS NULL AND ${table.leasedUntil} IS NULL AND ${table.attempts} = 0)`
     ),
+    check(
+      'tasks_human_approval_required_from_queued',
+      sql`${table.activation} <> 'human' OR ${table.status} NOT IN ('queued', 'running', 'succeeded', 'failed', 'outcome_unknown', 'expired') OR ${table.approvalActionId} IS NOT NULL`
+    ),
+    check(
+      'tasks_human_approved_at_pair',
+      sql`(${table.approvalActionId} IS NULL) = (${table.approvedAt} IS NULL)`
+    ),
+    check(
+      'tasks_human_conflict_key_null_while_awaiting',
+      sql`${table.status} <> 'awaiting_approval' OR ${table.commitmentConflictKey} IS NULL`
+    ),
+    check(
+      'tasks_human_result_required_on_terminal',
+      sql`${table.activation} <> 'human' OR ${table.status} NOT IN ('succeeded', 'failed', 'outcome_unknown') OR ${table.resultActionId} IS NOT NULL`
+    ),
   ]
 )
 

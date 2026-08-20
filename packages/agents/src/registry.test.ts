@@ -45,6 +45,7 @@ describe('Phase 0 agent registry', () => {
     expect(Object.keys(taskKindRegistry)).toEqual([
       'product-marketer.brand-context.v1',
       'content.brief.v1',
+      'content.notion-page.v1',
       'distribution.channel-plan.v1',
       'seo-discovery.opportunity.v1',
     ])
@@ -118,6 +119,37 @@ describe('Phase 0 agent registry', () => {
       'product-marketer.brand-context.v1',
       'seo-discovery.opportunity.v1',
     ])
+    const notionKind = getTaskKind('content.notion-page.v1')
+    expect(notionKind).toMatchObject({
+      activation: 'human',
+      commitment: {
+        billing: 'non_billable',
+        concurrency: 'independent',
+        effectClass: 'reversible-external',
+        providerSlot: 'notion',
+      },
+      effectPhase: 'external-commitment',
+      executionMode: 'direct',
+      workerKey: 'content',
+    })
+    expect(
+      notionKind.briefSchema.parse({
+        reportObjectId: '018f47a6-72d3-7a93-b49a-d91f50dd1771',
+        title: 'Launch brief',
+      })
+    ).toEqual({
+      reportObjectId: '018f47a6-72d3-7a93-b49a-d91f50dd1771',
+      title: 'Launch brief',
+    })
+    expect(
+      notionKind.briefSchema.safeParse({
+        accessToken: 'secret',
+        reportObjectId: '018f47a6-72d3-7a93-b49a-d91f50dd1771',
+        title: 'Launch brief',
+      }).success
+    ).toBe(false)
+    expect(notionKind.questionPolicy).toBeNull()
+    expect(notionKind.schedulableBy).toEqual([])
     expect(
       taskKind.claimContextSchema.parse({
         brandContextContent: { summary: 'Current context' },

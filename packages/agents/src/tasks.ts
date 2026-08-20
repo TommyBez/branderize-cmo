@@ -13,6 +13,7 @@ export const DISTRIBUTION_WORKER_KEY = 'distribution' as const
 export const SEO_DISCOVERY_OPPORTUNITY_TASK_KIND =
   'seo-discovery.opportunity.v1' as const
 export const SEO_DISCOVERY_WORKER_KEY = 'seo-discovery' as const
+export const CONTENT_NOTION_PAGE_TASK_KIND = 'content.notion-page.v1' as const
 
 const identifierSchema = z.string().trim().min(1)
 const summarySchema = z.string().trim().min(1).max(2000)
@@ -247,6 +248,80 @@ export type SeoDiscoveryOpportunityCompletion = z.infer<
 export type SeoDiscoveryOpportunityClaimContext = z.infer<
   typeof seoDiscoveryOpportunityClaimContextSchema
 >
+
+export const notionPagePayloadSchema = z
+  .object({
+    reportObjectId: z.uuid(),
+    title: z.string().trim().min(1).max(200),
+  })
+  .strict()
+
+export const notionPageReceiptSchema = z
+  .object({
+    accountLabel: z.string().trim().min(1).max(240),
+    pageId: z.string().trim().min(1).max(128),
+    pageUrl: z.url(),
+  })
+  .strict()
+
+export const notionPageResultSchema = z.discriminatedUnion('outcome', [
+  z
+    .object({
+      outcome: z.literal('accepted'),
+      receipt: notionPageReceiptSchema,
+    })
+    .strict(),
+  z
+    .object({
+      code: z.string().trim().min(1).max(120),
+      message: z.string().trim().min(1).max(2000),
+      outcome: z.literal('rejected'),
+    })
+    .strict(),
+  z
+    .object({
+      code: z.string().trim().min(1).max(120),
+      message: z.string().trim().min(1).max(2000),
+      outcome: z.literal('unknown'),
+    })
+    .strict(),
+])
+
+export const notionPageCompletionSchema = z
+  .object({
+    intentAcceptance: z.null(),
+    openQuestions: z.array(questionSchema).length(0),
+    outputObjectIds: z.array(identifierSchema).length(0),
+    result: notionPageResultSchema,
+    status: z.literal('completed'),
+    summary: summarySchema,
+  })
+  .strict()
+
+export const notionPageClaimContextSchema = notionPagePayloadSchema
+
+export type NotionPagePayload = z.infer<typeof notionPagePayloadSchema>
+export type NotionPageReceipt = z.infer<typeof notionPageReceiptSchema>
+export type NotionPageResult = z.infer<typeof notionPageResultSchema>
+export type NotionPageCompletion = z.infer<typeof notionPageCompletionSchema>
+export type NotionPageClaimContext = z.infer<
+  typeof notionPageClaimContextSchema
+>
+
+export const requiredNotionPageOutputIds = (
+  _result: NotionPageResult
+): readonly string[] => []
+
+export const buildNotionPageTaskPrompt = (_input: {
+  readonly claimContext: NotionPageClaimContext
+  readonly intentSnapshot: TaskIntentSnapshot
+  readonly kind: string
+  readonly payload: unknown
+}): string => {
+  throw new Error(
+    'content.notion-page.v1 is a direct human commitment and has no agent prompt'
+  )
+}
 
 const buildKindTaskPrompt = ({
   claimContext,

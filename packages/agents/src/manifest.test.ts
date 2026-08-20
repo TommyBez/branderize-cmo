@@ -14,6 +14,7 @@ describe('compiled root manifest', () => {
     ])
     expect(getRootManifest('content').supportedTaskKinds).toEqual([
       'content.brief.v1',
+      'content.notion-page.v1',
     ])
     expect(getRootManifest('distribution').supportedTaskKinds).toEqual([
       'distribution.channel-plan.v1',

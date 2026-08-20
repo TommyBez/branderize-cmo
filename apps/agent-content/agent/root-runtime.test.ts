@@ -17,6 +17,7 @@ describe('Content root runtime', () => {
     })
     expect(ROOT_RUNTIME_CONTRACT.dispatch.claimableTaskKinds).toEqual([
       'content.brief.v1',
+      'content.notion-page.v1',
     ])
   })
 

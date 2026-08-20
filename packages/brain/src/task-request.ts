@@ -79,6 +79,12 @@ export const requestSpecialistWork = async ({
 }): Promise<RequestSpecialistWorkReceipt> => {
   const parsed = requestSpecialistWorkInputSchema.parse(input)
   const taskKind = getTaskKind(parsed.kind)
+  if (taskKind.activation === 'human') {
+    return fail(
+      'invalid_task',
+      'Human-activation commitment kinds cannot be requested as specialist work'
+    )
+  }
   if (
     taskKind.executionMode !== 'agent' ||
     taskKind.activation !== 'automatic' ||

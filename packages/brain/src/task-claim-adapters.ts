@@ -116,10 +116,14 @@ const loadDistributionChannelPlanClaim = async (
   }
 }
 
+const loadNotionPageClaim = async (input: RegisteredTaskClaimAdapterInput) =>
+  input.payload
+
 export const claimContextAdapters: {
   readonly [K in RegisteredTaskKindKey]: RegisteredTaskClaimAdapter
 } = {
   'content.brief.v1': loadBrandContextClaim,
+  'content.notion-page.v1': loadNotionPageClaim,
   'distribution.channel-plan.v1': loadDistributionChannelPlanClaim,
   'product-marketer.brand-context.v1': loadBrandContextClaim,
   'seo-discovery.opportunity.v1': loadBrandContextClaim,

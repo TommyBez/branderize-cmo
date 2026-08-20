@@ -50,6 +50,17 @@ describe('Product Marketer task inputs', () => {
     expect(
       requestSpecialistWorkInputSchema.parse({
         intentId,
+        kind: 'content.notion-page.v1',
+        payload: {
+          reportObjectId: '018f47a6-72d3-7a93-b49a-d91f50dd1771',
+          title: 'Launch brief',
+        },
+        requestId: 'task-request-notion',
+      }).kind
+    ).toBe('content.notion-page.v1')
+    expect(
+      requestSpecialistWorkInputSchema.parse({
+        intentId,
         kind: 'distribution.channel-plan.v1',
         payload: { purpose: 'draft_channel_plan' },
         requestId: 'task-request-5',
