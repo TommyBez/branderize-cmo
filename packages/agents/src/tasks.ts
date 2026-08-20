@@ -169,6 +169,7 @@ export const contentBriefClaimContextSchema = brandContextClaimContextSchema
 export const distributionChannelPlanPayloadSchema = z
   .object({
     purpose: z.literal('draft_channel_plan'),
+    sourceReportObjectId: z.uuid().optional(),
   })
   .strict()
 export const distributionChannelPlanResultSchema = z.discriminatedUnion(
@@ -179,8 +180,14 @@ export const distributionChannelPlanCompletionSchema = z.union([
   completedReportObjectCompletionSchema,
   incompleteSpecialistCompletionSchema,
 ])
-export const distributionChannelPlanClaimContextSchema =
-  brandContextClaimContextSchema
+export const distributionChannelPlanClaimContextSchema = z
+  .object({
+    brandContextContent: z.unknown(),
+    brandContextObjectId: identifierSchema,
+    sourceReportContent: z.unknown().optional(),
+    sourceReportObjectId: identifierSchema.optional(),
+  })
+  .strict()
 
 export const seoDiscoveryOpportunityPayloadSchema = z
   .object({
@@ -320,8 +327,8 @@ export const buildDistributionChannelPlanTaskPrompt = ({
   readonly intentSnapshot: TaskIntentSnapshot
   readonly kind: string
   readonly payload: unknown
-}): string =>
-  buildKindTaskPrompt({
+}): string => {
+  const prompt = buildKindTaskPrompt({
     claimContext,
     intentSnapshot,
     kind,
@@ -329,6 +336,16 @@ export const buildDistributionChannelPlanTaskPrompt = ({
     role: 'Distribution channel plan',
     saveTool: 'save_channel_plan',
   })
+  if (claimContext.sourceReportContent === undefined) {
+    return prompt
+  }
+  return [
+    prompt,
+    JSON.stringify({
+      sourceContentReport: claimContext.sourceReportContent,
+    }),
+  ].join('\n\n')
+}
 
 export const buildSeoDiscoveryOpportunityTaskPrompt = ({
   claimContext,

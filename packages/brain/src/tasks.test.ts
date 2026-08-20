@@ -47,6 +47,14 @@ describe('Product Marketer task inputs', () => {
         kind: 'content.publish.v1',
       })
     ).toThrow()
+    expect(
+      requestSpecialistWorkInputSchema.parse({
+        intentId,
+        kind: 'distribution.channel-plan.v1',
+        payload: { purpose: 'draft_channel_plan' },
+        requestId: 'task-request-5',
+      }).payload
+    ).toEqual({ purpose: 'draft_channel_plan' })
   })
 
   it.each([
