@@ -6,6 +6,8 @@ import { fail } from './errors'
 import type { BrainTransaction } from './internal'
 
 const ACTION_RECEIPT_LOCK_NAMESPACE = 'branderize:action-receipt:v1'
+export const COMMITMENT_DISMISSAL_LOCK_NAMESPACE =
+  'branderize:commitment-dismissal:v1' as const
 
 const acquireActionReceiptLock = async ({
   lockScope,
@@ -25,6 +27,23 @@ const acquireActionReceiptLock = async ({
   const scopeId =
     lockScope.kind === 'brand' ? lockScope.brandId : lockScope.organizationId
   const lockIdentity = `${ACTION_RECEIPT_LOCK_NAMESPACE}:${lockScope.kind}:${scopeId.length}:${scopeId}:${operationKey}`
+  await transaction.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockIdentity}, 0))`
+  )
+}
+
+export const acquireCommitmentDismissalLock = async ({
+  brandId,
+  kind,
+  payloadHash,
+  transaction,
+}: {
+  readonly brandId: string
+  readonly kind: string
+  readonly payloadHash: string
+  readonly transaction: BrainTransaction
+}): Promise<void> => {
+  const lockIdentity = `${COMMITMENT_DISMISSAL_LOCK_NAMESPACE}:${brandId}:${kind}:${payloadHash}`
   await transaction.execute(
     sql`SELECT pg_advisory_xact_lock(hashtextextended(${lockIdentity}, 0))`
   )

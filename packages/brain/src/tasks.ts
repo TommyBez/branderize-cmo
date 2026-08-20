@@ -3,6 +3,13 @@
 export { requestLateralWork } from './lateral-request'
 export { approveTask } from './task-approval'
 export {
+  type CancelTaskInput,
+  type CancelTaskReceipt,
+  cancelTask,
+  cancelTaskInputSchema,
+  cancelTaskReceiptSchema,
+} from './task-cancellation'
+export {
   claimContextAdapters,
   type RegisteredTaskClaimAdapter,
   type RegisteredTaskClaimAdapterInput,
@@ -51,8 +58,26 @@ export {
   type TaskQuestionsResolvedReceipt,
   taskGenerationOf,
 } from './task-contracts'
+export {
+  type DismissTaskInput,
+  type DismissTaskReceipt,
+  dismissTask,
+  dismissTaskInputSchema,
+  dismissTaskReceiptSchema,
+  type ReopenTaskInput,
+  type ReopenTaskReceipt,
+  reopenTask,
+  reopenTaskInputSchema,
+  reopenTaskReceiptSchema,
+} from './task-dismissal'
 export { finishTask } from './task-finish'
-export { prepareCommitment } from './task-prepare-commitment'
+export {
+  type DismissedCommitmentDisposition,
+  dismissedCommitmentDispositionSchema,
+  isDismissedCommitmentDisposition,
+  type PrepareCommitmentResult,
+  prepareCommitment,
+} from './task-prepare-commitment'
 export { resolveTaskQuestions } from './task-question-resolution'
 export { requestSpecialistWork } from './task-request'
 export {
