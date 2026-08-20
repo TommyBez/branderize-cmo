@@ -8,15 +8,22 @@ describe('compiled root manifest', () => {
     expect(rootManifest.map(({ agentKey }) => agentKey)).toEqual(AGENT_KEYS)
   })
 
-  it('exposes Product Marketer work only from its owning root', () => {
+  it('exposes each functional specialist kind only from its owning root', () => {
     expect(getRootManifest('product-marketer').supportedTaskKinds).toEqual([
       'product-marketer.brand-context.v1',
     ])
+    expect(getRootManifest('content').supportedTaskKinds).toEqual([
+      'content.brief.v1',
+    ])
+    expect(getRootManifest('distribution').supportedTaskKinds).toEqual([
+      'distribution.channel-plan.v1',
+    ])
+    expect(getRootManifest('seo-discovery').supportedTaskKinds).toEqual([
+      'seo-discovery.opportunity.v1',
+    ])
 
-    for (const agentKey of AGENT_KEYS) {
-      if (agentKey !== 'product-marketer') {
-        expect(getRootManifest(agentKey).supportedTaskKinds).toEqual([])
-      }
+    for (const agentKey of ['cmo', 'lifecycle', 'growth'] as const) {
+      expect(getRootManifest(agentKey).supportedTaskKinds).toEqual([])
     }
   })
 })

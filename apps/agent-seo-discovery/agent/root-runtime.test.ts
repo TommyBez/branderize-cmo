@@ -1,40 +1,23 @@
-import { createDispatchAckHandler } from '@repo/agents/dispatch-handler'
+import { readdirSync } from 'node:fs'
+
+import { seoOpportunityContentSchema } from '@repo/brain/objects'
 import { describe, expect, it } from 'vitest'
 
 import rootAgent from './agent'
 import { ROOT_RUNTIME_CONTRACT } from './lib/root-contract'
-
-const DISPATCH_SECRET = 'dispatch-secret-at-least-32-characters'
-const handle = createDispatchAckHandler({ readSecret: () => DISPATCH_SECRET })
-
-const request = ({
-  body,
-  query = '',
-  secret = DISPATCH_SECRET,
-}: {
-  readonly body?: string
-  readonly query?: string
-  readonly secret?: string | null
-} = {}): Request => {
-  const headers = new Headers()
-  if (secret !== null) {
-    headers.set('authorization', `Bearer ${secret}`)
-  }
-  return new Request(`https://agent.example/internal/dispatch${query}`, {
-    body,
-    headers,
-    method: 'POST',
-  })
-}
+import { finishTaskInputSchema } from './tools/finish_task'
 
 describe('SEO Discovery root runtime', () => {
-  it('is health-only with no task capability', () => {
+  it('uses the opportunity kind and public Eve health route', () => {
     expect(ROOT_RUNTIME_CONTRACT).toMatchObject({
       agentKey: 'seo-discovery',
-      functional: false,
+      functional: true,
       health: { method: 'GET', path: '/eve/v1/health', public: true },
+      role: 'specialist',
     })
-    expect(ROOT_RUNTIME_CONTRACT.dispatch.claimableTaskKinds).toEqual([])
+    expect(ROOT_RUNTIME_CONTRACT.dispatch.claimableTaskKinds).toEqual([
+      'seo-discovery.opportunity.v1',
+    ])
   })
 
   it('uses high reasoning without a custom compaction threshold', () => {
@@ -42,21 +25,40 @@ describe('SEO Discovery root runtime', () => {
     expect(rootAgent).not.toHaveProperty('compaction')
   })
 
-  it('rejects unauthenticated, selector-bearing, and body-bearing pokes', async () => {
-    await expect(handle(request({ secret: null }))).resolves.toMatchObject({
-      status: 401,
-    })
-    await expect(
-      handle(request({ query: '?task=other' }))
-    ).resolves.toMatchObject({ status: 400 })
-    await expect(handle(request({ body: '{}' }))).resolves.toMatchObject({
-      status: 400,
-    })
+  it('enables Eve native self-copy without an authored agent override', () => {
+    expect(readdirSync(new URL('./tools/', import.meta.url))).not.toContain(
+      'agent.ts'
+    )
   })
 
-  it('only acknowledges an authenticated payload-free poke', async () => {
-    const response = await handle(request())
-    expect(response.status).toBe(202)
-    await expect(response.text()).resolves.toBe('')
+  it('keeps trusted task and Object identifiers out of model tool inputs', () => {
+    const opportunity = {
+      opportunity: 'Rank for AI CMO trust',
+      pages: [{ path: '/how-it-works', rationale: 'Explains the graph' }],
+      queries: ['AI CMO you can trust'],
+      summary: 'One page can own the query.',
+    }
+    expect(seoOpportunityContentSchema.safeParse(opportunity).success).toBe(
+      true
+    )
+    expect(
+      seoOpportunityContentSchema.safeParse({
+        ...opportunity,
+        taskId: '00000000-0000-4000-8000-000000000204',
+      }).success
+    ).toBe(false)
+    expect(
+      finishTaskInputSchema.safeParse({
+        evidenceObjectId: '00000000-0000-0000-0000-000000000202',
+        status: 'completed',
+        summary: 'SEO opportunity recorded.',
+      }).success
+    ).toBe(false)
+    expect(
+      finishTaskInputSchema.safeParse({
+        status: 'completed',
+        summary: 'SEO opportunity recorded.',
+      }).success
+    ).toBe(true)
   })
 })

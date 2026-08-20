@@ -2,7 +2,7 @@ import {
   getTaskKind,
   REGISTERED_QUESTION_TASK_KIND_KEYS,
   type RegisteredTaskCompletion,
-  type RegisteredTaskKind,
+  type RegisteredTaskQuestionPolicy,
   registeredTaskKindKeySchema,
 } from '@repo/agents'
 import type { Database } from '@repo/db/client'
@@ -208,13 +208,7 @@ export interface TaskQuestionBundleProjectionPage {
   } | null
 }
 
-export const projectRegisteredTaskQuestionBundle = <
-  TKind extends string,
-  TBrief,
-  TResult,
-  TCompletion extends RegisteredTaskCompletion,
-  TClaimContext = unknown,
->({
+export const projectRegisteredTaskQuestionBundle = ({
   task,
   taskKind,
 }: {
@@ -234,13 +228,16 @@ export const projectRegisteredTaskQuestionBundle = <
     readonly taskId: string
     readonly workerKey: string | null
   }
-  readonly taskKind: RegisteredTaskKind<
-    TKind,
-    TBrief,
-    TResult,
-    TCompletion,
-    TClaimContext
-  >
+  readonly taskKind: {
+    readonly activation: string
+    readonly briefSchema: z.ZodType
+    readonly completionSchema: z.ZodType
+    readonly executionMode: string
+    readonly kind: string
+    readonly questionPolicy: RegisteredTaskQuestionPolicy | null
+    readonly subjectKey: (payload: unknown) => string
+    readonly workerKey: string
+  }
 }): TaskQuestionBundleProjection => {
   const payload = taskKind.briefSchema.safeParse(task.payload)
   if (!payload.success) {
@@ -259,21 +256,21 @@ export const projectRegisteredTaskQuestionBundle = <
     )
   }
   const { completionSchema, questionPolicy } = taskKind
-  const completion = completionSchema.safeParse(task.completion)
+  const parsedCompletion = completionSchema.safeParse(task.completion)
+  const completion = parsedCompletion.success
+    ? (parsedCompletion.data as RegisteredTaskCompletion)
+    : null
   if (
     task.status !== 'succeeded' ||
     questionPolicy === null ||
-    !completion.success ||
-    completion.data.status === 'completed' ||
-    !questionPolicy.hasOpenQuestions(completion.data)
+    completion === null ||
+    completion.status === 'completed' ||
+    !questionPolicy.hasOpenQuestions(completion)
   ) {
     return fail('invalid_task', 'Task has no settled open-question bundle')
   }
-  const openQuestions = questionPolicy.projectOpenQuestions(completion.data)
-  if (
-    openQuestions === null ||
-    openQuestions.status !== completion.data.status
-  ) {
+  const openQuestions = questionPolicy.projectOpenQuestions(completion)
+  if (openQuestions === null || openQuestions.status !== completion.status) {
     return fail('invalid_task', 'Task question projection is invalid')
   }
   if (task.intentId === null) {

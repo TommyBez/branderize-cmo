@@ -9,7 +9,7 @@ const intentId = '018f47a6-72d3-7a93-b49a-d91f50dd1771'
 const taskId = '018f47a6-72d3-7a93-b49a-d91f50dd1882'
 
 describe('Product Marketer task inputs', () => {
-  it('accepts only the allowlisted Phase 0 kind and fixed payload', () => {
+  it('accepts registered specialist kinds and rejects unpublished ones', () => {
     const parsed = requestSpecialistWorkInputSchema.parse({
       intentId,
       kind: 'product-marketer.brand-context.v1',
@@ -17,6 +17,30 @@ describe('Product Marketer task inputs', () => {
       requestId: 'task-request-1',
     })
     expect(parsed.kind).toBe('product-marketer.brand-context.v1')
+    expect(
+      requestSpecialistWorkInputSchema.parse({
+        intentId,
+        kind: 'content.brief.v1',
+        payload: { purpose: 'draft_content_brief' },
+        requestId: 'task-request-2',
+      }).kind
+    ).toBe('content.brief.v1')
+    expect(
+      requestSpecialistWorkInputSchema.parse({
+        intentId,
+        kind: 'distribution.channel-plan.v1',
+        payload: { purpose: 'draft_channel_plan' },
+        requestId: 'task-request-3',
+      }).kind
+    ).toBe('distribution.channel-plan.v1')
+    expect(
+      requestSpecialistWorkInputSchema.parse({
+        intentId,
+        kind: 'seo-discovery.opportunity.v1',
+        payload: { purpose: 'draft_seo_opportunity' },
+        requestId: 'task-request-4',
+      }).kind
+    ).toBe('seo-discovery.opportunity.v1')
     expect(() =>
       requestSpecialistWorkInputSchema.parse({
         ...parsed,

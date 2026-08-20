@@ -12,9 +12,13 @@
   },
   "dependencies": {
     "@repo/agents": "workspace:*",
+    "@repo/brain": "workspace:*",
+    "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
     "@repo/marketing-skills": "workspace:*",
-    "eve": "0.31.3"
+    "@repo/specialist-runtime": "workspace:*",
+    "eve": "0.31.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

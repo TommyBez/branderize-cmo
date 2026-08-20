@@ -9,12 +9,16 @@ import {
   taskKindRegistry,
 } from './registry'
 import {
+  contentBriefCompletionSchema,
+  contentBriefPayloadSchema,
+  distributionChannelPlanCompletionSchema,
   productMarketerCompletionSchema,
   productMarketerPayloadSchema,
+  seoDiscoveryOpportunityCompletionSchema,
 } from './tasks'
 
 describe('Phase 0 agent registry', () => {
-  it('declares seven roots and only two functional entries', () => {
+  it('declares seven roots and five functional entries', () => {
     expect(AGENT_KEYS.map((agentKey) => agentRegistry[agentKey].key)).toEqual(
       AGENT_KEYS
     )
@@ -22,7 +26,13 @@ describe('Phase 0 agent registry', () => {
       Object.values(agentRegistry)
         .filter(({ status }) => status === 'functional')
         .map(({ key }) => key)
-    ).toEqual(['cmo', 'product-marketer'])
+    ).toEqual([
+      'cmo',
+      'content',
+      'distribution',
+      'product-marketer',
+      'seo-discovery',
+    ])
   })
 
   it('keeps every default on an exact registered profile', () => {
@@ -34,6 +44,9 @@ describe('Phase 0 agent registry', () => {
   it('registers the closed Product Marketer task contract', () => {
     expect(Object.keys(taskKindRegistry)).toEqual([
       'product-marketer.brand-context.v1',
+      'content.brief.v1',
+      'distribution.channel-plan.v1',
+      'seo-discovery.opportunity.v1',
     ])
     const taskKind = getTaskKind('product-marketer.brand-context.v1')
     expect(
@@ -100,7 +113,10 @@ describe('Phase 0 agent registry', () => {
       summary: 'One positioning input is missing.',
     })
     expect(REGISTERED_QUESTION_TASK_KIND_KEYS).toEqual([
+      'content.brief.v1',
+      'distribution.channel-plan.v1',
       'product-marketer.brand-context.v1',
+      'seo-discovery.opportunity.v1',
     ])
     expect(
       taskKind.claimContextSchema.parse({
@@ -186,5 +202,52 @@ describe('Product Marketer completion', () => {
         summary: 'Brand Context enriched.',
       }).success
     ).toBe(false)
+  })
+})
+
+describe('Phase 1 specialist completions', () => {
+  it('keeps intentAcceptance null and rejects injected selectors', () => {
+    expect(
+      contentBriefPayloadSchema.safeParse({
+        brandId: 'brand_injected',
+        purpose: 'draft_content_brief',
+      }).success
+    ).toBe(false)
+    expect(
+      contentBriefCompletionSchema.parse({
+        intentAcceptance: null,
+        openQuestions: [],
+        outputObjectIds: ['object_report_01'],
+        result: { outcome: 'report', reportObjectId: 'object_report_01' },
+        status: 'completed',
+        summary: 'Content brief drafted.',
+      }).intentAcceptance
+    ).toBeNull()
+    expect(
+      distributionChannelPlanCompletionSchema.parse({
+        intentAcceptance: null,
+        openQuestions: ['Which channel is first?'],
+        outputObjectIds: [],
+        result: {
+          outcome: 'needs_input',
+          reason: 'missing_human_context',
+        },
+        status: 'partial',
+        summary: 'Channel priority is missing.',
+      }).intentAcceptance
+    ).toBeNull()
+    expect(
+      seoDiscoveryOpportunityCompletionSchema.parse({
+        intentAcceptance: null,
+        openQuestions: [],
+        outputObjectIds: ['object_evidence_01'],
+        result: {
+          evidenceObjectId: 'object_evidence_01',
+          outcome: 'report',
+        },
+        status: 'completed',
+        summary: 'SEO opportunity recorded.',
+      }).result
+    ).toMatchObject({ evidenceObjectId: 'object_evidence_01' })
   })
 })

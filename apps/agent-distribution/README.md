@@ -1,8 +1,8 @@
 # Distribution root
 
-Standalone Eve root reserved for a later phase. Phase 0 exposes public Eve
-health and an authenticated, payload-free dispatch acknowledgement. Production
-session routes stay closed and the compiled task-kind allowlist is empty.
+Standalone Eve root for the channel plan task. Its compiled allowlist contains
+only `distribution.channel-plan.v1`. Production Eve session routes stay closed;
+local development uses Eve's `localDev()` policy.
 
 ```sh
 pnpm --filter agent-distribution check-types

@@ -4,11 +4,13 @@ import type {
   TaskPayloadOf,
 } from '@repo/agents'
 import type { TaskIntentSnapshot } from '@repo/agents/task-snapshot'
+import type { Database } from '@repo/db/client'
 import { objects } from '@repo/db/schema/domain'
 import { and, eq } from 'drizzle-orm'
 
+import type { TrustedTaskExecution } from './context'
 import { fail } from './errors'
-import type { BrainTransaction } from './internal'
+import { type BrainTransaction, requireTrustedAgentActor } from './internal'
 import { BRAND_CONTEXT_SINGLETON_KEY } from './object-contracts'
 
 export interface RegisteredTaskClaimAdapterInput<
@@ -23,14 +25,17 @@ export interface RegisteredTaskClaimAdapterInput<
   readonly workerKey: AgentKey
 }
 
-export type RegisteredTaskClaimAdapter<TKind extends RegisteredTaskKindKey> = (
-  input: RegisteredTaskClaimAdapterInput<TKind>
-) => Promise<unknown>
+export type RegisteredTaskClaimAdapter<
+  TKind extends RegisteredTaskKindKey = RegisteredTaskKindKey,
+> = (input: RegisteredTaskClaimAdapterInput<TKind>) => Promise<unknown>
 
-const loadBrandContextClaim = async ({
+export const loadActiveBrandContext = async ({
   brandId,
   transaction,
-}: RegisteredTaskClaimAdapterInput<'product-marketer.brand-context.v1'>) => {
+}: {
+  readonly brandId: string
+  readonly transaction: BrainTransaction
+}) => {
   const [brandContext] = await transaction
     .select({ content: objects.content, id: objects.id })
     .from(objects)
@@ -44,7 +49,7 @@ const loadBrandContextClaim = async ({
     .for('share')
     .limit(1)
   if (brandContext === undefined) {
-    return fail('invalid_task', 'Product Marketer task has no Brand Context')
+    return fail('invalid_task', 'Task has no Brand Context')
   }
   return {
     brandContextContent: brandContext.content,
@@ -52,8 +57,35 @@ const loadBrandContextClaim = async ({
   }
 }
 
+export const readBrandContextProjection = async ({
+  database,
+  execution,
+}: {
+  readonly database: Database
+  readonly execution: TrustedTaskExecution
+}) =>
+  await database.transaction(async (transaction) => {
+    await requireTrustedAgentActor(transaction, {
+      actorId: execution.agentActorId,
+      actorKey: execution.agentActorKey,
+    })
+    return await loadActiveBrandContext({
+      brandId: execution.brandId,
+      transaction,
+    })
+  })
+
+const loadBrandContextClaim = async ({
+  brandId,
+  transaction,
+}: RegisteredTaskClaimAdapterInput) =>
+  await loadActiveBrandContext({ brandId, transaction })
+
 export const claimContextAdapters: {
-  readonly [K in RegisteredTaskKindKey]: RegisteredTaskClaimAdapter<K>
+  readonly [K in RegisteredTaskKindKey]: RegisteredTaskClaimAdapter
 } = {
+  'content.brief.v1': loadBrandContextClaim,
+  'distribution.channel-plan.v1': loadBrandContextClaim,
   'product-marketer.brand-context.v1': loadBrandContextClaim,
+  'seo-discovery.opportunity.v1': loadBrandContextClaim,
 }
