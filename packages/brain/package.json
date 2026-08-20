@@ -8,6 +8,7 @@
     "./canonical": "./src/canonical.ts",
     "./cmo-access": "./src/cmo-access.ts",
     "./cmo-intent-target": "./src/cmo-intent-target.ts",
+    "./connections": "./src/connections.ts",
     "./context": "./src/context.ts",
     "./conversations": "./src/conversations.ts",
     "./errors": "./src/errors.ts",
@@ -30,6 +31,7 @@
   "dependencies": {
     "@repo/agents": "workspace:*",
     "@repo/canonical-json": "workspace:*",
+    "@repo/connections": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/policy": "workspace:*",
     "drizzle-orm": "0.45.2",
