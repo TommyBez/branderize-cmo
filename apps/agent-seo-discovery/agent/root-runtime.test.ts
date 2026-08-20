@@ -34,7 +34,7 @@ describe('SEO Discovery root runtime', () => {
       functional: false,
       health: { method: 'GET', path: '/eve/v1/health', public: true },
     })
-    expect(ROOT_RUNTIME_CONTRACT.dispatch.supportedTaskKinds).toEqual([])
+    expect(ROOT_RUNTIME_CONTRACT.dispatch.claimableTaskKinds).toEqual([])
   })
 
   it('uses high reasoning without a custom compaction threshold', () => {

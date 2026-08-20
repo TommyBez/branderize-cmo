@@ -16,16 +16,22 @@ describe('root runtime factory', () => {
       expect.objectContaining({
         agentKey: 'product-marketer',
         dispatch: expect.objectContaining({
-          supportedTaskKinds: ['product-marketer.brand-context.v1'],
+          claimableTaskKinds: ['product-marketer.brand-context.v1'],
         }),
         functional: true,
+        role: 'specialist',
       })
     )
     expect(
-      contracts
-        .filter(({ functional }) => !functional)
-        .every(({ dispatch }) => dispatch.supportedTaskKinds.length === 0)
-    ).toBe(true)
+      contracts.find((contract) => contract.agentKey === 'cmo')
+    ).toMatchObject({
+      functional: true,
+      role: 'conversational',
+    })
+    for (const contract of contracts.filter(({ functional }) => !functional)) {
+      expect(contract.dispatch.claimableTaskKinds).toEqual([])
+      expect(contract.role).toBe('health-only')
+    }
     for (const contract of contracts) {
       expect(contract.dispatch).toMatchObject({
         method: 'POST',

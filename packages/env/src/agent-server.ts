@@ -19,3 +19,13 @@ export const parseAgentServerEnvironment = (
     NODE_ENV: source.NODE_ENV,
   })
 }
+
+export const readDispatchSecret = (
+  source: EnvironmentSource = process.env
+): string | undefined => {
+  try {
+    return parseAgentServerEnvironment(source).DISPATCH_SECRET
+  } catch {
+    // Invalid runtime configuration keeps dispatch closed.
+  }
+}

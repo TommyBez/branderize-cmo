@@ -205,6 +205,9 @@ importers:
       '@repo/marketing-skills':
         specifier: workspace:*
         version: link:../../packages/marketing-skills
+      '@repo/specialist-runtime':
+        specifier: workspace:*
+        version: link:../../packages/specialist-runtime
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(kysely@0.29.5)(pg@8.22.0)
@@ -618,6 +621,43 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+
+  packages/specialist-runtime:
+    dependencies:
+      '@repo/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@repo/brain':
+        specifier: workspace:*
+        version: link:../brain
+      '@repo/canonical-json':
+        specifier: workspace:*
+        version: link:../canonical-json
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
+      '@repo/env':
+        specifier: workspace:*
+        version: link:../env
+      eve:
+        specifier: 0.31.3
+        version: 0.31.3(@opentelemetry/api@1.9.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5(ws@8.21.3))(ai@7.0.55(zod@4.4.3))(chokidar@4.0.3)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(kysely@0.29.5)(pg@8.22.0))(jiti@2.7.0)(lru-cache@11.5.2)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
       typescript:
         specifier: 5.9.2
         version: 5.9.2

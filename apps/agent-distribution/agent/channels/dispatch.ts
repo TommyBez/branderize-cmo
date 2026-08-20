@@ -1,17 +1,11 @@
 import { createDispatchAckHandler } from '@repo/agents/dispatch-handler'
-import { parseAgentServerEnvironment } from '@repo/env/agent-server'
+import { readDispatchSecret } from '@repo/env/agent-server'
 import { defineChannel, POST } from 'eve/channels'
 
 import { ROOT_RUNTIME_CONTRACT } from '../lib/root-contract'
 
 export const handleDispatchRequest = createDispatchAckHandler({
-  readSecret: () => {
-    try {
-      return parseAgentServerEnvironment(process.env).DISPATCH_SECRET
-    } catch {
-      // Invalid runtime configuration keeps dispatch closed.
-    }
-  },
+  readSecret: readDispatchSecret,
 })
 
 export default defineChannel({

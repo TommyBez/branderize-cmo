@@ -1,4 +1,6 @@
-type RuntimeAlertService = 'agent-cmo' | 'agent-product-marketer'
+import type { AgentKey } from './registry'
+
+export type RuntimeAlertService = `agent-${AgentKey}`
 
 interface RuntimeAlertDependencies {
   readonly createCorrelationId: () => string

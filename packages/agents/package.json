@@ -15,6 +15,7 @@
     "./root-runtime": "./src/root-runtime.ts",
     "./sandbox": "./src/sandbox.ts",
     "./schedules": "./src/schedules.ts",
+    "./task-snapshot": "./src/task-snapshot.ts",
     "./tasks": "./src/tasks.ts"
   },
   "scripts": {

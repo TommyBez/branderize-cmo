@@ -5,69 +5,40 @@ import {
   type RegisteredTaskKindKey,
   registeredTaskKindKeySchema,
 } from '@repo/agents'
-import { productMarketerPayloadSchema } from '@repo/agents/tasks'
+import { taskIntentSnapshotSchema } from '@repo/agents/task-snapshot'
 import type { Database } from '@repo/db/client'
-import { actors, objects, tasks } from '@repo/db/schema/domain'
-import { and, eq, isNull, lte, sql } from 'drizzle-orm'
+import { actors, tasks } from '@repo/db/schema/domain'
+import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm'
 
 import type { TrustedTaskExecution } from './context'
 import { fail } from './errors'
-import type { BrainTransaction } from './internal'
 import { requireTrustedAgentActor } from './internal'
-import { BRAND_CONTEXT_SINGLETON_KEY } from './objects'
+import { claimContextAdapters } from './task-claim-adapters'
 import {
-  type ClaimedProductMarketerTask,
-  type ClaimedRegisteredAgentTask,
-  PRODUCT_MARKETER_TASK_KIND,
-  PRODUCT_MARKETER_WORKER_KEY,
-  type ProductMarketerDeliveryFailure,
+  type ClaimedTask,
   type RegisteredTaskDeliveryClaim,
   type RegisteredTaskDeliveryFailure,
-  type TaskIntentSnapshot,
   taskExecutionGenerationMatches,
-  taskIntentSnapshotSchema,
+  taskGenerationOf,
 } from './task-contracts'
 
 export const AGENT_DELIVERY_RECOVERY_WINDOW_MS = 5 * 60 * 1000
 
 const DELIVERY_FAILED_OUTCOME_CODE = 'DELIVERY_FAILED' as const
 
-export interface RegisteredTaskClaimAdapterInput<
-  TKind extends RegisteredTaskKindKey = RegisteredTaskKindKey,
-> {
-  readonly brandId: string
-  readonly intentSnapshot: TaskIntentSnapshot
-  readonly kind: TKind
-  readonly payload: unknown
-  readonly taskId: string
-  readonly transaction: BrainTransaction
-  readonly workerKey: AgentKey
-}
-
-export type RegisteredTaskClaimAdapter<
-  TKind extends RegisteredTaskKindKey,
-  TAdapterContext,
-> = (input: RegisteredTaskClaimAdapterInput<TKind>) => Promise<TAdapterContext>
-
-export const claimRegisteredAgentTask = async <
-  TKind extends RegisteredTaskKindKey,
-  TAdapterContext,
->({
+export const claimNextDueWorkerTask = async ({
   database,
-  kind,
+  kinds,
   now,
-  prepareAdapterContext,
+  workerKey,
 }: {
   readonly database: Database
-  readonly kind: TKind
+  readonly kinds: readonly [RegisteredTaskKindKey, ...RegisteredTaskKindKey[]]
   readonly now: Date
-  readonly prepareAdapterContext: RegisteredTaskClaimAdapter<
-    TKind,
-    TAdapterContext
-  >
-}): Promise<ClaimedRegisteredAgentTask<TKind, TAdapterContext> | null> => {
-  const taskKind = getTaskKind(kind)
-  const registeredAgent = getAgent(taskKind.workerKey)
+  readonly workerKey: AgentKey
+}): Promise<ClaimedTask | null> => {
+  const registeredAgent = getAgent(workerKey)
+  const kindList = [...kinds]
 
   return await database.transaction(async (transaction) => {
     const recoveryCutoff = new Date(
@@ -85,10 +56,10 @@ export const claimRegisteredAgentTask = async <
       })
       .where(
         and(
-          eq(tasks.executionMode, taskKind.executionMode),
-          eq(tasks.activation, taskKind.activation),
-          eq(tasks.workerKey, taskKind.workerKey),
-          eq(tasks.kind, taskKind.kind),
+          eq(tasks.executionMode, 'agent'),
+          eq(tasks.activation, 'automatic'),
+          eq(tasks.workerKey, workerKey),
+          inArray(tasks.kind, kindList),
           eq(tasks.status, 'running'),
           isNull(tasks.sessionId),
           lte(tasks.startedAt, recoveryCutoff)
@@ -107,10 +78,10 @@ export const claimRegisteredAgentTask = async <
       .from(tasks)
       .where(
         and(
-          eq(tasks.executionMode, taskKind.executionMode),
-          eq(tasks.activation, taskKind.activation),
-          eq(tasks.workerKey, taskKind.workerKey),
-          eq(tasks.kind, taskKind.kind),
+          eq(tasks.executionMode, 'agent'),
+          eq(tasks.activation, 'automatic'),
+          eq(tasks.workerKey, workerKey),
+          inArray(tasks.kind, kindList),
           eq(tasks.status, 'queued'),
           isNull(tasks.sessionId),
           lte(tasks.dueAt, now),
@@ -124,15 +95,31 @@ export const claimRegisteredAgentTask = async <
       return null
     }
 
+    const registeredKind = registeredTaskKindKeySchema.safeParse(task.kind)
+    if (
+      !(
+        registeredKind.success &&
+        kinds.includes(registeredKind.data) &&
+        task.workerKey === workerKey
+      )
+    ) {
+      return fail('invalid_task', 'Queued registered Agent task is malformed')
+    }
+
+    const kind = registeredKind.data
+    const taskKind = getTaskKind(kind)
+    if (taskKind.workerKey !== workerKey) {
+      return fail('invalid_task', 'Queued registered Agent task is malformed')
+    }
+
     const intentSnapshot = taskIntentSnapshotSchema.safeParse(
       task.intentSnapshot
     )
     const payload = taskKind.briefSchema.safeParse(task.payload)
-    const bindingMatches =
-      task.kind === taskKind.kind && task.workerKey === taskKind.workerKey
-    if (!(intentSnapshot.success && payload.success && bindingMatches)) {
+    if (!(intentSnapshot.success && payload.success)) {
       return fail('invalid_task', 'Queued registered Agent task is malformed')
     }
+
     const [agentActor] = await transaction
       .select({ actorKey: actors.actorKey, id: actors.id, type: actors.type })
       .from(actors)
@@ -147,15 +134,17 @@ export const claimRegisteredAgentTask = async <
       return fail('invalid_task', 'Registered task has no trusted Agent Actor')
     }
 
-    const adapterContext = await prepareAdapterContext({
-      brandId: task.brandId,
-      intentSnapshot: intentSnapshot.data,
-      kind,
-      payload: payload.data,
-      taskId: task.id,
-      transaction,
-      workerKey: taskKind.workerKey,
-    })
+    const claimContext = taskKind.claimContextSchema.parse(
+      await claimContextAdapters[kind]({
+        brandId: task.brandId,
+        intentSnapshot: intentSnapshot.data,
+        kind,
+        payload: payload.data,
+        taskId: task.id,
+        transaction,
+        workerKey,
+      })
+    )
     const [claimed] = await transaction
       .update(tasks)
       .set({
@@ -166,8 +155,8 @@ export const claimRegisteredAgentTask = async <
         and(
           eq(tasks.id, task.id),
           eq(tasks.brandId, task.brandId),
-          eq(tasks.kind, taskKind.kind),
-          eq(tasks.workerKey, taskKind.workerKey),
+          eq(tasks.kind, kind),
+          eq(tasks.workerKey, workerKey),
           eq(tasks.status, 'queued')
         )
       )
@@ -180,95 +169,38 @@ export const claimRegisteredAgentTask = async <
     }
 
     return {
-      adapterContext,
       agentActorId: agentActor.id,
       agentActorKey: registeredAgent.actorKey,
       brandId: task.brandId,
+      claimContext,
       intentSnapshot: intentSnapshot.data,
       kind,
       payload: payload.data,
-      startedAt: claimed.startedAt,
+      startedAt: taskGenerationOf(claimed.startedAt),
       taskId: task.id,
-      workerKey: taskKind.workerKey,
+      workerKey,
     }
   })
 }
 
-export interface ProductMarketerClaimAdapterContext {
-  readonly brandContextContent: unknown
-  readonly brandContextObjectId: string
-}
-
-export const prepareProductMarketerClaim: RegisteredTaskClaimAdapter<
-  typeof PRODUCT_MARKETER_TASK_KIND,
-  ProductMarketerClaimAdapterContext
-> = async ({ brandId, transaction }) => {
-  const [brandContext] = await transaction
-    .select({ content: objects.content, id: objects.id })
-    .from(objects)
-    .where(
-      and(
-        eq(objects.brandId, brandId),
-        eq(objects.singletonKey, BRAND_CONTEXT_SINGLETON_KEY),
-        eq(objects.status, 'active')
-      )
-    )
-    .for('share')
-    .limit(1)
-  if (brandContext === undefined) {
-    return fail('invalid_task', 'Product Marketer task has no Brand Context')
-  }
-  return {
-    brandContextContent: brandContext.content,
-    brandContextObjectId: brandContext.id,
-  }
-}
-
-export const adaptProductMarketerClaim = (
-  claim: ClaimedRegisteredAgentTask<
-    typeof PRODUCT_MARKETER_TASK_KIND,
-    ProductMarketerClaimAdapterContext
-  >
-): ClaimedProductMarketerTask => {
-  const registeredAgent = getAgent(PRODUCT_MARKETER_WORKER_KEY)
-  if (
-    claim.workerKey !== PRODUCT_MARKETER_WORKER_KEY ||
-    claim.agentActorKey !== registeredAgent.actorKey
-  ) {
-    return fail('invalid_task', 'Product Marketer claim binding is invalid')
-  }
-  return {
-    agentActorId: claim.agentActorId,
-    agentActorKey: registeredAgent.actorKey,
-    brandContextContent: claim.adapterContext.brandContextContent,
-    brandContextObjectId: claim.adapterContext.brandContextObjectId,
-    brandId: claim.brandId,
-    intentSnapshot: claim.intentSnapshot,
-    kind: PRODUCT_MARKETER_TASK_KIND,
-    payload: productMarketerPayloadSchema.parse(claim.payload),
-    startedAt: claim.startedAt,
-    taskId: claim.taskId,
-    workerKey: PRODUCT_MARKETER_WORKER_KEY,
-  }
-}
-
-export const claimProductMarketerTask = async ({
+export const claimRegisteredAgentTask = async <
+  TKind extends RegisteredTaskKindKey,
+>({
   database,
+  kind,
   now,
 }: {
   readonly database: Database
+  readonly kind: TKind
   readonly now: Date
-}): Promise<ClaimedProductMarketerTask | null> => {
-  const claim = await claimRegisteredAgentTask({
+}): Promise<ClaimedTask<TKind> | null> => {
+  const taskKind = getTaskKind(kind)
+  return (await claimNextDueWorkerTask({
     database,
-    kind: PRODUCT_MARKETER_TASK_KIND,
+    kinds: [kind],
     now,
-    prepareAdapterContext: prepareProductMarketerClaim,
-  })
-  if (claim === null) {
-    return null
-  }
-  return adaptProductMarketerClaim(claim)
+    workerKey: taskKind.workerKey,
+  })) as ClaimedTask<TKind> | null
 }
 
 export const failRegisteredAgentDelivery = async ({
@@ -362,17 +294,6 @@ export const failRegisteredAgentDelivery = async ({
     }
   })
 }
-
-export const failProductMarketerDelivery = async ({
-  claim,
-  database,
-  now,
-}: {
-  readonly claim: ClaimedProductMarketerTask
-  readonly database: Database
-  readonly now: Date
-}): Promise<ProductMarketerDeliveryFailure> =>
-  await failRegisteredAgentDelivery({ claim, database, now })
 
 export const bindTaskSession = async ({
   database,

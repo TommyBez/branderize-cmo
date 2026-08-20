@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import type { TaskIntentSnapshot } from './task-snapshot'
+
 export const PRODUCT_MARKETER_TASK_KIND =
   'product-marketer.brand-context.v1' as const
 export const PRODUCT_MARKETER_WORKER_KEY = 'product-marketer' as const
@@ -85,6 +87,13 @@ export const productMarketerCompletionSchema = z.union([
   incompleteProductMarketerCompletionSchema,
 ])
 
+export const productMarketerClaimContextSchema = z
+  .object({
+    brandContextContent: z.unknown(),
+    brandContextObjectId: identifierSchema,
+  })
+  .strict()
+
 export type ProductMarketerPayload = z.infer<
   typeof productMarketerPayloadSchema
 >
@@ -92,6 +101,34 @@ export type ProductMarketerResult = z.infer<typeof productMarketerResultSchema>
 export type ProductMarketerCompletion = z.infer<
   typeof productMarketerCompletionSchema
 >
+export type ProductMarketerClaimContext = z.infer<
+  typeof productMarketerClaimContextSchema
+>
+
+export const buildProductMarketerTaskPrompt = ({
+  claimContext,
+  intentSnapshot,
+  kind,
+  payload,
+}: {
+  readonly claimContext: ProductMarketerClaimContext
+  readonly intentSnapshot: TaskIntentSnapshot
+  readonly kind: typeof PRODUCT_MARKETER_TASK_KIND
+  readonly payload: ProductMarketerPayload
+}): string =>
+  [
+    'Execute the trusted Product Marketer Brand Context task below.',
+    'Use only the supplied immutable Intent snapshot and current Brand Context.',
+    'For completed work, call save_brand_context and then finish_task.',
+    'For partial or blocked work, do not write an Object; call finish_task with up to three precise questions.',
+    'Return the same registered completion shape after the trusted tool confirms it.',
+    JSON.stringify({
+      currentBrandContext: claimContext.brandContextContent,
+      intentSnapshot,
+      payload,
+      taskKind: kind,
+    }),
+  ].join('\n\n')
 
 export const requiredProductMarketerOutputIds = (
   result: ProductMarketerResult

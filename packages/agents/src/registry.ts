@@ -1,13 +1,17 @@
 import type { AgentModelOptionsDefinition } from 'eve'
 import { z } from 'zod'
 
+import type { TaskIntentSnapshot } from './task-snapshot'
 import {
+  buildProductMarketerTaskPrompt,
   hasOpenProductMarketerQuestions,
   PRODUCT_MARKETER_TASK_KIND,
   PRODUCT_MARKETER_WORKER_KEY,
+  type ProductMarketerClaimContext,
   type ProductMarketerCompletion,
   type ProductMarketerPayload,
   type ProductMarketerResult,
+  productMarketerClaimContextSchema,
   productMarketerCompletionSchema,
   productMarketerPayloadSchema,
   productMarketerResultSchema,
@@ -64,11 +68,19 @@ export interface RegisteredTaskKind<
   TBrief = unknown,
   TResult = unknown,
   TCompletion extends RegisteredTaskCompletion = RegisteredTaskCompletion,
+  TClaimContext = unknown,
 > {
   readonly acceptsPlanRouteOrigin: false
   readonly activation: 'automatic'
   readonly briefSchema: z.ZodType<TBrief>
   readonly budgetClass: 'standard'
+  readonly buildTaskPrompt: (input: {
+    readonly claimContext: TClaimContext
+    readonly intentSnapshot: TaskIntentSnapshot
+    readonly kind: TKind
+    readonly payload: TBrief
+  }) => string
+  readonly claimContextSchema: z.ZodType<TClaimContext>
   readonly completionResultSchema: z.ZodType<TResult>
   readonly completionSchema: z.ZodType<TCompletion>
   readonly effectPhase: 'graph-internal'
@@ -117,6 +129,8 @@ const productMarketerTaskKind = {
   activation: 'automatic',
   briefSchema: productMarketerPayloadSchema,
   budgetClass: 'standard',
+  buildTaskPrompt: buildProductMarketerTaskPrompt,
+  claimContextSchema: productMarketerClaimContextSchema,
   completionResultSchema: productMarketerResultSchema,
   completionSchema: productMarketerCompletionSchema,
   effectPhase: 'graph-internal',
@@ -155,7 +169,8 @@ const productMarketerTaskKind = {
   typeof PRODUCT_MARKETER_TASK_KIND,
   ProductMarketerPayload,
   ProductMarketerResult,
-  ProductMarketerCompletion
+  ProductMarketerCompletion,
+  ProductMarketerClaimContext
 >
 
 export const agentRegistry = {
@@ -243,6 +258,14 @@ export const taskKindRegistry = {
 } as const
 
 export type RegisteredTaskKindKey = keyof typeof taskKindRegistry
+
+export type ClaimContextOf<TKind extends RegisteredTaskKindKey> = z.output<
+  (typeof taskKindRegistry)[TKind]['claimContextSchema']
+>
+
+export type TaskPayloadOf<TKind extends RegisteredTaskKindKey> = z.output<
+  (typeof taskKindRegistry)[TKind]['briefSchema']
+>
 
 export type RegisteredTaskCompletionValue = z.output<
   (typeof taskKindRegistry)[RegisteredTaskKindKey]['completionSchema']
