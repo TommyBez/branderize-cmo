@@ -67,6 +67,47 @@ export const requestSpecialistWorkReceiptSchema = z.discriminatedUnion(
   [createdSpecialistWorkReceiptSchema, observedSpecialistWorkReceiptSchema]
 )
 
+export const requestLateralWorkInputSchema = z
+  .object({
+    kind: registeredTaskKindKeySchema,
+    payload: z.unknown(),
+    rationale: nonBlankSchema.max(3000),
+    requestId: nonBlankSchema.max(500),
+  })
+  .strict()
+  .superRefine((input, context) => {
+    const payload = getTaskKind(input.kind).briefSchema.safeParse(input.payload)
+    if (!payload.success) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Payload does not match the registered task kind',
+        path: ['payload'],
+      })
+    }
+  })
+
+export const createdLateralWorkReceiptSchema = z
+  .object({
+    actionId: z.uuid(),
+    disposition: z.literal('created'),
+    outcome: z.literal('lateral_work_requested'),
+    taskId: z.uuid(),
+  })
+  .strict()
+
+const observedLateralWorkReceiptSchema = z
+  .object({
+    disposition: z.literal('already_active'),
+    outcome: z.literal('lateral_work_observed'),
+    taskId: z.uuid(),
+  })
+  .strict()
+
+export const requestLateralWorkReceiptSchema = z.discriminatedUnion(
+  'disposition',
+  [createdLateralWorkReceiptSchema, observedLateralWorkReceiptSchema]
+)
+
 const taskQuestionAuthorizingHumanSchema = z
   .object({
     actorId: nonBlankSchema,
@@ -145,6 +186,12 @@ export type RequestSpecialistWorkInput = z.input<
 >
 export type RequestSpecialistWorkReceipt = z.infer<
   typeof requestSpecialistWorkReceiptSchema
+>
+export type RequestLateralWorkInput = z.input<
+  typeof requestLateralWorkInputSchema
+>
+export type RequestLateralWorkReceipt = z.infer<
+  typeof requestLateralWorkReceiptSchema
 >
 export type ResolveTaskQuestionsInput = z.input<
   typeof resolveTaskQuestionsInputSchema

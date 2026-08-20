@@ -29,6 +29,9 @@ describe('Content root runtime', () => {
     expect(readdirSync(new URL('./tools/', import.meta.url))).not.toContain(
       'agent.ts'
     )
+    expect(readdirSync(new URL('./tools/', import.meta.url))).toContain(
+      'request_lateral_work.ts'
+    )
   })
 
   it('keeps trusted task and Object identifiers out of model tool inputs', () => {

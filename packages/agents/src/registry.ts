@@ -297,8 +297,11 @@ const distributionChannelPlanTaskKind = {
       distributionChannelPlanResultSchema.parse(result)
     ),
   subjectKey: (payload: unknown) => {
-    distributionChannelPlanPayloadSchema.parse(payload)
-    return `${DISTRIBUTION_WORKER_KEY}:channel-plan`
+    const parsed = distributionChannelPlanPayloadSchema.parse(payload)
+    if (parsed.sourceReportObjectId === undefined) {
+      return `${DISTRIBUTION_WORKER_KEY}:channel-plan`
+    }
+    return `${DISTRIBUTION_WORKER_KEY}:channel-plan:${parsed.sourceReportObjectId}`
   },
   workerKey: DISTRIBUTION_WORKER_KEY,
 } as const satisfies RegisteredTaskKind<
@@ -446,6 +449,48 @@ export const taskKindRegistry = {
 } as const
 
 export type RegisteredTaskKindKey = keyof typeof taskKindRegistry
+
+export const LATERAL_WORK_EDGES = [
+  {
+    sourceWorkerKey: CONTENT_WORKER_KEY,
+    targetKind: DISTRIBUTION_CHANNEL_PLAN_TASK_KIND,
+    targetWorkerKey: DISTRIBUTION_WORKER_KEY,
+  },
+] as const satisfies readonly {
+  readonly sourceWorkerKey: AgentKey
+  readonly targetKind: RegisteredTaskKindKey
+  readonly targetWorkerKey: AgentKey
+}[]
+
+export type LateralWorkEdge = (typeof LATERAL_WORK_EDGES)[number]
+export type LateralWorkTargetKind = LateralWorkEdge['targetKind']
+
+export const LATERAL_WORK_TARGET_KIND_KEYS = [
+  DISTRIBUTION_CHANNEL_PLAN_TASK_KIND,
+] as const satisfies readonly [
+  LateralWorkTargetKind,
+  ...LateralWorkTargetKind[],
+]
+
+export const lateralWorkTargetKindSchema = z.enum(LATERAL_WORK_TARGET_KIND_KEYS)
+
+export const resolveLateralWorkEdge = ({
+  sourceWorkerKey,
+  targetKind,
+}: {
+  readonly sourceWorkerKey: string
+  readonly targetKind: string
+}): LateralWorkEdge | null => {
+  for (const edge of LATERAL_WORK_EDGES) {
+    if (
+      edge.sourceWorkerKey === sourceWorkerKey &&
+      edge.targetKind === targetKind
+    ) {
+      return edge
+    }
+  }
+  return null
+}
 
 export type ClaimContextOf<TKind extends RegisteredTaskKindKey> = {
   readonly [K in TKind]: z.output<

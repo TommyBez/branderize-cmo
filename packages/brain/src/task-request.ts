@@ -26,7 +26,7 @@ import {
   requestSpecialistWorkInputSchema,
 } from './task-contracts'
 
-const observeActiveSpecialistTask = async (
+export const observeActiveSpecialistTask = async (
   transaction: BrainTransaction,
   input: {
     readonly brandId: string

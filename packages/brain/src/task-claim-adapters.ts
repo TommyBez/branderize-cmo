@@ -4,6 +4,7 @@ import type {
   TaskPayloadOf,
 } from '@repo/agents'
 import type { TaskIntentSnapshot } from '@repo/agents/task-snapshot'
+import { distributionChannelPlanPayloadSchema } from '@repo/agents/tasks'
 import type { Database } from '@repo/db/client'
 import { objects } from '@repo/db/schema/domain'
 import { and, eq } from 'drizzle-orm'
@@ -81,11 +82,45 @@ const loadBrandContextClaim = async ({
 }: RegisteredTaskClaimAdapterInput) =>
   await loadActiveBrandContext({ brandId, transaction })
 
+const loadDistributionChannelPlanClaim = async (
+  input: RegisteredTaskClaimAdapterInput
+) => {
+  const brandContext = await loadActiveBrandContext({
+    brandId: input.brandId,
+    transaction: input.transaction,
+  })
+  const payload = distributionChannelPlanPayloadSchema.parse(input.payload)
+  if (payload.sourceReportObjectId === undefined) {
+    return brandContext
+  }
+  const [sourceReport] = await input.transaction
+    .select({ content: objects.content, id: objects.id })
+    .from(objects)
+    .where(
+      and(
+        eq(objects.brandId, input.brandId),
+        eq(objects.id, payload.sourceReportObjectId),
+        eq(objects.status, 'active'),
+        eq(objects.type, 'report')
+      )
+    )
+    .for('share')
+    .limit(1)
+  if (sourceReport === undefined) {
+    return fail('invalid_task', 'Task has no source Content report')
+  }
+  return {
+    ...brandContext,
+    sourceReportContent: sourceReport.content,
+    sourceReportObjectId: sourceReport.id,
+  }
+}
+
 export const claimContextAdapters: {
   readonly [K in RegisteredTaskKindKey]: RegisteredTaskClaimAdapter
 } = {
   'content.brief.v1': loadBrandContextClaim,
-  'distribution.channel-plan.v1': loadBrandContextClaim,
+  'distribution.channel-plan.v1': loadDistributionChannelPlanClaim,
   'product-marketer.brand-context.v1': loadBrandContextClaim,
   'seo-discovery.opportunity.v1': loadBrandContextClaim,
 }
