@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseAgentServerEnvironment } from './agent-server'
+import { parseAgentServerEnvironment, readDispatchSecret } from './agent-server'
 import { parseAppServerEnvironment } from './app-server'
 import { parseClientEnvironment } from './client'
 import { parseCmoAgentServerEnvironment } from './cmo-agent-server'
@@ -133,6 +133,34 @@ describe('deployment-specific database credentials', () => {
         NODE_ENV: 'test',
       })
     ).toThrow('DIRECT_DATABASE_URL must not be present')
+  })
+
+  it('keeps dispatch closed when agent-server configuration is invalid', () => {
+    expect(
+      readDispatchSecret({
+        DATABASE_URL: validAppEnvironment.DATABASE_URL,
+        DIRECT_DATABASE_URL:
+          'postgresql://postgres:postgres@localhost:5432/branderize',
+        DISPATCH_SECRET: validAppEnvironment.DISPATCH_SECRET,
+        NODE_ENV: 'test',
+      })
+    ).toBeUndefined()
+    expect(
+      readDispatchSecret({
+        DATABASE_URL: validAppEnvironment.DATABASE_URL,
+        NODE_ENV: 'test',
+      })
+    ).toBeUndefined()
+  })
+
+  it('reads the dispatch secret from a valid agent-server environment', () => {
+    expect(
+      readDispatchSecret({
+        DATABASE_URL: validAppEnvironment.DATABASE_URL,
+        DISPATCH_SECRET: validAppEnvironment.DISPATCH_SECRET,
+        NODE_ENV: 'test',
+      })
+    ).toBe(validAppEnvironment.DISPATCH_SECRET)
   })
 
   it('keeps the human bridge credential exclusive to the CMO parser', () => {

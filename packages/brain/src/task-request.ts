@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { getTaskKind, type RegisteredTaskKindKey } from '@repo/agents'
+import { taskIntentSnapshotSchema } from '@repo/agents/task-snapshot'
 import type { Database } from '@repo/db/client'
 import { actions, intents, tasks } from '@repo/db/schema/domain'
 import { evaluatePolicy } from '@repo/policy'
@@ -23,7 +24,6 @@ import {
   type RequestSpecialistWorkInput,
   type RequestSpecialistWorkReceipt,
   requestSpecialistWorkInputSchema,
-  taskIntentSnapshotSchema,
 } from './task-contracts'
 
 const observeActiveSpecialistTask = async (

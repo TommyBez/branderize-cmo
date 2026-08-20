@@ -213,6 +213,7 @@ export const projectRegisteredTaskQuestionBundle = <
   TBrief,
   TResult,
   TCompletion extends RegisteredTaskCompletion,
+  TClaimContext = unknown,
 >({
   task,
   taskKind,
@@ -233,7 +234,13 @@ export const projectRegisteredTaskQuestionBundle = <
     readonly taskId: string
     readonly workerKey: string | null
   }
-  readonly taskKind: RegisteredTaskKind<TKind, TBrief, TResult, TCompletion>
+  readonly taskKind: RegisteredTaskKind<
+    TKind,
+    TBrief,
+    TResult,
+    TCompletion,
+    TClaimContext
+  >
 }): TaskQuestionBundleProjection => {
   const payload = taskKind.briefSchema.safeParse(task.payload)
   if (!payload.success) {

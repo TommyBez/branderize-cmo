@@ -1,5 +1,6 @@
 import { BrainError } from '@repo/brain/errors'
-import type { SessionAuthContext, SessionParent } from 'eve/context'
+import type { ClaimedTask, TaskGeneration } from '@repo/brain/tasks'
+import type { SessionParent } from 'eve/context'
 import type { HookContext, HookEvent } from 'eve/hooks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -26,30 +27,37 @@ vi.mock('@repo/brain/tasks', () => ({
 
 vi.mock('@repo/db', () => ({ db: mocks.database }))
 
-import productMarketerAuditHook from '../hooks/audit'
+import { defineTaskAuditHook } from './audit-hook'
+import { createTaskSessionAuth } from './session-envelope'
 
-const AGENT_ACTOR_ID = '11111111-1111-4111-8111-111111111111'
-const BRAND_CONTEXT_OBJECT_ID = '22222222-2222-4222-8222-222222222222'
-const BRAND_ID = '33333333-3333-4333-8333-333333333333'
-const TASK_ID = '44444444-4444-4444-8444-444444444444'
-const SESSION_ID = 'session-product-marketer-fixture'
-
-const taskAuth: SessionAuthContext = {
-  attributes: {
-    agent_actor_id: AGENT_ACTOR_ID,
-    agent_actor_key: 'agent:product-marketer',
-    brand_context_object_id: BRAND_CONTEXT_OBJECT_ID,
-    brand_id: BRAND_ID,
-    task_id: TASK_ID,
-    task_started_at: '2026-08-18T00:00:00.000Z',
-    worker_key: 'product-marketer',
+const claim: ClaimedTask = {
+  agentActorId: '11111111-1111-4111-8111-111111111111',
+  agentActorKey: 'agent:product-marketer',
+  brandId: '33333333-3333-4333-8333-333333333333',
+  claimContext: {
+    brandContextContent: { summary: 'Current context' },
+    brandContextObjectId: '22222222-2222-4222-8222-222222222222',
   },
-  authenticator: 'product-marketer-dispatch',
-  issuer: 'branderize-agent-server',
-  principalId: AGENT_ACTOR_ID,
-  principalType: 'agent',
-  subject: 'agent:product-marketer',
+  intentSnapshot: {
+    acceptance_criteria: [{ metric: 'qualified demand' }],
+    brand_id: '33333333-3333-4333-8333-333333333333',
+    constraints: null,
+    intent_id: '00000000-0000-0000-0000-000000000203',
+    intent_revision: 1,
+    preauthorizations: [],
+    statement: 'Clarify the value proposition',
+  },
+  kind: 'product-marketer.brand-context.v1',
+  payload: { purpose: 'enrich_brand_context' },
+  startedAt: new Date('2026-08-18T00:00:00.000Z') as TaskGeneration,
+  taskId: '44444444-4444-4444-8444-444444444444',
+  workerKey: 'product-marketer',
 }
+
+const taskAuth = createTaskSessionAuth(claim)
+const SESSION_ID = 'session-product-marketer-fixture'
+const BRAND_ID = claim.brandId
+const TASK_ID = claim.taskId
 
 const childParent: SessionParent = {
   callId: 'call-product-marketer-child',
@@ -62,7 +70,7 @@ const createContext = ({
   current = taskAuth,
   parent,
 }: {
-  readonly current?: SessionAuthContext | null
+  readonly current?: typeof taskAuth | null
   readonly parent?: SessionParent
 } = {}): HookContext => ({
   agent: { name: 'Product Marketer' },
@@ -98,14 +106,14 @@ const sessionCompletedEvent = {
 } satisfies HookEvent<'session.completed'>
 
 const auditHandler = () => {
-  const handler = productMarketerAuditHook.events?.['*']
+  const handler = defineTaskAuditHook().events?.['*']
   if (handler === undefined) {
-    throw new Error('Expected the Product Marketer wildcard audit handler')
+    throw new Error('Expected the specialist wildcard audit handler')
   }
   return handler
 }
 
-describe('Product Marketer audit hook', () => {
+describe('specialist task audit hook', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -113,7 +121,7 @@ describe('Product Marketer audit hook', () => {
   it('fails closed before persistence when session identity is invalid', async () => {
     await expect(
       auditHandler()(sessionStartedEvent, createContext({ current: null }))
-    ).rejects.toThrow('Product Marketer session authentication is missing')
+    ).rejects.toThrow('Task session authentication is missing')
 
     expect(mocks.bindTaskSession).not.toHaveBeenCalled()
     expect(mocks.parsePersistableSessionEvent).not.toHaveBeenCalled()

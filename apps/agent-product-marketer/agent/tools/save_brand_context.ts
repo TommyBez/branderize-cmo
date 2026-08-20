@@ -2,25 +2,24 @@ import {
   produceProductMarketerContext,
   productMarketerContextContentSchema,
 } from '@repo/brain/objects'
-import { defineTool } from 'eve/tools'
-
 import {
-  readProductMarketerSessionIdentity,
+  readTaskSession,
   stableTaskRequestId,
-  taskExecutionFromContext,
-} from '../lib/task-runtime'
+  taskExecutionOf,
+} from '@repo/specialist-runtime/session'
+import { defineTool } from 'eve/tools'
 
 export default defineTool({
   description:
     'Persist the completed Product Marketer Brand Context through the canonical graph writer. Use once, only when the evidence supports a completed result.',
   async execute(content, context) {
-    const identity = readProductMarketerSessionIdentity(context)
+    const session = readTaskSession(context)
     const { db } = await import('@repo/db')
     return await produceProductMarketerContext({
       content,
       database: db,
-      execution: taskExecutionFromContext(context),
-      expectedBrandContextObjectId: identity.brandContextObjectId,
+      execution: taskExecutionOf(context),
+      expectedBrandContextObjectId: session.claimContext.brandContextObjectId,
       requestId: stableTaskRequestId({
         context,
         operation: 'save-brand-context',

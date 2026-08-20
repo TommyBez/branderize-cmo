@@ -1,23 +1,25 @@
 {
-  "name": "agent-product-marketer",
+  "name": "@repo/specialist-runtime",
   "version": "0.0.0",
   "private": true,
+  "sideEffects": false,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./audit-hook": "./src/audit-hook.ts",
+    "./session": "./src/task-session.ts",
+    "./testing": "./src/testing.ts"
+  },
   "scripts": {
-    "build": "node ../../scripts/materialize-marketing-skills.mjs && eve build",
     "check-types": "tsc --noEmit",
-    "dev": "eve dev",
-    "start": "eve start",
-    "test": "vitest run --root ../.. apps/agent-product-marketer"
+    "test": "vitest run --root ../.. packages/specialist-runtime"
   },
   "dependencies": {
     "@repo/agents": "workspace:*",
     "@repo/brain": "workspace:*",
+    "@repo/canonical-json": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/env": "workspace:*",
-    "@repo/marketing-skills": "workspace:*",
-    "@repo/specialist-runtime": "workspace:*",
-    "drizzle-orm": "0.45.2",
     "eve": "0.31.3",
     "zod": "4.4.3"
   },
@@ -26,9 +28,5 @@
     "@types/node": "24.13.3",
     "typescript": "5.9.2",
     "vitest": "4.1.10"
-  },
-  "engines": {
-    "node": "24.x",
-    "pnpm": "11.x"
   }
 }

@@ -1,12 +1,14 @@
 import {
   type AgentKey,
+  type ClaimContextOf,
   getTaskKind,
   type RegisteredTaskCompletionValue,
   type RegisteredTaskKindKey,
   registeredTaskKindKeySchema,
+  type TaskPayloadOf,
 } from '@repo/agents'
+import type { TaskIntentSnapshot } from '@repo/agents/task-snapshot'
 import {
-  type ProductMarketerPayload,
   PRODUCT_MARKETER_TASK_KIND as registeredProductMarketerTaskKind,
   PRODUCT_MARKETER_WORKER_KEY as registeredProductMarketerWorkerKey,
 } from '@repo/agents/tasks'
@@ -138,25 +140,6 @@ export const taskQuestionsResolvedReceiptSchema = z.discriminatedUnion(
   ]
 )
 
-export const taskIntentSnapshotSchema = z
-  .object({
-    acceptance_criteria: z.array(z.json()).min(1).nullable(),
-    brand_id: z.uuid(),
-    constraints: z.array(z.json()).min(1).nullable(),
-    intent_id: z.uuid(),
-    intent_revision: z.number().int().positive(),
-    preauthorizations: z.array(
-      z
-        .object({
-          authorizedIntentRevision: z.number().int().positive(),
-          decisionId: nonBlankSchema,
-        })
-        .strict()
-    ),
-    statement: nonBlankSchema,
-  })
-  .strict()
-
 export type RequestSpecialistWorkInput = z.input<
   typeof requestSpecialistWorkInputSchema
 >
@@ -172,20 +155,27 @@ export type ParsedResolveTaskQuestionsInput = z.output<
 export type TaskQuestionsResolvedReceipt = z.infer<
   typeof taskQuestionsResolvedReceiptSchema
 >
-export type TaskIntentSnapshot = z.infer<typeof taskIntentSnapshotSchema>
 
-export interface ClaimedRegisteredAgentTask<
+declare const taskGenerationBrand: unique symbol
+
+export type TaskGeneration = Date & {
+  readonly [taskGenerationBrand]: true
+}
+
+export const taskGenerationOf = (value: Date): TaskGeneration =>
+  value as TaskGeneration
+
+export interface ClaimedTask<
   TKind extends RegisteredTaskKindKey = RegisteredTaskKindKey,
-  TAdapterContext = unknown,
 > {
-  readonly adapterContext: TAdapterContext
   readonly agentActorId: string
   readonly agentActorKey: `agent:${AgentKey}`
   readonly brandId: string
+  readonly claimContext: ClaimContextOf<TKind>
   readonly intentSnapshot: TaskIntentSnapshot
   readonly kind: TKind
-  readonly payload: unknown
-  readonly startedAt: Date
+  readonly payload: TaskPayloadOf<TKind>
+  readonly startedAt: TaskGeneration
   readonly taskId: string
   readonly workerKey: AgentKey
 }
@@ -204,22 +194,6 @@ export interface RegisteredTaskDeliveryFailure {
   readonly outcome: 'delivery_failed' | 'not_unbound_running'
   readonly taskId: string
 }
-
-export interface ClaimedProductMarketerTask {
-  readonly agentActorId: string
-  readonly agentActorKey: `agent:${typeof PRODUCT_MARKETER_WORKER_KEY}`
-  readonly brandContextContent: unknown
-  readonly brandContextObjectId: string
-  readonly brandId: string
-  readonly intentSnapshot: TaskIntentSnapshot
-  readonly kind: typeof PRODUCT_MARKETER_TASK_KIND
-  readonly payload: ProductMarketerPayload
-  readonly startedAt: Date
-  readonly taskId: string
-  readonly workerKey: typeof PRODUCT_MARKETER_WORKER_KEY
-}
-
-export type ProductMarketerDeliveryFailure = RegisteredTaskDeliveryFailure
 
 export interface StagedTaskCompletion {
   readonly completion: RegisteredTaskCompletionValue

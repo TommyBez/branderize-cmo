@@ -64,8 +64,7 @@ import {
 import {
   AGENT_DELIVERY_RECOVERY_WINDOW_MS,
   bindTaskSession,
-  claimProductMarketerTask,
-  failProductMarketerDelivery,
+  claimRegisteredAgentTask,
   failRegisteredAgentDelivery,
   finishTask,
   PRODUCT_MARKETER_TASK_KIND,
@@ -1255,13 +1254,16 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       .limit(1)
     expect(queuedTask).toEqual({ revision: 1, status: 'queued' })
 
-    const claimed = await claimProductMarketerTask({
+    const claimed = await claimRegisteredAgentTask({
       database: requireDatabase(),
+      kind: PRODUCT_MARKETER_TASK_KIND,
       now: new Date(Date.now() + 1000),
     })
     expect(claimed).toMatchObject({
-      brandContextObjectId: bootstrap.brandContextObjectId,
       brandId: onboarding.brandId,
+      claimContext: {
+        brandContextObjectId: bootstrap.brandContextObjectId,
+      },
       taskId: workRequest.taskId,
     })
     const claimedTask = requireValue(
@@ -1358,7 +1360,8 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       },
       database: requireDatabase(),
       execution: childExecution,
-      expectedBrandContextObjectId: claimedTask.brandContextObjectId,
+      expectedBrandContextObjectId:
+        claimedTask.claimContext.brandContextObjectId,
       requestId: `output:${randomUUID()}`,
     })
     expect(productMarketerOutput).toMatchObject({
@@ -1760,8 +1763,9 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       throw new Error('The zero-credit task setup did not create a task')
     }
     await expect(
-      claimProductMarketerTask({
+      claimRegisteredAgentTask({
         database: requireDatabase(),
+        kind: PRODUCT_MARKETER_TASK_KIND,
         now: new Date(Date.now() + 2000),
       })
     ).resolves.toBeNull()
@@ -1788,8 +1792,9 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
     const staleStartedAt = new Date(
       recoveryNow.getTime() - AGENT_DELIVERY_RECOVERY_WINDOW_MS - 1
     )
-    const firstRecoveryClaim = await claimProductMarketerTask({
+    const firstRecoveryClaim = await claimRegisteredAgentTask({
       database: requireDatabase(),
+      kind: PRODUCT_MARKETER_TASK_KIND,
       now: staleStartedAt,
     })
     expect(firstRecoveryClaim?.taskId).toBe(recoveryWork.taskId)
@@ -1803,8 +1808,9 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       .set({ startedAt: staleStartedAt })
       .where(eq(tasks.id, recoveryWork.taskId))
 
-    const recoveredClaim = await claimProductMarketerTask({
+    const recoveredClaim = await claimRegisteredAgentTask({
       database: requireDatabase(),
+      kind: PRODUCT_MARKETER_TASK_KIND,
       now: recoveryNow,
     })
     expect(recoveredClaim).toMatchObject({
@@ -1835,7 +1841,7 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
     })
 
     await expect(
-      failProductMarketerDelivery({
+      failRegisteredAgentDelivery({
         claim: staleTaskClaim,
         database: requireDatabase(),
         now: new Date(recoveryNow.getTime() + 250),
@@ -1906,7 +1912,7 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
 
     const deliveryFailureTime = new Date(recoveryNow.getTime() + 1000)
     await expect(
-      failProductMarketerDelivery({
+      failRegisteredAgentDelivery({
         claim: recoveredTaskClaim,
         database: requireDatabase(),
         now: deliveryFailureTime,
@@ -1939,8 +1945,9 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       owner,
       ownerActor,
     })
-    const boundClaim = await claimProductMarketerTask({
+    const boundClaim = await claimRegisteredAgentTask({
       database: requireDatabase(),
+      kind: PRODUCT_MARKETER_TASK_KIND,
       now: new Date(deliveryFailureTime.getTime() + 1000),
     })
     expect(boundClaim?.taskId).toBe(boundWork.taskId)
@@ -1979,7 +1986,8 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
         },
         database: requireDatabase(),
         execution: staleBoundExecution,
-        expectedBrandContextObjectId: claimedBoundTask.brandContextObjectId,
+        expectedBrandContextObjectId:
+          claimedBoundTask.claimContext.brandContextObjectId,
         requestId: `output:d3:stale:${randomUUID()}`,
       })
     ).rejects.toMatchObject({ code: 'invalid_task' })
@@ -2012,7 +2020,7 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       .where(eq(tasks.id, boundWork.taskId))
       .limit(1)
     await expect(
-      failProductMarketerDelivery({
+      failRegisteredAgentDelivery({
         claim: claimedBoundTask,
         database: requireDatabase(),
         now: new Date(deliveryFailureTime.getTime() + 2000),
@@ -2092,8 +2100,9 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
       ownerActor,
     })
     const failedClaim = requireValue(
-      await claimProductMarketerTask({
+      await claimRegisteredAgentTask({
         database: requireDatabase(),
+        kind: PRODUCT_MARKETER_TASK_KIND,
         now: new Date(cancellationTime.getTime() + 1000),
       }),
       'The turn-failure setup task was not claimed'
@@ -2216,14 +2225,15 @@ describe('Phase 0 canonical journey on PostgreSQL', () => {
     })
 
     const humanHeadClaim = requireValue(
-      await claimProductMarketerTask({
+      await claimRegisteredAgentTask({
         database: requireDatabase(),
+        kind: PRODUCT_MARKETER_TASK_KIND,
         now: new Date(turnFailureTime.getTime() + 1000),
       }),
       'The human-head guard setup task was not claimed'
     )
     expect(humanHeadClaim).toMatchObject({
-      brandContextObjectId: humanContextObjectId,
+      claimContext: { brandContextObjectId: humanContextObjectId },
       taskId: humanHeadWork.taskId,
     })
     const humanHeadSessionId = `session:human-head:${randomUUID()}`

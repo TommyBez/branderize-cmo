@@ -6,13 +6,12 @@ import type { TrustedTaskExecution } from '@repo/brain/context'
 import { listTaskResultObjects } from '@repo/brain/task-output'
 import { finishTask } from '@repo/brain/tasks'
 import type { Database } from '@repo/db/client'
+import {
+  requireRootTaskSession,
+  taskExecutionOf,
+} from '@repo/specialist-runtime/session'
 import { defineTool } from 'eve/tools'
 import { z } from 'zod'
-
-import {
-  requireProductMarketerRootSession,
-  taskExecutionFromContext,
-} from '../lib/task-runtime'
 
 const nonBlankSchema = z.string().trim().min(1)
 
@@ -93,9 +92,9 @@ export default defineTool({
   description:
     'Stage the authoritative terminal Product Marketer completion. Completed work requires a prior save_brand_context receipt; partial or blocked work records questions without writing an Object.',
   async execute(input, context) {
-    requireProductMarketerRootSession(context)
+    requireRootTaskSession(context)
     const { db } = await import('@repo/db')
-    const execution = taskExecutionFromContext(context)
+    const execution = taskExecutionOf(context)
     const completion = await completionFromInput(input, execution, db)
     const staged = await finishTask({
       completion,

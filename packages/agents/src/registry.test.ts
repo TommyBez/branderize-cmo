@@ -102,6 +102,34 @@ describe('Phase 0 agent registry', () => {
     expect(REGISTERED_QUESTION_TASK_KIND_KEYS).toEqual([
       'product-marketer.brand-context.v1',
     ])
+    expect(
+      taskKind.claimContextSchema.parse({
+        brandContextContent: { summary: 'Current context' },
+        brandContextObjectId: 'object_brand_context_01',
+      })
+    ).toEqual({
+      brandContextContent: { summary: 'Current context' },
+      brandContextObjectId: 'object_brand_context_01',
+    })
+    expect(
+      taskKind.buildTaskPrompt({
+        claimContext: {
+          brandContextContent: { summary: 'Current context' },
+          brandContextObjectId: 'object_brand_context_01',
+        },
+        intentSnapshot: {
+          acceptance_criteria: [{ metric: 'qualified demand' }],
+          brand_id: '00000000-0000-0000-0000-000000000201',
+          constraints: null,
+          intent_id: '00000000-0000-0000-0000-000000000203',
+          intent_revision: 1,
+          preauthorizations: [],
+          statement: 'Clarify the value proposition',
+        },
+        kind: 'product-marketer.brand-context.v1',
+        payload: { purpose: 'enrich_brand_context' },
+      })
+    ).toContain('product-marketer.brand-context.v1')
   })
 })
 

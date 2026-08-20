@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { getTaskKind, registeredTaskKindKeySchema } from '@repo/agents'
+import { taskIntentSnapshotSchema } from '@repo/agents/task-snapshot'
 import type { Database } from '@repo/db/client'
 import { actions, tasks } from '@repo/db/schema/domain'
 import { evaluatePolicy } from '@repo/policy'
@@ -22,7 +23,6 @@ import {
   type ResolveTaskQuestionsInput,
   resolveTaskQuestionsInputSchema,
   type TaskQuestionsResolvedReceipt,
-  taskIntentSnapshotSchema,
   taskQuestionsResolvedReceiptSchema,
   taskReceiptSha256Schema,
 } from './task-contracts'

@@ -27,6 +27,8 @@ const syntheticQuestionTaskKind = {
   activation: 'automatic',
   briefSchema: z.object({ topic: z.string().min(1) }).strict(),
   budgetClass: 'standard',
+  buildTaskPrompt: () => 'synthetic question task',
+  claimContextSchema: z.unknown(),
   completionResultSchema: z
     .object({ outcome: z.literal('needs_input') })
     .strict(),
