@@ -11,6 +11,7 @@ export type BrainErrorCode =
   | 'invalid_output'
   | 'invalid_task'
   | 'intent_not_active'
+  | 'intent_not_draft'
   | 'intent_not_found'
   | 'operation_conflict'
   | 'stale_head'
