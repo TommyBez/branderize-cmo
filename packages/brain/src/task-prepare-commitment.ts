@@ -5,6 +5,7 @@ import { notionPagePayloadSchema } from '@repo/agents/tasks'
 import type { Database } from '@repo/db/client'
 import { objects, tasks } from '@repo/db/schema/domain'
 import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
 
 import { operationKey, requestHash } from './canonical'
 import type { TrustedMemberAccess } from './context'
@@ -15,12 +16,14 @@ import {
   requireMutationRole,
   requireTrustedHumanActor,
 } from './internal'
+import { acquireCommitmentDismissalLock } from './receipts'
 import {
   type PrepareCommitmentInput,
   type PreparedCommitmentReceipt,
   prepareCommitmentInputSchema,
   preparedCommitmentReceiptSchema,
 } from './task-commitment-contracts'
+import { readLatestCommitmentDismissalFact } from './task-dismissal'
 
 const requireActiveContentReport = async ({
   brandId,
@@ -52,6 +55,24 @@ const requireActiveContentReport = async ({
   }
 }
 
+export const dismissedCommitmentDispositionSchema = z
+  .object({
+    disposition: z.literal('dismissed'),
+  })
+  .strict()
+
+export type DismissedCommitmentDisposition = z.infer<
+  typeof dismissedCommitmentDispositionSchema
+>
+export type PrepareCommitmentResult =
+  | DismissedCommitmentDisposition
+  | PreparedCommitmentReceipt
+
+export const isDismissedCommitmentDisposition = (
+  result: PrepareCommitmentResult
+): result is DismissedCommitmentDisposition =>
+  'disposition' in result && result.disposition === 'dismissed'
+
 const receiptOf = (task: {
   readonly id: string
   readonly kind: string
@@ -74,7 +95,7 @@ export const prepareCommitment = async ({
   readonly access: TrustedMemberAccess
   readonly database: Database
   readonly input: PrepareCommitmentInput
-}): Promise<PreparedCommitmentReceipt> => {
+}): Promise<PrepareCommitmentResult> => {
   const parsed = prepareCommitmentInputSchema.parse(input)
   const taskKind = getTaskKind(parsed.kind)
   if (
@@ -88,6 +109,7 @@ export const prepareCommitment = async ({
     )
   }
   const payload = taskKind.briefSchema.parse(parsed.payload)
+  const payloadHash = requestHash(payload)
   const receiptOperationKey = operationKey(
     'prepare-commitment:human',
     parsed.requestId
@@ -108,6 +130,12 @@ export const prepareCommitment = async ({
     const currentMember = await requireCurrentBrandMember(transaction, access)
     await requireTrustedHumanActor(transaction, access)
     requireMutationRole(currentMember.role)
+    await acquireCommitmentDismissalLock({
+      brandId: access.brandId,
+      kind: parsed.kind,
+      payloadHash,
+      transaction,
+    })
 
     const [existing] = await transaction
       .select({
@@ -128,6 +156,18 @@ export const prepareCommitment = async ({
         )
       }
       return receiptOf(existing)
+    }
+
+    const latestFact = await readLatestCommitmentDismissalFact({
+      brandId: access.brandId,
+      kind: parsed.kind,
+      payloadHash,
+      transaction,
+    })
+    if (latestFact?.fact === 'dismissal') {
+      return dismissedCommitmentDispositionSchema.parse({
+        disposition: 'dismissed',
+      })
     }
 
     if (parsed.kind === 'content.notion-page.v1') {
@@ -152,7 +192,7 @@ export const prepareCommitment = async ({
         idempotencyKey: taskIdempotencyKey,
         kind: taskKind.kind,
         payload,
-        payloadHash: requestHash(payload),
+        payloadHash,
         revision: 1,
         status: 'awaiting_approval',
         subjectKey,

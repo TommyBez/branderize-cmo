@@ -30,7 +30,10 @@ import {
   type HumanCommitmentClaimResult,
 } from './task-claim-human'
 import { SERIALIZED_COMMITMENT_FIXTURE_KIND } from './task-commitment-contracts'
-import { prepareCommitment } from './task-prepare-commitment'
+import {
+  isDismissedCommitmentDisposition,
+  prepareCommitment,
+} from './task-prepare-commitment'
 import { requestSpecialistWork } from './task-request'
 import {
   settleHumanCommitmentResult,
@@ -154,6 +157,9 @@ const prepareNotion = async (
       requestId,
     },
   })
+  if (isDismissedCommitmentDisposition(receipt)) {
+    throw new Error('Expected a prepared commitment')
+  }
   return { receipt, reportObjectId, requestId, title }
 }
 
