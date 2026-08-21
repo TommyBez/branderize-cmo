@@ -78,6 +78,12 @@ const TEST_AUTH_SECRET = 'branderize-e2e-auth-secret-at-least-32-bytes'
 const TEST_CMO_SECRET = 'branderize-e2e-cmo-secret-at-least-32-bytes'
 const TEST_CRON_SECRET = 'branderize-e2e-cron-secret-at-least-32-bytes'
 const TEST_DISPATCH_SECRET = 'branderize-e2e-dispatch-secret-at-least-32-bytes'
+const VERCEL_LINK_DIRECTORY_CANDIDATES = [
+  resolve(REPOSITORY_ROOT, '.vercel'),
+  resolve(REPOSITORY_ROOT, 'apps/app/.vercel'),
+]
+const VERCEL_OIDC_ENV_FILE = resolve(REPOSITORY_ROOT, 'apps/app/.env.local')
+const SURROUNDING_QUOTES_PATTERN = /^"|"$/u
 const PRODUCT_MARKETER_ORIGIN = 'http://127.0.0.1:2001'
 const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://127.0.0.1:3000'
 const playwrightArguments = ['test', '--config', 'playwright.config.ts']
@@ -116,7 +122,7 @@ const run = ({ args, command, cwd = REPOSITORY_ROOT, env = process.env }) =>
     })
   })
 
-const runTurboBuild = async ({ env, filters, label }) => {
+const runTurboBuild = async ({ env, filters, force = false, label }) => {
   const code = await run({
     args: [
       'exec',
@@ -124,6 +130,7 @@ const runTurboBuild = async ({ env, filters, label }) => {
       'run',
       'build',
       ...filters.map((filter) => `--filter=${filter}`),
+      ...(force ? ['--force'] : []),
     ],
     command: 'pnpm',
     env,
@@ -613,6 +620,42 @@ const assertPostgres17 = async (connectionString) => {
   }
 }
 
+const findVercelLinkDirectory = async () => {
+  const matches = await Promise.all(
+    VERCEL_LINK_DIRECTORY_CANDIDATES.map(async (candidate) => {
+      const metadata = await lstat(resolve(candidate, 'project.json')).catch(
+        () => null
+      )
+      return metadata?.isFile() === true ? candidate : undefined
+    })
+  )
+  return matches.find((candidate) => candidate !== undefined)
+}
+
+const loadVercelOidcToken = async () => {
+  const fromEnvironment = process.env.VERCEL_OIDC_TOKEN
+  if (
+    typeof fromEnvironment === 'string' &&
+    fromEnvironment.trim().length > 0
+  ) {
+    return fromEnvironment.trim()
+  }
+  let envFile
+  try {
+    envFile = await readFile(VERCEL_OIDC_ENV_FILE, 'utf8')
+  } catch {
+    return
+  }
+  const line = envFile
+    .split('\n')
+    .find((entry) => entry.startsWith('VERCEL_OIDC_TOKEN='))
+  const value = line
+    ?.slice('VERCEL_OIDC_TOKEN='.length)
+    .trim()
+    .replace(SURROUNDING_QUOTES_PATTERN, '')
+  return value !== undefined && value.length > 0 ? value : undefined
+}
+
 const composeArgs = [
   'compose',
   '--project-name',
@@ -737,6 +780,10 @@ try {
     RESEND_API_KEY: 're_branderize_e2e',
     RESEND_FROM_EMAIL: 'access@e2e.invalid',
   }
+  const vercelOidcToken = await loadVercelOidcToken()
+  if (vercelOidcToken !== undefined) {
+    e2eEnvironment.VERCEL_OIDC_TOKEN = vercelOidcToken
+  }
   const playwrightEnvironment = Object.fromEntries(
     Object.entries(e2eEnvironment).filter(([name]) => name !== 'NODE_OPTIONS')
   )
@@ -760,9 +807,12 @@ try {
     },
   })
 
+  // Eve bakes absolute source paths into .output, so a cache restored from
+  // another worktree breaks eve start. Always build the agents in place.
   await runTurboBuild({
     env: e2eEnvironment,
     filters: AGENT_APP_DIRECTORIES,
+    force: true,
     label: 'Eve agent',
   })
   await runTurboBuild({
@@ -771,6 +821,7 @@ try {
     label: 'Next.js',
   })
 
+  const vercelLinkDirectory = await findVercelLinkDirectory()
   await Promise.all(
     AGENT_APP_DIRECTORIES.map(async (appDirectoryName) => {
       const sourceOutputDirectory = await realpath(
@@ -794,8 +845,20 @@ try {
           `${appDirectoryName} temporary runtime root does not point at its Eve build`
         )
       }
+      if (vercelLinkDirectory !== undefined) {
+        await symlink(
+          vercelLinkDirectory,
+          resolve(runtimeRoot, '.vercel'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        )
+      }
     })
   )
+  if (vercelLinkDirectory !== undefined) {
+    console.info(
+      '[e2e] materialized the Vercel project link into every Eve runtime root'
+    )
+  }
 
   const playwrightCode = await run({
     args: playwrightArguments,
