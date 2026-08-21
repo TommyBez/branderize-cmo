@@ -278,6 +278,14 @@ beforeAll(async () => {
     status: 'blocked',
     summary: 'Approved evidence is missing.',
   }
+  const briefCompletion = {
+    intentAcceptance: null,
+    openQuestions: [],
+    outputObjectIds: [],
+    result: { outcome: 'delivered', reason: 'brief_drafted' },
+    status: 'completed',
+    summary: 'Draft brief is ready.',
+  }
   await databasePool.query(
     `INSERT INTO tasks (
        id, brand_id, kind, worker_key, subject_key, execution_mode, activation,
@@ -321,15 +329,15 @@ beforeAll(async () => {
   await databasePool.query(
     `INSERT INTO tasks (
        id, brand_id, kind, worker_key, subject_key, execution_mode, activation,
-       status, payload, payload_hash, revision
+       status, payload, payload_hash, revision, completion, finished_at
      ) VALUES
        ($1, $2, 'content.brief.v1', 'content', $3,
         'agent', 'automatic', 'succeeded', '{"purpose":"draft_brief"}'::jsonb,
-        'brief-hash', 1),
+        'brief-hash', 1, $7::jsonb, now()),
        ($4, $2, 'content.notion-page.v1', 'content', $5,
         'direct', 'human', 'awaiting_approval',
         jsonb_build_object('reportObjectId', $6::text, 'title', 'Launch page'),
-        'notion-hash', 1)`,
+        'notion-hash', 1, NULL, NULL)`,
     [
       fixture.contentBriefTaskId,
       fixture.brandAId,
@@ -337,6 +345,7 @@ beforeAll(async () => {
       fixture.notionApprovalTaskId,
       `commitment:${fixture.notionApprovalTaskId}`,
       fixture.brandContextObjectId,
+      JSON.stringify(briefCompletion),
     ]
   )
 })

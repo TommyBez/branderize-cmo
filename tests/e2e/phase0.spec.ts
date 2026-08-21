@@ -3244,6 +3244,12 @@ const insertProducedReport = async ({
   return reportObjectId
 }
 
+const ACTIVE_TASK_STATUSES: readonly string[] = [
+  'awaiting_approval',
+  'queued',
+  'running',
+]
+
 const insertGenericTask = async ({
   activation = 'automatic',
   brandId,
@@ -3261,12 +3267,25 @@ const insertGenericTask = async ({
 }): Promise<string> => {
   const taskId = randomUUID()
   const payload = { fixture: kind }
+  const completion =
+    executionMode === 'agent' && status === 'succeeded'
+      ? JSON.stringify({
+          intentAcceptance: null,
+          openQuestions: [],
+          outputObjectIds: [],
+          result: { outcome: 'delivered', reason: 'fixture_completed' },
+          status: 'completed',
+          summary: `${kind} finished.`,
+        })
+      : null
+  const isFinished = !ACTIVE_TASK_STATUSES.includes(status)
   await databasePool.query(
     `INSERT INTO tasks (
        id, brand_id, kind, subject_key, worker_key, execution_mode,
-       activation, status, payload, payload_hash
+       activation, status, payload, payload_hash, completion, finished_at
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10
+       $1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb,
+       CASE WHEN $12 THEN now() ELSE NULL END
      )`,
     [
       taskId,
@@ -3279,6 +3298,8 @@ const insertGenericTask = async ({
       status,
       JSON.stringify(payload),
       requestHash(payload),
+      completion,
+      isFinished,
     ]
   )
   return taskId
