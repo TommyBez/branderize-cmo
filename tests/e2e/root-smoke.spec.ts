@@ -11,7 +11,7 @@ import {
 const SCRIPTED_MODEL_ID = 'deepseek/deepseek-v4-pro-0813'
 const GATEWAY_TRACE_FILE_PATTERN = /^gateway-\d+-\d{4}\.json$/u
 
-const HEALTH_ONLY_ROOTS = [
+const CLAIMED_TASK_ROOTS = [
   {
     agent: 'content',
     feature: 'content',
@@ -25,6 +25,15 @@ const HEALTH_ONLY_ROOTS = [
     origin: healthOnlyAgentOrigins.distribution,
   },
   {
+    agent: 'seo-discovery',
+    feature: 'seo-discovery',
+    name: 'agent-seo-discovery',
+    origin: healthOnlyAgentOrigins['seo-discovery'],
+  },
+] as const
+
+const ISOLATED_SESSION_ROOTS = [
+  {
     agent: 'growth',
     feature: 'growth',
     name: 'agent-growth',
@@ -36,12 +45,11 @@ const HEALTH_ONLY_ROOTS = [
     name: 'agent-lifecycle',
     origin: healthOnlyAgentOrigins.lifecycle,
   },
-  {
-    agent: 'seo-discovery',
-    feature: 'seo-discovery',
-    name: 'agent-seo-discovery',
-    origin: healthOnlyAgentOrigins['seo-discovery'],
-  },
+] as const
+
+const HEALTH_ONLY_ROOTS = [
+  ...CLAIMED_TASK_ROOTS,
+  ...ISOLATED_SESSION_ROOTS,
 ] as const
 
 const FUNCTIONAL_ROOTS = [
@@ -72,12 +80,12 @@ interface ScriptedRootTrace {
 
 interface RootPreflightReceipt {
   readonly agent: string
-  readonly eventTypes: readonly string[]
+  readonly eventTypes?: readonly string[]
   readonly infoName: string
   readonly modelId: string
   readonly reasoning: string
-  readonly resultStatus: string
-  readonly sessionId: string
+  readonly resultStatus?: string
+  readonly sessionId?: string
   readonly workflowId: string
 }
 
@@ -154,7 +162,7 @@ test('all seven built roots expose health while inactive roots stay protected', 
   }
 })
 
-test('all five inactive roots completed an isolated Eve dev session', async () => {
+test('all five inactive roots satisfy their Eve preflight contract', async () => {
   test.setTimeout(120_000)
   const receipts = await readRootPreflightReceipts()
 
@@ -165,17 +173,30 @@ test('all five inactive roots completed an isolated Eve dev session', async () =
       infoName: root.name,
       modelId: SCRIPTED_MODEL_ID,
       reasoning: 'high',
+    })
+    expect(receipt?.workflowId).not.toHaveLength(0)
+  }
+
+  for (const root of ISOLATED_SESSION_ROOTS) {
+    const receipt = receipts.find((candidate) => candidate.agent === root.agent)
+    expect(receipt).toMatchObject({
       resultStatus: 'waiting',
     })
     expect(receipt?.sessionId).not.toHaveLength(0)
-    expect(receipt?.workflowId).not.toHaveLength(0)
     expect(receipt?.eventTypes).toEqual(
       expect.arrayContaining(['turn.completed', 'session.waiting'])
     )
   }
 
+  for (const root of CLAIMED_TASK_ROOTS) {
+    const receipt = receipts.find((candidate) => candidate.agent === root.agent)
+    expect(receipt?.sessionId).toBeUndefined()
+    expect(receipt?.resultStatus).toBeUndefined()
+    expect(receipt?.eventTypes).toBeUndefined()
+  }
+
   const traces = await readRootTraces()
-  for (const root of HEALTH_ONLY_ROOTS) {
+  for (const root of ISOLATED_SESSION_ROOTS) {
     const trace = traces.find(
       (candidate) => candidate.agent === root.agent && candidate.lane === 'task'
     )
@@ -188,5 +209,15 @@ test('all five inactive roots completed an isolated Eve dev session', async () =
       expect.arrayContaining([`agent:${root.agent}`, 'lane:task'])
     )
     expect(trace?.providerOptions?.user).toBeUndefined()
+  }
+
+  for (const root of CLAIMED_TASK_ROOTS) {
+    const unattributedTrace = traces.find(
+      (candidate) =>
+        candidate.agent === root.agent &&
+        candidate.lane === 'task' &&
+        candidate.providerOptions?.user === undefined
+    )
+    expect(unattributedTrace).toBeUndefined()
   }
 })

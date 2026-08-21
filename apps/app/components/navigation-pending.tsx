@@ -55,6 +55,7 @@ export const AppShellPending = ({
         <span />
         <span />
         <span />
+        <span />
       </div>
       <div className="navigation-pending__identity" />
     </aside>

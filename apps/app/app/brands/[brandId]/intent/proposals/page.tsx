@@ -1,4 +1,4 @@
-import { listBrandIntents } from '@repo/brain/projections'
+import { listBrandIntentProposals } from '@repo/brain/projections'
 import { db } from '@repo/db'
 import Link from 'next/link'
 import { Suspense } from 'react'
@@ -8,58 +8,50 @@ import { formatDateTime } from '@/lib/presentation'
 
 export const instant = true
 
-interface IntentIndexPageProps {
+interface IntentProposalsPageProps {
   readonly params: Promise<{ readonly brandId: string }>
 }
 
-const IntentIndexContent = async ({ params }: IntentIndexPageProps) => {
+const IntentProposalsContent = async ({ params }: IntentProposalsPageProps) => {
   const { brandId } = await params
   const { access, brand } = await requireBrandPageContext(brandId)
-  const page = await listBrandIntents({
+  const page = await listBrandIntentProposals({
     access,
     database: db,
-    input: { cursor: null, limit: 50, status: null },
+    input: { cursor: null, limit: 50 },
   })
 
   return (
     <div className="page-stack">
+      <Link className="back-link" href={`/brands/${brandId}/intent`}>
+        ← Intent register
+      </Link>
       <header className="page-header page-header--split">
         <div>
-          <p className="eyebrow">Intent register</p>
-          <h1>The result before the work.</h1>
+          <p className="eyebrow">Intent proposals</p>
+          <h1>Drafts stay off the register.</h1>
           <p className="lede">
-            Drafts stay in{' '}
-            <Link
-              className="text-link"
-              href={`/brands/${brandId}/intent/proposals`}
-            >
-              proposals
-            </Link>
-            . Settled and abandoned Intents remain here.
+            Adopt a draft to put it on the register. Viewers can read without
+            changing it.
           </p>
         </div>
         <div className="page-header__aside">
           <span>{brand.name}</span>
-          <a href={brand.websiteUrl} rel="noopener" target="_blank">
-            {new URL(brand.websiteUrl).hostname} ↗
-          </a>
+          <span>{access.role}</span>
         </div>
       </header>
 
       {page.items.length === 0 ? (
         <section className="empty-state">
-          <p className="eyebrow">No Intents</p>
-          <h2>There is no goal yet.</h2>
-          <p>Open the CMO and write one in an explicit turn.</p>
-          <Link className="text-link" href={`/brands/${brandId}/cmo`}>
-            Go to the CMO →
-          </Link>
+          <p className="eyebrow">No proposals</p>
+          <h2>There is no draft Intent.</h2>
+          <p>The CMO can propose one in an explicit turn.</p>
         </section>
       ) : (
         <ol className="record-list">
           {page.items.map((intent, index) => (
             <li key={intent.id}>
-              <Link href={`/brands/${brandId}/intent/${intent.id}`}>
+              <Link href={`/brands/${brandId}/intent/proposals/${intent.id}`}>
                 <span className="record-list__index">
                   {String(index + 1).padStart(2, '0')}
                 </span>
@@ -82,18 +74,18 @@ const IntentIndexContent = async ({ params }: IntentIndexPageProps) => {
   )
 }
 
-export default function IntentIndexPage(props: IntentIndexPageProps) {
+export default function IntentProposalsPage(props: IntentProposalsPageProps) {
   return (
     <Suspense
       fallback={
         <NavigationPending
-          eyebrow="Intent register"
-          status="Loading Intents."
-          title="The result before the work."
+          eyebrow="Intent proposals"
+          status="Loading proposals."
+          title="Drafts stay off the register."
         />
       }
     >
-      <IntentIndexContent {...props} />
+      <IntentProposalsContent {...props} />
     </Suspense>
   )
 }

@@ -15,7 +15,7 @@ const SignInContent = async () => {
   const session = await readPageSession()
   if (session !== null) {
     const brand = await firstAvailableBrand(session.user.id)
-    redirect(brand === null ? '/onboarding' : `/brands/${brand.id}/intent`)
+    redirect(brand === null ? '/onboarding' : `/brands/${brand.id}/today`)
   }
 
   return (

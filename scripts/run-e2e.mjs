@@ -30,6 +30,11 @@ const HEALTH_ONLY_AGENT_ROOTS = [
   { agent: 'lifecycle', appDirectoryName: 'agent-lifecycle' },
   { agent: 'seo-discovery', appDirectoryName: 'agent-seo-discovery' },
 ]
+const CLAIMED_TASK_ROOT_AGENTS = new Set([
+  'content',
+  'distribution',
+  'seo-discovery',
+])
 const AGENT_APP_DIRECTORIES = [
   'agent-cmo',
   'agent-product-marketer',
@@ -73,6 +78,12 @@ const TEST_AUTH_SECRET = 'branderize-e2e-auth-secret-at-least-32-bytes'
 const TEST_CMO_SECRET = 'branderize-e2e-cmo-secret-at-least-32-bytes'
 const TEST_CRON_SECRET = 'branderize-e2e-cron-secret-at-least-32-bytes'
 const TEST_DISPATCH_SECRET = 'branderize-e2e-dispatch-secret-at-least-32-bytes'
+const VERCEL_LINK_DIRECTORY_CANDIDATES = [
+  resolve(REPOSITORY_ROOT, '.vercel'),
+  resolve(REPOSITORY_ROOT, 'apps/app/.vercel'),
+]
+const VERCEL_OIDC_ENV_FILE = resolve(REPOSITORY_ROOT, 'apps/app/.env.local')
+const SURROUNDING_QUOTES_PATTERN = /^"|"$/u
 const PRODUCT_MARKETER_ORIGIN = 'http://127.0.0.1:2001'
 const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://127.0.0.1:3000'
 const playwrightArguments = ['test', '--config', 'playwright.config.ts']
@@ -111,7 +122,7 @@ const run = ({ args, command, cwd = REPOSITORY_ROOT, env = process.env }) =>
     })
   })
 
-const runTurboBuild = async ({ env, filters, label }) => {
+const runTurboBuild = async ({ env, filters, force = false, label }) => {
   const code = await run({
     args: [
       'exec',
@@ -119,6 +130,7 @@ const runTurboBuild = async ({ env, filters, label }) => {
       'run',
       'build',
       ...filters.map((filter) => `--filter=${filter}`),
+      ...(force ? ['--force'] : []),
     ],
     command: 'pnpm',
     env,
@@ -381,13 +393,20 @@ const waitForEveHealth = async ({ managedProcess, origin }) => {
   return health
 }
 
-const assertCompletePreflightResult = ({ agent, health, info, result }) => {
+const assertPreflightIdentity = ({ agent, health, info }) => {
   if (
     health.workflowId === undefined ||
     health.workflowId.length === 0 ||
     info.agent?.name !== `agent-${agent}` ||
     info.agent?.model?.id !== SCRIPTED_MODEL_ID ||
-    info.agent?.model?.reasoning !== 'high' ||
+    info.agent?.model?.reasoning !== 'high'
+  ) {
+    throw new Error(`${agent} Eve preflight did not satisfy its root contract`)
+  }
+}
+
+const assertCompletePreflightResult = ({ agent, result }) => {
+  if (
     result.status !== 'waiting' ||
     typeof result.sessionId !== 'string' ||
     result.sessionId.length === 0
@@ -506,14 +525,31 @@ const runHealthOnlyRootPreflight = async ({ root, stateDirectory, env }) => {
     const health = await waitForEveHealth({ managedProcess, origin })
     const client = new EveClient({ host: origin, redirect: 'error' })
     const info = await client.info()
+    assertPreflightIdentity({ agent: root.agent, health, info })
+    if (CLAIMED_TASK_ROOT_AGENTS.has(root.agent)) {
+      // Claimed-task roots run defineTaskAuditHook, which must reject any turn
+      // without a claimed-task envelope, so their preflight stops at health + info.
+      await writeFile(
+        resolve(stateDirectory, `root-preflight-${root.agent}.json`),
+        `${JSON.stringify({
+          agent: root.agent,
+          infoName: info.agent.name,
+          modelId: info.agent.model.id,
+          reasoning: info.agent.model.reasoning,
+          workflowId: health.workflowId,
+        })}\n`
+      )
+      console.info(
+        `[e2e] ${root.appDirectoryName} eve dev preflight proved health and info without an unattributed turn`
+      )
+      return
+    }
     const { response } = await client.sessions.create({
       message: ROOT_SMOKE_PROMPT,
     })
     const result = await response.result()
     const eventTypes = assertCompletePreflightResult({
       agent: root.agent,
-      health,
-      info,
       result,
     })
     await writeFile(
@@ -582,6 +618,42 @@ const assertPostgres17 = async (connectionString) => {
   } finally {
     await client.end()
   }
+}
+
+const findVercelLinkDirectory = async () => {
+  const matches = await Promise.all(
+    VERCEL_LINK_DIRECTORY_CANDIDATES.map(async (candidate) => {
+      const metadata = await lstat(resolve(candidate, 'project.json')).catch(
+        () => null
+      )
+      return metadata?.isFile() === true ? candidate : undefined
+    })
+  )
+  return matches.find((candidate) => candidate !== undefined)
+}
+
+const loadVercelOidcToken = async () => {
+  const fromEnvironment = process.env.VERCEL_OIDC_TOKEN
+  if (
+    typeof fromEnvironment === 'string' &&
+    fromEnvironment.trim().length > 0
+  ) {
+    return fromEnvironment.trim()
+  }
+  let envFile
+  try {
+    envFile = await readFile(VERCEL_OIDC_ENV_FILE, 'utf8')
+  } catch {
+    return
+  }
+  const line = envFile
+    .split('\n')
+    .find((entry) => entry.startsWith('VERCEL_OIDC_TOKEN='))
+  const value = line
+    ?.slice('VERCEL_OIDC_TOKEN='.length)
+    .trim()
+    .replace(SURROUNDING_QUOTES_PATTERN, '')
+  return value !== undefined && value.length > 0 ? value : undefined
 }
 
 const composeArgs = [
@@ -708,6 +780,10 @@ try {
     RESEND_API_KEY: 're_branderize_e2e',
     RESEND_FROM_EMAIL: 'access@e2e.invalid',
   }
+  const vercelOidcToken = await loadVercelOidcToken()
+  if (vercelOidcToken !== undefined) {
+    e2eEnvironment.VERCEL_OIDC_TOKEN = vercelOidcToken
+  }
   const playwrightEnvironment = Object.fromEntries(
     Object.entries(e2eEnvironment).filter(([name]) => name !== 'NODE_OPTIONS')
   )
@@ -731,9 +807,12 @@ try {
     },
   })
 
+  // Eve bakes absolute source paths into .output, so a cache restored from
+  // another worktree breaks eve start. Always build the agents in place.
   await runTurboBuild({
     env: e2eEnvironment,
     filters: AGENT_APP_DIRECTORIES,
+    force: true,
     label: 'Eve agent',
   })
   await runTurboBuild({
@@ -742,6 +821,7 @@ try {
     label: 'Next.js',
   })
 
+  const vercelLinkDirectory = await findVercelLinkDirectory()
   await Promise.all(
     AGENT_APP_DIRECTORIES.map(async (appDirectoryName) => {
       const sourceOutputDirectory = await realpath(
@@ -765,8 +845,20 @@ try {
           `${appDirectoryName} temporary runtime root does not point at its Eve build`
         )
       }
+      if (vercelLinkDirectory !== undefined) {
+        await symlink(
+          vercelLinkDirectory,
+          resolve(runtimeRoot, '.vercel'),
+          process.platform === 'win32' ? 'junction' : 'dir'
+        )
+      }
     })
   )
+  if (vercelLinkDirectory !== undefined) {
+    console.info(
+      '[e2e] materialized the Vercel project link into every Eve runtime root'
+    )
+  }
 
   const playwrightCode = await run({
     args: playwrightArguments,

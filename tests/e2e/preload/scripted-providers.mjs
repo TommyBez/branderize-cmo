@@ -130,6 +130,75 @@ if (
   throw new Error('The E2E Workflow store isolation hook was not installed')
 }
 
+const eveVercelBindingModuleUrl = pathToFileURL(
+  realpathSync(
+    fileURLToPath(
+      new URL(
+        '../../../apps/agent-cmo/node_modules/eve/dist/src/execution/sandbox/bindings/vercel.js',
+        import.meta.url
+      )
+    )
+  )
+).toString()
+// eve start treats a Vercel prewarm failure as fatal. The throwaway runtime
+// roots have no refreshable OIDC context, so the preload stubs only the
+// prewarm; sandbox creation stays on the production path and fails loudly.
+const vercelPrewarmStubLoaderSource = `
+let expectedModuleUrl
+export const initialize = ({ expectedVercelBindingModuleUrl }) => {
+  expectedModuleUrl = expectedVercelBindingModuleUrl
+}
+export const resolve = async (specifier, context, nextResolve) => {
+  const resolution = await nextResolve(specifier, context)
+  if (
+    resolution.url.endsWith('/eve/dist/src/execution/sandbox/bindings/vercel.js') &&
+    resolution.url !== expectedModuleUrl
+  ) {
+    throw new Error(
+      'The pinned Eve Vercel sandbox binding module changed: ' + resolution.url
+    )
+  }
+  return resolution
+}
+export const load = async (url, context, nextLoad) => {
+  if (url !== expectedModuleUrl) {
+    return await nextLoad(url, context)
+  }
+  return {
+    format: 'module',
+    shortCircuit: true,
+    source:
+      'import { createVercelSandbox as createVercelSandboxProduction } from ' +
+      JSON.stringify(expectedModuleUrl + '?e2e-prewarm-stub') +
+      ';export const createVercelSandbox = (options = {}) => {' +
+      'const backend = createVercelSandboxProduction(options);' +
+      'return { ...backend, prewarm: async (input) => {' +
+      'input?.log?.("sandbox prewarm stubbed by the E2E scripted provider preload");' +
+      'return { reused: true };' +
+      '} };' +
+      '};',
+  }
+}
+`
+register(
+  `data:text/javascript,${encodeURIComponent(vercelPrewarmStubLoaderSource)}`,
+  import.meta.url,
+  {
+    data: {
+      expectedVercelBindingModuleUrl: eveVercelBindingModuleUrl,
+    },
+  }
+)
+const eveVercelBindingModule = await import(eveVercelBindingModuleUrl)
+const stubbedBackend = eveVercelBindingModule.createVercelSandbox()
+if (typeof stubbedBackend.prewarm !== 'function') {
+  throw new Error('The E2E Vercel prewarm stub hook was not installed')
+}
+const stubbedPrewarmResult = await stubbedBackend.prewarm({})
+if (stubbedPrewarmResult.reused !== true) {
+  throw new Error('The E2E Vercel prewarm stub hook was not installed')
+}
+
 const preloadPath = fileURLToPath(import.meta.url)
 const preloadArgument = `--import=${preloadPath}`
 const existingNodeOptions = process.env.NODE_OPTIONS?.trim() ?? ''

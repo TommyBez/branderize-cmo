@@ -21,6 +21,33 @@ export const stringList = (value: unknown): readonly string[] => {
 
 export const lines = (value: unknown): string => stringList(value).join('\n')
 
+const TASK_KIND_LABELS: Readonly<Record<string, string>> = {
+  'content.brief.v1': 'Content',
+  'content.notion-page.v1': 'Notion page',
+  'distribution.channel-plan.v1': 'Distribution',
+  'product-marketer.brand-context.v1': 'Product Marketer',
+  'seo-discovery.opportunity.v1': 'SEO',
+}
+
+const CONNECTION_SLOT_LABELS = {
+  notion: 'Notion',
+  typefully: 'Typefully',
+} as const
+
+export const taskKindLabel = (kind: string): string =>
+  TASK_KIND_LABELS[kind] ?? kind
+
+export const connectionSlotLabel = (slot: 'notion' | 'typefully'): string =>
+  CONNECTION_SLOT_LABELS[slot]
+
+export const statusLabel = (status: string): string =>
+  status.replaceAll('_', ' ')
+
+export const canMutateRole = (role: string): boolean => role !== 'viewer'
+
+export const isActiveWorkStatus = (status: string): boolean =>
+  status === 'queued' || status === 'running'
+
 export const readableValue = (value: unknown): string => {
   if (typeof value === 'string') {
     return value

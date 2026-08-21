@@ -16,10 +16,16 @@ import {
   getBrandIntent,
   getBrandObject,
   getBrandProjection,
+  listBrandIntentProposals,
   listBrandIntents,
   listBrandObjects,
   listTaskQuestionBundles,
 } from './projections'
+import {
+  getBrandTask,
+  listBrandApprovalInbox,
+  listBrandTasks,
+} from './task-projections'
 
 const MIGRATION_BREAKPOINT = '--> statement-breakpoint'
 const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000001'
@@ -27,6 +33,7 @@ const ARTIFACT_HASH = 'a'.repeat(64)
 const schemaName = `brain_projections_${randomUUID().replaceAll('-', '_')}`
 
 const fixture = {
+  abandonedIntentId: randomUUID(),
   actionId: randomUUID(),
   aliceActorId: randomUUID(),
   aliceUserId: `alice:${randomUUID()}`,
@@ -36,8 +43,11 @@ const fixture = {
   brandAId: randomUUID(),
   brandBId: randomUUID(),
   brandContextObjectId: randomUUID(),
+  contentBriefTaskId: randomUUID(),
+  draftIntentId: randomUUID(),
   intentAId: randomUUID(),
   intentBId: randomUUID(),
+  notionApprovalTaskId: randomUUID(),
   openQuestionTaskId: randomUUID(),
   organizationAId: `organization-a:${randomUUID()}`,
   organizationBId: `organization-b:${randomUUID()}`,
@@ -45,6 +55,7 @@ const fixture = {
   otherUserId: `other:${randomUUID()}`,
   resolvedQuestionActionId: randomUUID(),
   resolvedQuestionTaskId: randomUUID(),
+  settledIntentId: randomUUID(),
 }
 
 let adminPool: ReturnType<typeof createDatabasePool> | undefined
@@ -199,7 +210,10 @@ beforeAll(async () => {
        id, brand_id, author_actor_id, statement, status, revision
      ) VALUES
        ($1, $2, $3, 'Launch Brand A', 'active', 1),
-       ($4, $5, $6, 'Launch Brand B', 'active', 1)`,
+       ($4, $5, $6, 'Launch Brand B', 'active', 1),
+       ($7, $2, $3, 'Draft Brand A', 'draft', 1),
+       ($8, $2, $3, 'Settled Brand A', 'settled', 1),
+       ($9, $2, $3, 'Abandoned Brand A', 'abandoned', 1)`,
     [
       fixture.intentAId,
       fixture.brandAId,
@@ -207,6 +221,9 @@ beforeAll(async () => {
       fixture.intentBId,
       fixture.brandBId,
       fixture.otherActorId,
+      fixture.draftIntentId,
+      fixture.settledIntentId,
+      fixture.abandonedIntentId,
     ]
   )
   await databasePool.query(
@@ -261,6 +278,14 @@ beforeAll(async () => {
     status: 'blocked',
     summary: 'Approved evidence is missing.',
   }
+  const briefCompletion = {
+    intentAcceptance: null,
+    openQuestions: [],
+    outputObjectIds: [],
+    result: { outcome: 'delivered', reason: 'brief_drafted' },
+    status: 'completed',
+    summary: 'Draft brief is ready.',
+  }
   await databasePool.query(
     `INSERT INTO tasks (
        id, brand_id, kind, worker_key, subject_key, execution_mode, activation,
@@ -301,6 +326,28 @@ beforeAll(async () => {
       fixture.resolvedQuestionTaskId,
     ]
   )
+  await databasePool.query(
+    `INSERT INTO tasks (
+       id, brand_id, kind, worker_key, subject_key, execution_mode, activation,
+       status, payload, payload_hash, revision, completion, finished_at
+     ) VALUES
+       ($1, $2, 'content.brief.v1', 'content', $3,
+        'agent', 'automatic', 'succeeded', '{"purpose":"draft_brief"}'::jsonb,
+        'brief-hash', 1, $7::jsonb, now()),
+       ($4, $2, 'content.notion-page.v1', 'content', $5,
+        'direct', 'human', 'awaiting_approval',
+        jsonb_build_object('reportObjectId', $6::text, 'title', 'Launch page'),
+        'notion-hash', 1, NULL, NULL)`,
+    [
+      fixture.contentBriefTaskId,
+      fixture.brandAId,
+      'content:brief',
+      fixture.notionApprovalTaskId,
+      `commitment:${fixture.notionApprovalTaskId}`,
+      fixture.brandContextObjectId,
+      JSON.stringify(briefCompletion),
+    ]
+  )
 })
 
 afterAll(async () => {
@@ -338,6 +385,33 @@ describe('canonical projections on PostgreSQL', () => {
       id: fixture.intentAId,
       statement: 'Launch Brand A',
     })
+
+    const register = await listBrandIntents({
+      access: bobViewerAccess(),
+      database: requireDatabase(),
+      input: { status: null },
+    })
+    expect(register.items.map((item) => item.status).sort()).toEqual([
+      'abandoned',
+      'active',
+      'settled',
+    ])
+    expect(
+      register.items.some((item) => item.id === fixture.draftIntentId)
+    ).toBe(false)
+
+    const proposals = await listBrandIntentProposals({
+      access: bobViewerAccess(),
+      database: requireDatabase(),
+      input: {},
+    })
+    expect(proposals.items).toEqual([
+      expect.objectContaining({
+        id: fixture.draftIntentId,
+        statement: 'Draft Brand A',
+        status: 'draft',
+      }),
+    ])
     await expect(
       getBrandIntent({
         access: bobViewerAccess(),
@@ -422,6 +496,49 @@ describe('canonical projections on PostgreSQL', () => {
       currentBrandContextObjectId: fixture.brandContextObjectId,
       kind: 'ready',
       retryAvailable: false,
+    })
+  })
+
+  it('lists every work kind and the human approval inbox', async () => {
+    const work = await listBrandTasks({
+      access: bobViewerAccess(),
+      database: requireDatabase(),
+      limit: 50,
+    })
+    expect(work.map((task) => task.kind).sort()).toEqual([
+      'content.brief.v1',
+      'content.notion-page.v1',
+      'product-marketer.brand-context.v1',
+      'product-marketer.brand-context.v1',
+    ])
+    expect(work.some((task) => task.status === 'awaiting_approval')).toBe(true)
+
+    const inbox = await listBrandApprovalInbox({
+      access: bobViewerAccess(),
+      database: requireDatabase(),
+    })
+    expect(inbox).toEqual([
+      expect.objectContaining({
+        id: fixture.notionApprovalTaskId,
+        kind: 'content.notion-page.v1',
+        review: expect.objectContaining({
+          kind: 'content.notion-page.v1',
+          title: 'Launch page',
+        }),
+        status: 'awaiting_approval',
+      }),
+    ])
+
+    const detail = await getBrandTask({
+      access: bobViewerAccess(),
+      database: requireDatabase(),
+      taskId: fixture.notionApprovalTaskId,
+    })
+    expect(detail).toMatchObject({
+      approval: null,
+      id: fixture.notionApprovalTaskId,
+      result: null,
+      status: 'awaiting_approval',
     })
   })
 

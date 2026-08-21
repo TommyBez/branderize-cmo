@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import type { BrainError } from './errors'
 import {
+  listBrandIntentProposalsInputSchema,
   listBrandIntentsInputSchema,
   listBrandObjectsInputSchema,
   listTaskQuestionBundlesInputSchema,
@@ -194,6 +195,13 @@ describe('tenant-safe projection contracts', () => {
       limit: 25,
       status: null,
     })
+    expect(listBrandIntentProposalsInputSchema.parse({})).toEqual({
+      cursor: null,
+      limit: 25,
+    })
+    expect(
+      listBrandIntentProposalsInputSchema.safeParse({ status: 'draft' }).success
+    ).toBe(false)
     expect(listBrandObjectsInputSchema.parse({})).toEqual({
       cursor: null,
       limit: 25,

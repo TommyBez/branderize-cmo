@@ -13,7 +13,7 @@ const HomeRedirect = async () => {
     redirect('/onboarding')
   }
 
-  redirect(`/brands/${brand.id}/intent`)
+  redirect(`/brands/${brand.id}/today`)
 }
 
 export default function HomePage() {

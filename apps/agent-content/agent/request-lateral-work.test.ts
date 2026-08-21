@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
 
 import requestLateralWorkTool, {
   requestLateralWorkToolInputSchema,
-} from './request_lateral_work'
+} from './tools/request_lateral_work'
 
 const SOURCE_REPORT_OBJECT_ID = '00000000-0000-4000-8000-000000000202'
 const validInput = {
@@ -113,7 +113,7 @@ describe('request_lateral_work tool', () => {
 
   it('documents cron claim latency and does not poke a sibling URL', () => {
     const source = readFileSync(
-      new URL('./request_lateral_work.ts', import.meta.url),
+      new URL('./tools/request_lateral_work.ts', import.meta.url),
       'utf8'
     )
     expect(source).toContain('cron cycle')
@@ -121,7 +121,7 @@ describe('request_lateral_work tool', () => {
     expect(source).not.toContain('AGENT_DISTRIBUTION_URL')
     expect(source).not.toContain('AGENT_LIFECYCLE_URL')
     expect(source).not.toContain('AGENT_GROWTH_URL')
-    expect(readdirSync(new URL('../', import.meta.url))).not.toContain(
+    expect(readdirSync(new URL('./', import.meta.url))).not.toContain(
       'subagents'
     )
   })

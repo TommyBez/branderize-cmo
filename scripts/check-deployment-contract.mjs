@@ -258,9 +258,9 @@ check(
       "test('every app route family exposes an instant shell before streamed data'"
     ) &&
     (e2eBrowserContract.match(/await assertInstantHardNavigation\(\{/gu)
-      ?.length ?? 0) === 12 &&
+      ?.length ?? 0) === 13 &&
     (e2eBrowserContract.match(/await assertInstantClientNavigation\(\{/gu)
-      ?.length ?? 0) === 8 &&
+      ?.length ?? 0) === 9 &&
     instantRouteFamilyStatuses.every((status) =>
       e2eBrowserContract.includes(status)
     ) &&

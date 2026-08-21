@@ -12,7 +12,7 @@ interface BrandIndexPageProps {
 const BrandIndexRedirect = async ({ params }: BrandIndexPageProps) => {
   const { brandId } = await params
   await requireBrandPageContext(brandId)
-  redirect(`/brands/${brandId}/intent`)
+  redirect(`/brands/${brandId}/today`)
 }
 
 export default function BrandIndexPage(props: BrandIndexPageProps) {
@@ -20,9 +20,9 @@ export default function BrandIndexPage(props: BrandIndexPageProps) {
     <Suspense
       fallback={
         <NavigationPending
-          eyebrow="Intent register"
-          status="Opening the Intent register."
-          title="Opening Intents."
+          eyebrow="Today"
+          status="Opening Today."
+          title="Opening Today."
         />
       }
     >
