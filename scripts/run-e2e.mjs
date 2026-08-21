@@ -30,6 +30,11 @@ const HEALTH_ONLY_AGENT_ROOTS = [
   { agent: 'lifecycle', appDirectoryName: 'agent-lifecycle' },
   { agent: 'seo-discovery', appDirectoryName: 'agent-seo-discovery' },
 ]
+const CLAIMED_TASK_ROOT_AGENTS = new Set([
+  'content',
+  'distribution',
+  'seo-discovery',
+])
 const AGENT_APP_DIRECTORIES = [
   'agent-cmo',
   'agent-product-marketer',
@@ -381,13 +386,20 @@ const waitForEveHealth = async ({ managedProcess, origin }) => {
   return health
 }
 
-const assertCompletePreflightResult = ({ agent, health, info, result }) => {
+const assertPreflightIdentity = ({ agent, health, info }) => {
   if (
     health.workflowId === undefined ||
     health.workflowId.length === 0 ||
     info.agent?.name !== `agent-${agent}` ||
     info.agent?.model?.id !== SCRIPTED_MODEL_ID ||
-    info.agent?.model?.reasoning !== 'high' ||
+    info.agent?.model?.reasoning !== 'high'
+  ) {
+    throw new Error(`${agent} Eve preflight did not satisfy its root contract`)
+  }
+}
+
+const assertCompletePreflightResult = ({ agent, result }) => {
+  if (
     result.status !== 'waiting' ||
     typeof result.sessionId !== 'string' ||
     result.sessionId.length === 0
@@ -506,14 +518,31 @@ const runHealthOnlyRootPreflight = async ({ root, stateDirectory, env }) => {
     const health = await waitForEveHealth({ managedProcess, origin })
     const client = new EveClient({ host: origin, redirect: 'error' })
     const info = await client.info()
+    assertPreflightIdentity({ agent: root.agent, health, info })
+    if (CLAIMED_TASK_ROOT_AGENTS.has(root.agent)) {
+      // Claimed-task roots run defineTaskAuditHook, which must reject any turn
+      // without a claimed-task envelope, so their preflight stops at health + info.
+      await writeFile(
+        resolve(stateDirectory, `root-preflight-${root.agent}.json`),
+        `${JSON.stringify({
+          agent: root.agent,
+          infoName: info.agent.name,
+          modelId: info.agent.model.id,
+          reasoning: info.agent.model.reasoning,
+          workflowId: health.workflowId,
+        })}\n`
+      )
+      console.info(
+        `[e2e] ${root.appDirectoryName} eve dev preflight proved health and info without an unattributed turn`
+      )
+      return
+    }
     const { response } = await client.sessions.create({
       message: ROOT_SMOKE_PROMPT,
     })
     const result = await response.result()
     const eventTypes = assertCompletePreflightResult({
       agent: root.agent,
-      health,
-      info,
       result,
     })
     await writeFile(

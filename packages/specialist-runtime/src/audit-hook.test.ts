@@ -128,6 +128,26 @@ describe('specialist task audit hook', () => {
     expect(mocks.reportSessionEventIngestionFailure).not.toHaveBeenCalled()
   })
 
+  it('fails closed when session auth carries no task attributes', async () => {
+    await expect(
+      auditHandler()(
+        sessionStartedEvent,
+        createContext({
+          current: {
+            attributes: {},
+            authenticator: 'eve-dev',
+            principalId: 'anonymous',
+            principalType: 'user',
+          },
+        })
+      )
+    ).rejects.toThrow('Trusted task attribute agent_actor_id is missing')
+
+    expect(mocks.bindTaskSession).not.toHaveBeenCalled()
+    expect(mocks.parsePersistableSessionEvent).not.toHaveBeenCalled()
+    expect(mocks.reportSessionEventIngestionFailure).not.toHaveBeenCalled()
+  })
+
   it('fails closed when root binding fails', async () => {
     mocks.bindTaskSession.mockRejectedValueOnce(
       new Error('binding unavailable')
