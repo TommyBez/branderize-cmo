@@ -105,8 +105,8 @@ that alters a structural contract must follow the ADR amendment rules above.
 
 ### Database, storage, and calendar
 
-- Run PostgreSQL 17 integration evidence against Docker Compose locally, a
-  `postgres:17` service in GitHub Actions, and a limited Neon canary. Neon
+- Run PostgreSQL 18 integration evidence against Docker Compose locally, a
+  `postgres:18` service in GitHub Actions, and a limited Neon canary. Neon
   branching remains the ordinary per-developer database path.
 - Keep one production Neon project and one non-production Neon project, both in
   `aws-eu-central-1`. The non-production default branch is the shared
@@ -371,8 +371,8 @@ earlier, separate "UI phase."
   the approved projection before either dependency may move;
 - introduce Vitest for unit, contract, and real-PostgreSQL integration tests,
   with Playwright plus Axe reserved for browser E2E;
-- provide PostgreSQL 17 for integration suites through Docker Compose locally
-  and a `postgres:17` service in GitHub Actions; keep limited hosted Neon
+- provide PostgreSQL 18 for integration suites through Docker Compose locally
+  and a `postgres:18` service in GitHub Actions; keep limited hosted Neon
   canaries separate from the deterministic integration suite;
 - add CI workflows, failure artifacts, and environment contracts for every app;
 - integrate production-only PostHog EU Product Analytics/Error Tracking through

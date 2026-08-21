@@ -1,6 +1,6 @@
 # Phase 0 browser contract
 
-La suite usa Chromium e PostgreSQL 17 reali. Migra un database locale dedicato,
+La suite usa Chromium e PostgreSQL 18 reali. Migra un database locale dedicato,
 crea le sessioni attraverso l'API pubblica di Better Auth configurata soltanto
 nel processo di test e completa i journey dal browser fino alle scritture
 canoniche in PostgreSQL.

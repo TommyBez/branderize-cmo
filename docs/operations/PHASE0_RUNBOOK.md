@@ -174,7 +174,7 @@ pnpm test:e2e
 pnpm build
 ```
 
-The integration and E2E runners require Docker and PostgreSQL 17. Local E2E
+The integration and E2E runners require Docker and PostgreSQL 18. Local E2E
 starts the public web app on port 3000 and the console on port 3001. A local
 scripted-provider pass proves deterministic boundaries; it does not replace the
 hosted canary.

@@ -82,7 +82,7 @@ pnpm test:e2e
 pnpm build
 ```
 
-The automated integration and E2E suites use PostgreSQL 17 from `compose.yaml`.
+The automated integration and E2E suites use PostgreSQL 18 from `compose.yaml`.
 They are the only local commands that start Docker. Hosted service checks are a
 separate canary and do not replace the deterministic test predicate.
 

@@ -45,7 +45,7 @@ jobs:
       TURBO_LOG_ORDER: grouped
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_DB: branderize_test
           POSTGRES_PASSWORD: postgres

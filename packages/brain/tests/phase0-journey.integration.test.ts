@@ -73,7 +73,7 @@ import {
 } from '../src/tasks'
 
 const MIGRATION_BREAKPOINT = '--> statement-breakpoint'
-const POSTGRES_MAJOR_VERSION = '17'
+const POSTGRES_MAJOR_VERSION = '18'
 const CONTEXT_SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000001'
 const CONTEXT_SYSTEM_ACTOR_KEY = 'system:context-dev' as const
 const CMO_ACTOR_ID = '00000000-0000-0000-0000-000000000101'

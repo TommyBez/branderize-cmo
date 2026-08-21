@@ -248,7 +248,7 @@ const persistMigrationEvidence = async ({ sensitiveValues }) => {
       ? 'not-available'
       : String(migrationEvidence.exitCode)
   const evidence = [
-    'Branderize E2E PostgreSQL 17 migration evidence',
+    'Branderize E2E PostgreSQL 18 migration evidence',
     'command: drizzle-kit migrate --config drizzle.config.ts',
     `status: ${migrationEvidence.status}`,
     `exit-code: ${exitCode}`,
@@ -598,7 +598,7 @@ const assertSafeDatabaseUrl = (value) => {
   }
 }
 
-const assertPostgres17 = async (connectionString) => {
+const assertPostgres18 = async (connectionString) => {
   const client = new Client({ connectionString })
   try {
     await client.connect()
@@ -609,10 +609,10 @@ const assertPostgres17 = async (connectionString) => {
     const versionNumber = Number(row?.version_number)
     if (
       row?.database_name !== EXPECTED_DATABASE_NAME ||
-      !(versionNumber >= 170_000 && versionNumber < 180_000)
+      !(versionNumber >= 180_000 && versionNumber < 190_000)
     ) {
       throw new Error(
-        'E2E requires PostgreSQL 17 and the dedicated test database'
+        'E2E requires PostgreSQL 18 and the dedicated test database'
       )
     }
   } finally {
@@ -705,7 +705,7 @@ try {
     }
   }
 
-  await assertPostgres17(databaseUrl)
+  await assertPostgres18(databaseUrl)
 
   const migrationCode = await runMigration({
     args: ['migrate', '--config', 'drizzle.config.ts'],

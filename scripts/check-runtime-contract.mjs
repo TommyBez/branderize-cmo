@@ -113,7 +113,11 @@ check(
   ciWorkflow.includes(`corepack prepare pnpm@${ROOT_PNPM_VERSION} --activate`),
   `CI must activate pnpm@${ROOT_PNPM_VERSION} through Corepack`
 )
-check(ciWorkflow.includes('image: postgres:17'), 'CI must run PostgreSQL 17')
+check(ciWorkflow.includes('image: postgres:18'), 'CI must run PostgreSQL 18')
+check(
+  readText('compose.yaml').includes('image: postgres:18'),
+  'Local Compose must run PostgreSQL 18'
+)
 
 const pnpmWorkspace = readText('pnpm-workspace.yaml')
 check(

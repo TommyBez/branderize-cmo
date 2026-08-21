@@ -2,7 +2,7 @@ name: branderize-cmo-integration
 
 services:
   postgres:
-    image: postgres:17
+    image: postgres:18
     environment:
       POSTGRES_DB: branderize_test
       POSTGRES_PASSWORD: postgres

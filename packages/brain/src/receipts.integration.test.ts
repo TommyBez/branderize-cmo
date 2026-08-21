@@ -523,7 +523,7 @@ describe('Action operation receipts on PostgreSQL', () => {
     const versionResult = await currentPool.query<{
       server_version: string
     }>('SHOW server_version')
-    expect(versionResult.rows[0]?.server_version.split('.')[0]).toBe('17')
+    expect(versionResult.rows[0]?.server_version.split('.')[0]).toBe('18')
 
     const fixture = await createBrandFixture()
     const operation = () =>
