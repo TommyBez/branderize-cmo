@@ -113,10 +113,10 @@ that alters a structural contract must follow the ADR amendment rules above.
   development/canary base; there is no separately named persistent Neon staging
   branch. Every pull-request preview branch is created only from this
   non-production project.
-- Create an ephemeral Neon branch for each pull-request preview. An idempotent
-  GitHub Action using `neondatabase/delete-branch-action` on
-  `pull_request.closed` deletes that exact preview branch after either merge or
-  closure and must refuse production or default-branch targets.
+- Create an ephemeral Neon branch for each pull-request preview via the
+  Vercel-Neon integration (`preview/<git-branch>`). An idempotent
+  `pull_request_target` workflow deletes that exact branch after merge or
+  closure by calling the Neon API. Fork pull requests are skipped.
 - Run `db:migrate` only from the `apps/app` Vercel deployment, using its
   environment's `DIRECT_DATABASE_URL`. Every other database consumer receives
   pooled `DATABASE_URL` access only and can never run migrations;

@@ -20,9 +20,9 @@ coordinator or a second queue.
 
 Production uses the production Neon project and private Blob store.
 Development, canary, and previews use the non-production project and private
-store. A pull request gets an ephemeral Neon branch from the non-production
-project. Closing the pull request invokes
-`.github/workflows/cleanup-neon-preview.yml` for that exact branch.
+store. A pull request gets an ephemeral Neon branch
+(`preview/<git-branch>`) from the shared project. Closing the pull request
+invokes `.github/workflows/cleanup-neon-preview.yml` for that exact branch.
 
 Each developer uses a dedicated persistent branch in the non-production Neon
 project. Local `DATABASE_URL` uses its pooled endpoint and local

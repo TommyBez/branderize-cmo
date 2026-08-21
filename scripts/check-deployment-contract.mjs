@@ -299,9 +299,19 @@ check(
 check(
   cleanupWorkflow.includes('pull_request_target:') &&
     cleanupWorkflow.includes('types: [closed]') &&
-    cleanupWorkflow.includes('neondatabase/delete-branch-action@v3') &&
-    cleanupWorkflow.includes('scripts/resolve-neon-preview-branch.mjs'),
-  'closed pull requests must run the guarded Neon preview cleanup'
+    cleanupWorkflow.includes('permissions: {}') &&
+    cleanupWorkflow.includes(
+      'github.event.pull_request.head.repo.full_name == github.repository'
+    ) &&
+    cleanupWorkflow.includes('vars.NEON_PROJECT_ID') &&
+    cleanupWorkflow.includes('secrets.NEON_API_KEY') &&
+    cleanupWorkflow.includes('BRANCH_NAME: preview/') &&
+    cleanupWorkflow.includes('github.event.pull_request.head.ref') &&
+    cleanupWorkflow.includes('https://console.neon.tech/api/v2/projects/') &&
+    !cleanupWorkflow.includes('actions/checkout') &&
+    !cleanupWorkflow.includes('neondatabase/delete-branch-action') &&
+    !cleanupWorkflow.includes('resolve-neon-preview-branch.mjs'),
+  'closed same-repository pull requests must delete preview/<git-branch> via the Neon API'
 )
 
 for (const agentRoot of agentRoots) {

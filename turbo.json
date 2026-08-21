@@ -13,7 +13,6 @@
         "$TURBO_ROOT$/packages/marketing-skills/**",
         "$TURBO_ROOT$/scripts/check-deployment-contract.mjs",
         "$TURBO_ROOT$/scripts/materialize-marketing-skills.mjs",
-        "$TURBO_ROOT$/scripts/resolve-neon-preview-branch.mjs",
         "$TURBO_ROOT$/scripts/run-e2e.mjs",
         "$TURBO_ROOT$/scripts/upload-posthog-sourcemaps.mjs",
         "$TURBO_ROOT$/tests/e2e/phase0.spec.ts"
