@@ -7,16 +7,16 @@ description: Drive the Branderize public site and product console the way a user
 
 Branderize is a multi-tenant marketing work graph. A user touches two Next.js surfaces:
 
-- Public site `apps/web` at `http://127.0.0.1:3000` (README also says `http://localhost:3000`)
-- Authenticated console `apps/app` at `http://127.0.0.1:3001` (`http://localhost:3001/sign-in`)
+- Isolated public-site proof: `apps/web` at `http://127.0.0.1:3000`
+- Local fleet: public site `http://web.localhost:1355` and console `http://app.localhost:1355/sign-in`
 
-Seven Eve agent roots listen on `127.0.0.1:2000-2006`. They are headless. Do not treat them as a user surface. The Phase 0 Playwright suite under `tests/e2e` is a production-build CI gate with scripted providers and a Docker Postgres. It is not this skill's harness and it is not the local user path.
+The isolated `web` launch does not start the console or agents. The fleet supervisor starts both Next surfaces and the seven Eve roots on Portless `http://*.localhost` names. Agents are headless. Do not treat them as a user surface. The Phase 0 Playwright suite under `tests/e2e` is a production-build CI gate with scripted providers and a Docker Postgres. It is not this skill's harness and it is not the local user path.
 
 Read `features/README.md` before driving. Drive the mapped entry points, not an internal setter or a test-only auth helper.
 
 ## Launch
 
-Ports `3000`, `3001`, and `2000-2006` are fixed. Two fleets cannot run side by side. If those ports already belong to a developer session, refuse to drive them. Do not attach to a shared instance.
+The isolated `web` launch uses port `3000`. The fleet uses Portless names and cannot share `http://web.localhost:1355` or `http://app.localhost:1355` with another session. If those origins already belong to a developer session, refuse to drive them. Do not attach to a shared instance.
 
 From the repository root:
 
@@ -30,7 +30,7 @@ Use `web` for public-site proofs. It starts only `apps/web` on `127.0.0.1:3000` 
 node .cursor/skills/verify-branderize/bin/launch.mjs fleet
 ```
 
-Use `fleet` for console proofs. It runs the repo supervisor `pnpm dev:local`, which requires `apps/app/.env.local` (Neon `DATABASE_URL`, `DIRECT_DATABASE_URL`, `BETTER_AUTH_SECRET`, `CMO_BRIDGE_SECRET`, `CRON_SECRET`, `DISPATCH_SECRET`, `CONTEXT_DEV_API_KEY`, `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN`). Ready when the landing heading is up and `GET http://127.0.0.1:3001/sign-in` returns `You can still see why something was made.` The supervisor enables local OTP bypass in the app process only. It does not write that marker to `.env.local`. Local sign-in accepts any non-empty code of up to six characters and sends no email.
+Use `fleet` for console proofs. It runs the repo supervisor `pnpm dev:local`, which requires `apps/app/.env.local` (Neon `DATABASE_URL`, `DIRECT_DATABASE_URL`, `BETTER_AUTH_SECRET`, `CMO_BRIDGE_SECRET`, `CRON_SECRET`, `DISPATCH_SECRET`, `CONTEXT_DEV_API_KEY`, `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN`). Ready when the landing heading is up and `GET http://app.localhost:1355/sign-in` returns `You can still see why something was made.` The supervisor enables local OTP bypass in the app process only. It does not write that marker to `.env.local`. Local sign-in accepts any non-empty code of up to six characters and sends no email.
 
 `launch.mjs` writes `test-results/verify-branderize/run.json` and an evidence directory `test-results/verify-branderize/<runId>/`. If a required port is already listening, it exits without starting anything.
 
@@ -52,7 +52,7 @@ node .cursor/skills/verify-branderize/bin/doctor.mjs
 
 Exit `0` only when this skill started the web process and the landing heading is present. The JSON report also says whether the console is `ok`, `down`, or `refuse`. `refuse` means the port is occupied by a process this run did not start. Do not drive a `refuse` surface.
 
-A worth-driving landing contains `The AI CMO you can trust.` A worth-driving sign-in page contains `You can still see why something was made.` and the button `Email me a code`. Fleet doctor also probes `/eve/v1/health` on ports 2000-2006.
+A worth-driving landing contains `The AI CMO you can trust.` A worth-driving sign-in page contains `You can still see why something was made.` and the button `Email me a code`. Fleet doctor also probes `/eve/v1/health` on the seven Portless agent origins.
 
 ## Drive
 

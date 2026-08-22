@@ -64,12 +64,14 @@ Start the complete local application with one supervisor:
 pnpm dev:local
 ```
 
-Open `http://localhost:3000` for the public site or
-`http://localhost:3001/sign-in` for the console. The seven Eve roots use ports
-2000 through 2006. They run headless and create real hosted Vercel sandboxes
-when an agent first needs one. No local Docker daemon is used. `Ctrl-C` stops
-all nine processes. Local sign-in does not send email: submit an address, then
-enter any non-empty code of up to six characters.
+Open `http://web.localhost:1355` for the public site or
+`http://app.localhost:1355/sign-in` for the console. The seven Eve roots use
+`http://cmo.localhost:1355` through `http://seo-discovery.localhost:1355`.
+They run headless and create real hosted Vercel sandboxes when an agent first
+needs one. No local Docker daemon is used. The Portless proxy is plain HTTP on
+1355, so agents and `pnpm dev:local` never need sudo or a trusted local CA.
+`Ctrl-C` stops all nine processes. Local sign-in does not send email: submit an
+address, then enter any non-empty code of up to six characters.
 
 ## Verification
 

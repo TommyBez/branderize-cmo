@@ -11,7 +11,7 @@ Sign in asks for an email, then a one-time code, and drops the user into onboard
 
 ## How to get to it (user POV)
 
-- Open `http://127.0.0.1:3001/sign-in` directly.
+- Open `http://app.localhost:1355/sign-in` directly.
 - From the public site, choose `Sign in with email` or header `Sign in`.
 - After sign-out, the console returns to `/sign-in`.
 
@@ -23,7 +23,7 @@ Preconditions:
 - `bin/doctor.mjs` reports `app.drive` as `ok`.
 - Use a unique address `verify-<runId>@example.test`.
 
-- **Open sign-in.** Go to `http://127.0.0.1:3001/sign-in`. The heading `You can still see why something was made.` is visible and the button `Email me a code` is enabled.
+- **Open sign-in.** Go to `http://app.localhost:1355/sign-in`. The heading `You can still see why something was made.` is visible and the button `Email me a code` is enabled.
 - **Enter email.** Fill `Email` with `verify-<runId>@example.test`. Run `page.getByRole('textbox', { name: 'Email' }).fill('verify-<runId>@example.test')`.
 - **Request code.** Choose `Email me a code`. Run `page.getByRole('button', { name: 'Email me a code' }).click()`. A status says `Local development for verify-<runId>@example.test: enter any code.` The `Sign-in code` textbox is focused. Help text says `The local runner does not send email.`
 - **Wrong empty code.** Submit without a code. The native required check blocks send, or an alert `That code didn’t work. Check it and try again.` appears after a failed verify.

@@ -1,31 +1,77 @@
-import { spawn } from 'node:child_process'
-import { createServer } from 'node:net'
+import { spawn, spawnSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
+import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const LOOPBACK_HOST = '127.0.0.1'
-const BROWSER_HOST = 'localhost'
 const SHUTDOWN_GRACE_PERIOD_MS = 5000
 const SECRET_MINIMUM_LENGTH = 32
+const ORIGIN_PROBE_TIMEOUT_MS = 800
+const PORTLESS_BIN = resolve(REPOSITORY_ROOT, 'node_modules/.bin/portless')
+const MARKETING_SKILLS_PACKAGE = resolve(
+  REPOSITORY_ROOT,
+  'packages/marketing-skills'
+)
+const MATERIALIZE_MARKETING_SKILLS = resolve(
+  REPOSITORY_ROOT,
+  'scripts/materialize-marketing-skills.mjs'
+)
+
+export const MARKETING_SKILLS_BUILD_ARGS = Object.freeze([
+  'exec',
+  'turbo',
+  'run',
+  'build',
+  '--filter=@repo/marketing-skills',
+])
+
+export const REQUIRED_MARKETING_SKILLS_DIST_PATHS = Object.freeze([
+  'dist/index.mjs',
+  'dist/extension/skills/copywriting/SKILL.md',
+  'dist/extension/skills/copywriting/references/natural-transitions.md',
+])
 
 const SIGNAL_EXIT_CODES = {
   SIGINT: 130,
   SIGTERM: 143,
 }
 
-export const LOCAL_AGENT_ORIGINS = Object.freeze({
-  AGENT_CMO_URL: `http://${LOOPBACK_HOST}:2000`,
-  AGENT_CONTENT_URL: `http://${LOOPBACK_HOST}:2002`,
-  AGENT_DISTRIBUTION_URL: `http://${LOOPBACK_HOST}:2003`,
-  AGENT_GROWTH_URL: `http://${LOOPBACK_HOST}:2004`,
-  AGENT_LIFECYCLE_URL: `http://${LOOPBACK_HOST}:2005`,
-  AGENT_PRODUCT_MARKETER_URL: `http://${LOOPBACK_HOST}:2001`,
-  AGENT_SEO_DISCOVERY_URL: `http://${LOOPBACK_HOST}:2006`,
-})
+const DEFAULT_PORTLESS_PROXY_PORT = '1355'
+const DEFAULT_HTTP_PORT = '80'
 
-const APP_ORIGIN = `http://${BROWSER_HOST}:3001`
-const WEB_ORIGIN = `http://${BROWSER_HOST}:3000`
+export const resolvePortlessProxyPort = (source = process.env) => {
+  const configured = source.PORTLESS_PROXY_PORT ?? source.PORTLESS_HTTPS_PORT
+  if (typeof configured === 'string' && configured.trim().length > 0) {
+    return configured.trim()
+  }
+  return DEFAULT_PORTLESS_PROXY_PORT
+}
+
+export const resolveLocalOrigin = (name, source = process.env) => {
+  const port = resolvePortlessProxyPort(source)
+  return port === DEFAULT_HTTP_PORT
+    ? `http://${name}.localhost`
+    : `http://${name}.localhost:${port}`
+}
+
+const localOrigin = (name) => resolveLocalOrigin(name)
+
+export const LOCAL_WEB_ORIGIN = localOrigin('web')
+export const LOCAL_APP_ORIGIN = localOrigin('app')
+
+export const LOCAL_AGENT_ORIGINS = Object.freeze({
+  AGENT_CMO_URL: localOrigin('cmo'),
+  AGENT_CONTENT_URL: localOrigin('content'),
+  AGENT_DISTRIBUTION_URL: localOrigin('distribution'),
+  AGENT_GROWTH_URL: localOrigin('growth'),
+  AGENT_LIFECYCLE_URL: localOrigin('lifecycle'),
+  AGENT_PRODUCT_MARKETER_URL: localOrigin('product-marketer'),
+  AGENT_SEO_DISCOVERY_URL: localOrigin('seo-discovery'),
+})
 
 export const REQUIRED_LOCAL_ENVIRONMENT_KEYS = Object.freeze([
   'BETTER_AUTH_SECRET',
@@ -73,84 +119,77 @@ const WEB_PRIVATE_ENVIRONMENT_KEYS = Object.freeze([
   'VERCEL_OIDC_TOKEN',
 ])
 
-const defineNextService = ({ name, path, port }) =>
+const defineNextService = ({ name, path }) =>
   Object.freeze({
     args: [
+      name,
+      '--',
+      'pnpm',
       'exec',
       'next',
       'dev',
       '--hostname',
       LOOPBACK_HOST,
-      '--port',
-      String(port),
     ],
-    command: 'pnpm',
+    command: PORTLESS_BIN,
     kind: name,
     name,
+    origin: localOrigin(name),
+    originName: name,
     path,
-    port,
+    portlessName: name,
   })
 
-const defineAgentService = ({ agentKey, path, port }) =>
+const defineAgentService = ({ agentKey, path }) =>
   Object.freeze({
     agentKey,
     args: [
-      'exec',
-      'eve',
-      'dev',
-      '--host',
-      LOOPBACK_HOST,
-      '--port',
-      String(port),
-      '--no-ui',
-      '--name',
       agentKey,
+      '--',
+      'sh',
+      '-c',
+      `pnpm exec eve dev --host ${LOOPBACK_HOST} --port "$PORT" --no-ui --name ${agentKey}`,
     ],
-    command: 'pnpm',
+    command: PORTLESS_BIN,
     kind: 'agent',
     name: agentKey,
+    origin: localOrigin(agentKey),
+    originName: agentKey,
     path,
-    port,
+    portlessName: agentKey,
   })
 
 export const LOCAL_DEV_SERVICES = Object.freeze([
   defineAgentService({
     agentKey: 'cmo',
     path: 'apps/agent-cmo',
-    port: 2000,
   }),
   defineAgentService({
     agentKey: 'product-marketer',
     path: 'apps/agent-product-marketer',
-    port: 2001,
   }),
   defineAgentService({
     agentKey: 'content',
     path: 'apps/agent-content',
-    port: 2002,
   }),
   defineAgentService({
     agentKey: 'distribution',
     path: 'apps/agent-distribution',
-    port: 2003,
   }),
   defineAgentService({
     agentKey: 'growth',
     path: 'apps/agent-growth',
-    port: 2004,
   }),
   defineAgentService({
     agentKey: 'lifecycle',
     path: 'apps/agent-lifecycle',
-    port: 2005,
   }),
   defineAgentService({
     agentKey: 'seo-discovery',
     path: 'apps/agent-seo-discovery',
-    port: 2006,
   }),
-  defineNextService({ name: 'web', path: 'apps/web', port: 3000 }),
-  defineNextService({ name: 'app', path: 'apps/app', port: 3001 }),
+  defineNextService({ name: 'web', path: 'apps/web' }),
+  defineNextService({ name: 'app', path: 'apps/app' }),
 ])
 
 const hasEnvironmentValue = (source, key) => {
@@ -207,6 +246,46 @@ export const assertLocalEnvironment = (source) => {
   }
 }
 
+export const assertMarketingSkillsDist = () => {
+  const missing = REQUIRED_MARKETING_SKILLS_DIST_PATHS.filter(
+    (relativePath) =>
+      !existsSync(resolve(MARKETING_SKILLS_PACKAGE, relativePath))
+  )
+  if (missing.length > 0) {
+    throw new Error(
+      `@repo/marketing-skills dist is incomplete: ${missing.join(', ')}`
+    )
+  }
+}
+
+export const ensureMarketingSkillsBuild = () => {
+  process.stdout.write('[dev:local] materializing marketing skills\n')
+  const materialized = spawnSync(
+    process.execPath,
+    [MATERIALIZE_MARKETING_SKILLS],
+    {
+      cwd: MARKETING_SKILLS_PACKAGE,
+      encoding: 'utf8',
+      stdio: 'inherit',
+    }
+  )
+  if (materialized.status !== 0) {
+    throw new Error('Failed to materialize marketing skills for local agents')
+  }
+
+  process.stdout.write('[dev:local] building @repo/marketing-skills\n')
+  const built = spawnSync('pnpm', MARKETING_SKILLS_BUILD_ARGS, {
+    cwd: REPOSITORY_ROOT,
+    encoding: 'utf8',
+    stdio: 'inherit',
+  })
+  if (built.status !== 0) {
+    throw new Error('Failed to build @repo/marketing-skills for local agents')
+  }
+
+  assertMarketingSkillsDist()
+}
+
 const omitEnvironmentKeys = (source, keys) => {
   const environment = { ...source }
   for (const key of keys) {
@@ -215,21 +294,43 @@ const omitEnvironmentKeys = (source, keys) => {
   return environment
 }
 
+const agentOriginsFor = (source) =>
+  Object.freeze({
+    AGENT_CMO_URL: resolveLocalOrigin('cmo', source),
+    AGENT_CONTENT_URL: resolveLocalOrigin('content', source),
+    AGENT_DISTRIBUTION_URL: resolveLocalOrigin('distribution', source),
+    AGENT_GROWTH_URL: resolveLocalOrigin('growth', source),
+    AGENT_LIFECYCLE_URL: resolveLocalOrigin('lifecycle', source),
+    AGENT_PRODUCT_MARKETER_URL: resolveLocalOrigin('product-marketer', source),
+    AGENT_SEO_DISCOVERY_URL: resolveLocalOrigin('seo-discovery', source),
+  })
+
+const cmoSpecialistOriginsFor = (source) =>
+  Object.freeze({
+    AGENT_CONTENT_URL: resolveLocalOrigin('content', source),
+    AGENT_DISTRIBUTION_URL: resolveLocalOrigin('distribution', source),
+    AGENT_PRODUCT_MARKETER_URL: resolveLocalOrigin('product-marketer', source),
+    AGENT_SEO_DISCOVERY_URL: resolveLocalOrigin('seo-discovery', source),
+  })
+
 export const createLocalServiceEnvironment = (service, source) => {
   const localBaseEnvironment = {
     ...source,
     NODE_ENV: 'development',
+    PORTLESS_HTTPS: '0',
     VERCEL_ENV: 'development',
   }
+  const webOrigin = resolveLocalOrigin('web', source)
+  const appOrigin = resolveLocalOrigin('app', source)
 
   if (service.kind === 'app') {
     return {
       ...omitEnvironmentKeys(localBaseEnvironment, LOCAL_EMAIL_DELIVERY_KEYS),
-      ...LOCAL_AGENT_ORIGINS,
+      ...agentOriginsFor(source),
       AUTH_LOCAL_OTP_BYPASS: '1',
-      BETTER_AUTH_TRUSTED_ORIGINS: `${WEB_ORIGIN},${APP_ORIGIN}`,
-      BETTER_AUTH_URL: APP_ORIGIN,
-      NEXT_PUBLIC_APP_URL: APP_ORIGIN,
+      BETTER_AUTH_TRUSTED_ORIGINS: `${webOrigin},${appOrigin}`,
+      BETTER_AUTH_URL: appOrigin,
+      NEXT_PUBLIC_APP_URL: appOrigin,
     }
   }
 
@@ -239,7 +340,7 @@ export const createLocalServiceEnvironment = (service, source) => {
         localBaseEnvironment,
         WEB_PRIVATE_ENVIRONMENT_KEYS
       ),
-      NEXT_PUBLIC_APP_URL: APP_ORIGIN,
+      NEXT_PUBLIC_APP_URL: appOrigin,
     }
   }
 
@@ -255,35 +356,102 @@ export const createLocalServiceEnvironment = (service, source) => {
 
   return {
     ...agentEnvironment,
-    AGENT_PRODUCT_MARKETER_URL: LOCAL_AGENT_ORIGINS.AGENT_PRODUCT_MARKETER_URL,
+    ...cmoSpecialistOriginsFor(source),
     CMO_BRIDGE_SECRET: source.CMO_BRIDGE_SECRET,
   }
 }
 
-const probePort = (service) =>
-  new Promise((resolveProbe, rejectProbe) => {
-    const server = createServer()
-
-    server.once('error', (error) => {
-      rejectProbe(
-        new Error(
-          `Cannot start ${service.name} on ${LOOPBACK_HOST}:${String(service.port)}: ${error.message}`
-        )
-      )
+export const originIsOccupied = (origin) =>
+  new Promise((resolveOccupied) => {
+    const url = new URL(origin)
+    const { protocol } = url
+    let { port } = url
+    const transport = protocol === 'https:' ? httpsRequest : httpRequest
+    if (port === '') {
+      port = protocol === 'https:' ? 443 : 80
+    }
+    const request = transport(
+      {
+        hostname: url.hostname,
+        method: 'GET',
+        path: `${url.pathname}${url.search}` || '/',
+        port,
+        rejectUnauthorized: false,
+        timeout: ORIGIN_PROBE_TIMEOUT_MS,
+      },
+      (response) => {
+        response.resume()
+        const status = response.statusCode ?? 0
+        const portlessMiss =
+          status === 404 && response.headers['x-portless'] === '1'
+        resolveOccupied(status > 0 && !portlessMiss)
+      }
+    )
+    request.once('error', () => {
+      resolveOccupied(false)
     })
-    server.listen(service.port, LOOPBACK_HOST, () => {
-      server.close((error) => {
-        if (error) {
-          rejectProbe(error)
-          return
-        }
-        resolveProbe()
-      })
+    request.once('timeout', () => {
+      request.destroy()
+      resolveOccupied(false)
     })
+    request.end()
   })
 
-export const assertLocalPortsAvailable = async () => {
-  await Promise.all(LOCAL_DEV_SERVICES.map((service) => probePort(service)))
+const PORTLESS_PROXY_PORT_PATH = resolve(homedir(), '.portless/proxy.port')
+
+export const readRunningProxyPort = () => {
+  try {
+    const port = readFileSync(PORTLESS_PROXY_PORT_PATH, 'utf8').trim()
+    if (port.length > 0) {
+      return port
+    }
+  } catch {
+    // No proxy port file yet.
+  }
+}
+
+export const ensurePortlessProxy = (source = process.env) => {
+  const requestedPort = resolvePortlessProxyPort({
+    ...source,
+    PORTLESS_PROXY_PORT:
+      source.PORTLESS_PROXY_PORT ??
+      source.PORTLESS_HTTPS_PORT ??
+      readRunningProxyPort() ??
+      DEFAULT_PORTLESS_PROXY_PORT,
+  })
+  spawnSync(PORTLESS_BIN, ['proxy', 'stop', '-p', requestedPort], {
+    encoding: 'utf8',
+  })
+  const started = spawnSync(
+    PORTLESS_BIN,
+    ['proxy', 'start', '--no-tls', '--port', requestedPort],
+    { encoding: 'utf8' }
+  )
+  const runningPort = readRunningProxyPort() ?? requestedPort
+  if (started.status !== 0 && readRunningProxyPort() === undefined) {
+    throw new Error(
+      `Portless proxy failed to start: ${(started.stderr || started.stdout).trim()}`
+    )
+  }
+  return runningPort
+}
+
+export const assertLocalPortsAvailable = async (source = process.env) => {
+  const occupiedServices = await Promise.all(
+    LOCAL_DEV_SERVICES.map(async (service) => {
+      const origin = resolveLocalOrigin(service.originName, source)
+      return (await originIsOccupied(origin))
+        ? `${service.name} (${origin})`
+        : undefined
+    })
+  )
+  const occupied = occupiedServices.filter((entry) => entry !== undefined)
+
+  if (occupied.length > 0) {
+    throw new Error(
+      `Cannot start local development; already responding: ${occupied.join(', ')}`
+    )
+  }
 }
 
 const signalProcessTree = (child, signal) => {
@@ -308,7 +476,14 @@ const signalProcessTree = (child, signal) => {
 
 export const runLocalDevelopment = async (source = process.env) => {
   assertLocalEnvironment(source)
-  await assertLocalPortsAvailable()
+  ensureMarketingSkillsBuild()
+  const proxyPort = ensurePortlessProxy(source)
+  const sourced = {
+    ...source,
+    PORTLESS_HTTPS: '0',
+    PORTLESS_PROXY_PORT: proxyPort,
+  }
+  await assertLocalPortsAvailable(sourced)
 
   const children = new Map()
   let exitCode = 0
@@ -360,13 +535,12 @@ export const runLocalDevelopment = async (source = process.env) => {
   process.once('SIGTERM', handleSigterm)
 
   for (const service of LOCAL_DEV_SERVICES) {
-    process.stdout.write(
-      `[dev:local] starting ${service.name} on ${LOOPBACK_HOST}:${String(service.port)}\n`
-    )
+    const origin = resolveLocalOrigin(service.originName, sourced)
+    process.stdout.write(`[dev:local] starting ${service.name} at ${origin}\n`)
     const child = spawn(service.command, service.args, {
       cwd: resolve(REPOSITORY_ROOT, service.path),
       detached: process.platform !== 'win32',
-      env: createLocalServiceEnvironment(service, source),
+      env: createLocalServiceEnvironment(service, sourced),
       stdio: 'inherit',
     })
     children.set(service.name, child)
@@ -391,7 +565,7 @@ export const runLocalDevelopment = async (source = process.env) => {
   }
 
   process.stdout.write(
-    `[dev:local] web ${WEB_ORIGIN} | app ${APP_ORIGIN} | agents ${LOOPBACK_HOST}:2000-2006\n`
+    `[dev:local] web ${resolveLocalOrigin('web', sourced)} | app ${resolveLocalOrigin('app', sourced)} | agents ${Object.values(agentOriginsFor(sourced)).join(', ')}\n`
   )
 
   await finished

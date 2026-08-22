@@ -71,7 +71,7 @@ export const appServerEnvironmentSchema = z
       context.addIssue({
         code: 'custom',
         message:
-          'AUTH_LOCAL_OTP_BYPASS requires NODE_ENV=development, VERCEL_ENV=development, and a loopback HTTP BETTER_AUTH_URL',
+          'AUTH_LOCAL_OTP_BYPASS requires NODE_ENV=development, VERCEL_ENV=development, and a loopback or *.localhost BETTER_AUTH_URL',
         path: ['AUTH_LOCAL_OTP_BYPASS'],
       })
     }

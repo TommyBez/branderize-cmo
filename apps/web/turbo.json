@@ -3,7 +3,12 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "env": ["$TURBO_EXTENDS$", "E2E_EXPOSE_NEXT_TESTING_API", "NEXT_PUBLIC_APP_URL"]
+      "env": [
+        "$TURBO_EXTENDS$",
+        "E2E_EXPOSE_NEXT_TESTING_API",
+        "NEXT_PUBLIC_APP_URL",
+        "VERCEL_RELATED_PROJECTS"
+      ]
     }
   }
 }

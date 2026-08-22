@@ -36,6 +36,9 @@ const webPage = readText('apps/web/app/page.tsx')
 const webTurbo = readJson('apps/web/turbo.json')
 const appVercel = readJson('apps/app/vercel.json')
 const webVercel = readJson('apps/web/vercel.json')
+const envManifest = readJson('packages/env/package.json')
+const envClient = readText('packages/env/src/client.ts')
+const relatedConsole = readText('packages/env/src/related-console.ts')
 const marketingSkillsTurbo = readJson('packages/marketing-skills/turbo.json')
 const playwrightConfig = readText('playwright.config.ts')
 const appEnvironmentSchema = readText('packages/env/src/schema.ts')
@@ -157,8 +160,9 @@ check(
     'POSTHOG_CLI_PROJECT_ID',
     'VERCEL_ENV',
     'VERCEL_GIT_COMMIT_SHA',
+    'VERCEL_RELATED_PROJECTS',
   ].every((name) => rootTurbo.tasks?.build?.env?.includes(name)),
-  'Turbo must pass every production telemetry build variable explicitly'
+  'Turbo must pass every production telemetry and related-project build variable explicitly'
 )
 check(
   webManifest.scripts?.build === 'next build',
@@ -171,7 +175,8 @@ check(
     webTurbo.extends?.includes('//') &&
     webTurbo.tasks?.build?.env?.includes('$TURBO_EXTENDS$') &&
     webTurbo.tasks?.build?.env?.includes('E2E_EXPOSE_NEXT_TESTING_API') &&
-    webTurbo.tasks?.build?.env?.includes('NEXT_PUBLIC_APP_URL'),
+    webTurbo.tasks?.build?.env?.includes('NEXT_PUBLIC_APP_URL') &&
+    webTurbo.tasks?.build?.env?.includes('VERCEL_RELATED_PROJECTS'),
   'apps/web must validate and receive the canonical application origin'
 )
 check(
@@ -279,8 +284,20 @@ check(
   webVercel.ignoreCommand === 'npx turbo-ignore' &&
     webVercel.regions === undefined &&
     webVercel.crons === undefined &&
-    webVercel.buildCommand === undefined,
-  'apps/web must skip unaffected deployments without pinning a region or Cron'
+    webVercel.buildCommand === undefined &&
+    JSON.stringify(webVercel.relatedProjects) ===
+      JSON.stringify(['prj_soeZOTlgxoqqWPHYQXrR4Hk9mXn2']) &&
+    relatedConsole.includes(
+      "CONSOLE_RELATED_PROJECT_ID = 'prj_soeZOTlgxoqqWPHYQXrR4Hk9mXn2'"
+    ) &&
+    relatedConsole.includes(
+      "CONSOLE_RELATED_PROJECT_NAME = 'branderize-cmo-app'"
+    ) &&
+    envClient.includes("from '@vercel/related-projects'") &&
+    envClient.includes('CONSOLE_RELATED_PROJECT_NAME') &&
+    envManifest.dependencies?.['@vercel/related-projects'] === '1.1.1' &&
+    rootManifest.devDependencies?.portless === '0.15.5',
+  'apps/web must resolve apps/app through Related Projects; local fleet uses Portless'
 )
 check(
   marketingSkillsManifest.eve?.extension?.source === './extension' &&

@@ -7,7 +7,9 @@ import {
   LOCAL_AGENT_ORIGINS,
   LOCAL_DEV_SERVICES,
   localEnvironmentProblems,
+  MARKETING_SKILLS_BUILD_ARGS,
   REQUIRED_LOCAL_ENVIRONMENT_KEYS,
+  REQUIRED_MARKETING_SKILLS_DIST_PATHS,
 } from '../../scripts/dev-local.mjs'
 
 const SECRET_VALUE = 'local-secret-value-with-32-characters'
@@ -41,21 +43,41 @@ const requireService = (name: string) => {
 }
 
 describe('local manual development', () => {
-  it('assigns one fixed port to each web surface and Eve root', () => {
-    const ports = LOCAL_DEV_SERVICES.map((service) => service.port)
+  it('assigns one Portless http://*.localhost origin to each web surface and Eve root', () => {
+    const names = LOCAL_DEV_SERVICES.map((service) => service.portlessName)
+    const origins = LOCAL_DEV_SERVICES.map((service) => service.origin)
 
-    expect(ports).toEqual([
-      2000, 2001, 2002, 2003, 2004, 2005, 2006, 3000, 3001,
+    expect(names).toEqual([
+      'cmo',
+      'product-marketer',
+      'content',
+      'distribution',
+      'growth',
+      'lifecycle',
+      'seo-discovery',
+      'web',
+      'app',
     ])
-    expect(new Set(ports).size).toBe(LOCAL_DEV_SERVICES.length)
+    expect(new Set(names).size).toBe(LOCAL_DEV_SERVICES.length)
+    expect(origins).toEqual([
+      'http://cmo.localhost:1355',
+      'http://product-marketer.localhost:1355',
+      'http://content.localhost:1355',
+      'http://distribution.localhost:1355',
+      'http://growth.localhost:1355',
+      'http://lifecycle.localhost:1355',
+      'http://seo-discovery.localhost:1355',
+      'http://web.localhost:1355',
+      'http://app.localhost:1355',
+    ])
     expect(Object.values(LOCAL_AGENT_ORIGINS)).toEqual([
-      'http://127.0.0.1:2000',
-      'http://127.0.0.1:2002',
-      'http://127.0.0.1:2003',
-      'http://127.0.0.1:2004',
-      'http://127.0.0.1:2005',
-      'http://127.0.0.1:2001',
-      'http://127.0.0.1:2006',
+      'http://cmo.localhost:1355',
+      'http://content.localhost:1355',
+      'http://distribution.localhost:1355',
+      'http://growth.localhost:1355',
+      'http://lifecycle.localhost:1355',
+      'http://product-marketer.localhost:1355',
+      'http://seo-discovery.localhost:1355',
     ])
   })
 
@@ -78,11 +100,26 @@ describe('local manual development', () => {
     expect(source).not.toMatch(FORBIDDEN_LOCAL_COMMAND_PATTERN)
     expect(commands).not.toMatch(FORBIDDEN_LOCAL_COMMAND_PATTERN)
     expect(packageManifestSource).toContain(DEV_LOCAL_SCRIPT)
+    expect(source).toContain('ensureMarketingSkillsBuild()')
+    expect(source).toContain(
+      'beginShutdown(code === null || code === 0 ? 1 : code)'
+    )
+    expect(MARKETING_SKILLS_BUILD_ARGS).toEqual([
+      'exec',
+      'turbo',
+      'run',
+      'build',
+      '--filter=@repo/marketing-skills',
+    ])
+    expect(REQUIRED_MARKETING_SKILLS_DIST_PATHS).toContain(
+      'dist/extension/skills/copywriting/references/natural-transitions.md'
+    )
     for (const service of LOCAL_DEV_SERVICES.filter(
       (candidate) => candidate.kind === 'agent'
     )) {
-      expect(service.args).toContain('--no-ui')
-      expect(service.args).toContain(String(service.port))
+      expect(service.command).toContain('portless')
+      expect(service.args.join(' ')).toContain('--no-ui')
+      expect(service.args.join(' ')).toContain('"$PORT"')
     }
   })
 
@@ -124,16 +161,16 @@ describe('local manual development', () => {
       ...LOCAL_AGENT_ORIGINS,
       AUTH_LOCAL_OTP_BYPASS: '1',
       BETTER_AUTH_TRUSTED_ORIGINS:
-        'http://localhost:3000,http://localhost:3001',
-      BETTER_AUTH_URL: 'http://localhost:3001',
-      NEXT_PUBLIC_APP_URL: 'http://localhost:3001',
+        'http://web.localhost:1355,http://app.localhost:1355',
+      BETTER_AUTH_URL: 'http://app.localhost:1355',
+      NEXT_PUBLIC_APP_URL: 'http://app.localhost:1355',
       NODE_ENV: 'development',
       VERCEL_ENV: 'development',
     })
     expect(appEnvironment).not.toHaveProperty('RESEND_API_KEY')
     expect(appEnvironment).not.toHaveProperty('RESEND_FROM_EMAIL')
     expect(webEnvironment).toMatchObject({
-      NEXT_PUBLIC_APP_URL: 'http://localhost:3001',
+      NEXT_PUBLIC_APP_URL: 'http://app.localhost:1355',
       NODE_ENV: 'development',
       VERCEL_ENV: 'development',
     })
@@ -142,7 +179,10 @@ describe('local manual development', () => {
     expect(webEnvironment).not.toHaveProperty('VERCEL_OIDC_TOKEN')
 
     expect(cmoEnvironment).toMatchObject({
-      AGENT_PRODUCT_MARKETER_URL: 'http://127.0.0.1:2001',
+      AGENT_CONTENT_URL: 'http://content.localhost:1355',
+      AGENT_DISTRIBUTION_URL: 'http://distribution.localhost:1355',
+      AGENT_PRODUCT_MARKETER_URL: 'http://product-marketer.localhost:1355',
+      AGENT_SEO_DISCOVERY_URL: 'http://seo-discovery.localhost:1355',
       CMO_BRIDGE_SECRET: SECRET_VALUE,
       DATABASE_URL: validEnvironment.DATABASE_URL,
       DISPATCH_SECRET: SECRET_VALUE,
@@ -160,5 +200,19 @@ describe('local manual development', () => {
     expect(productMarketerEnvironment).not.toHaveProperty('DIRECT_DATABASE_URL')
     expect(productMarketerEnvironment).not.toHaveProperty('CMO_BRIDGE_SECRET')
     expect(productMarketerEnvironment).not.toHaveProperty('RESEND_API_KEY')
+  })
+
+  it('omits the Portless port from local origins when the proxy is on 80', () => {
+    const appEnvironment = createLocalServiceEnvironment(
+      requireService('app'),
+      {
+        ...validEnvironment,
+        PORTLESS_PROXY_PORT: '80',
+      }
+    )
+
+    expect(appEnvironment.BETTER_AUTH_URL).toBe('http://app.localhost')
+    expect(appEnvironment.NEXT_PUBLIC_APP_URL).toBe('http://app.localhost')
+    expect(appEnvironment.AGENT_CMO_URL).toBe('http://cmo.localhost')
   })
 })

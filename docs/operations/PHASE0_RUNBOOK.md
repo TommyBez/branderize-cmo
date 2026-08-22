@@ -102,20 +102,21 @@ pnpm dev:local
 ```
 
 The supervisor validates the required variables without printing their values,
-checks all ports before spawning anything, and stops the fleet when one process
-fails or when it receives `Ctrl-C`. It fixes these local addresses:
+materializes and builds `@repo/marketing-skills` so Eve can mount skill
+references, checks all ports before spawning anything, and stops the fleet when
+one process fails or when it receives `Ctrl-C`. It fixes these local addresses:
 
 | Process | Address |
 | --- | --- |
-| public web | `http://localhost:3000` |
-| authenticated app | `http://localhost:3001` |
-| CMO | `http://127.0.0.1:2000` |
-| Product Marketer | `http://127.0.0.1:2001` |
-| Content | `http://127.0.0.1:2002` |
-| Distribution | `http://127.0.0.1:2003` |
-| Growth | `http://127.0.0.1:2004` |
-| Lifecycle | `http://127.0.0.1:2005` |
-| SEO Discovery | `http://127.0.0.1:2006` |
+| public web | `http://web.localhost:1355` |
+| authenticated app | `http://app.localhost:1355` |
+| CMO | `http://cmo.localhost:1355` |
+| Product Marketer | `http://product-marketer.localhost:1355` |
+| Content | `http://content.localhost:1355` |
+| Distribution | `http://distribution.localhost:1355` |
+| Growth | `http://growth.localhost:1355` |
+| Lifecycle | `http://lifecycle.localhost:1355` |
+| SEO Discovery | `http://seo-discovery.localhost:1355` |
 
 The runner starts Eve with `--no-ui` because one terminal cannot own seven
 interactive TUIs. Each Eve root remains a normal development server. Its

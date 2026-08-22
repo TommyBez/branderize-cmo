@@ -30,6 +30,21 @@ describe('email OTP runtime', () => {
     expect(runtime.options.storeOTP).toBe('hashed')
   })
 
+  it('accepts every submitted OTP on a Portless local origin', () => {
+    const runtime = createEmailOtpRuntime({
+      AUTH_LOCAL_OTP_BYPASS: '1',
+      BETTER_AUTH_SECRET,
+      BETTER_AUTH_URL: 'http://app.localhost:1355',
+      NODE_ENV: 'development',
+      VERCEL_ENV: 'development',
+    })
+    if (runtime.kind !== 'local-bypass') {
+      throw new Error('Expected the local OTP runtime')
+    }
+
+    expect(runtime.kind).toBe('local-bypass')
+  })
+
   it('accepts every submitted OTP only in the guarded local runtime', async () => {
     const runtime = createEmailOtpRuntime({
       AUTH_LOCAL_OTP_BYPASS: '1',

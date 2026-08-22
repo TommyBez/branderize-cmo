@@ -10,6 +10,9 @@
         "$TURBO_ROOT$/apps/*/vercel.json",
         "$TURBO_ROOT$/.github/workflows/cleanup-neon-preview.yml",
         "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/packages/env/package.json",
+        "$TURBO_ROOT$/packages/env/src/client.ts",
+        "$TURBO_ROOT$/packages/env/src/related-console.ts",
         "$TURBO_ROOT$/packages/marketing-skills/**",
         "$TURBO_ROOT$/scripts/check-deployment-contract.mjs",
         "$TURBO_ROOT$/scripts/materialize-marketing-skills.mjs",
@@ -91,7 +94,8 @@
         "POSTHOG_CLI_HOST",
         "POSTHOG_CLI_PROJECT_ID",
         "VERCEL_ENV",
-        "VERCEL_GIT_COMMIT_SHA"
+        "VERCEL_GIT_COMMIT_SHA",
+        "VERCEL_RELATED_PROJECTS"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**", ".output/**", "dist/**"]

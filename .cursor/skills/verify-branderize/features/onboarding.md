@@ -11,7 +11,7 @@ Onboarding creates the organization, brand, website, and first goal, then opens 
 ## How to get to it (user POV)
 
 - Sign in with an email that has no brand. `/` redirects to `/onboarding`.
-- Open `http://127.0.0.1:3001/onboarding` while signed in.
+- Open `http://app.localhost:1355/onboarding` while signed in.
 
 ## Driving it with verify-branderize
 

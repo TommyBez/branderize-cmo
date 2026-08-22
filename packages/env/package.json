@@ -10,13 +10,15 @@
     "./cmo-agent-server": "./src/cmo-agent-server.ts",
     "./client": "./src/client.ts",
     "./local-email-otp": "./src/local-email-otp.ts",
-    "./migration-server": "./src/migration-server.ts"
+    "./migration-server": "./src/migration-server.ts",
+    "./related-console": "./src/related-console.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit",
     "test": "vitest run --root ../.. packages/env/src"
   },
   "dependencies": {
+    "@vercel/related-projects": "1.1.1",
     "zod": "4.4.3"
   },
   "devDependencies": {

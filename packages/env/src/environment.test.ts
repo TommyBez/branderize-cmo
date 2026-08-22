@@ -91,6 +91,21 @@ describe('app server environment', () => {
     expect(environment.RESEND_FROM_EMAIL).toBeUndefined()
   })
 
+  it('allows local OTP bypass on a Portless http://*.localhost origin', () => {
+    const environment = parseAppServerEnvironment({
+      ...validAppEnvironment,
+      AUTH_LOCAL_OTP_BYPASS: '1',
+      BETTER_AUTH_URL: 'http://app.localhost:1355',
+      NODE_ENV: 'development',
+      RESEND_API_KEY: undefined,
+      RESEND_FROM_EMAIL: undefined,
+      VERCEL_ENV: 'development',
+    })
+
+    expect(environment.BETTER_AUTH_URL).toBe('http://app.localhost:1355')
+    expect(environment.AUTH_LOCAL_OTP_BYPASS).toBe('1')
+  })
+
   it.each([
     { BETTER_AUTH_URL: 'https://app.example.test' },
     { BETTER_AUTH_URL: 'http://localhost:3001', NODE_ENV: 'test' },
@@ -279,5 +294,42 @@ describe('client environment', () => {
     { NEXT_PUBLIC_APP_URL: 'https://app.example.test/path' },
   ])('rejects a missing or non-HTTP application origin', (source) => {
     expect(() => parseClientEnvironment(source)).toThrow()
+  })
+
+  it('prefers the related console host on a Vercel preview deployment', () => {
+    const previousRelated = process.env.VERCEL_RELATED_PROJECTS
+    const previousEnv = process.env.VERCEL_ENV
+    process.env.VERCEL_RELATED_PROJECTS = JSON.stringify([
+      {
+        preview: { branch: 'branderize-cmo-app-git-feat.vercel.app' },
+        production: { alias: 'console.example.test' },
+        project: {
+          id: 'prj_soeZOTlgxoqqWPHYQXrR4Hk9mXn2',
+          name: 'branderize-cmo-app',
+        },
+      },
+    ])
+    process.env.VERCEL_ENV = 'preview'
+
+    try {
+      expect(
+        parseClientEnvironment({
+          NEXT_PUBLIC_APP_URL: 'http://localhost:3001',
+        })
+      ).toEqual({
+        NEXT_PUBLIC_APP_URL: 'https://branderize-cmo-app-git-feat.vercel.app',
+      })
+    } finally {
+      if (previousRelated === undefined) {
+        delete process.env.VERCEL_RELATED_PROJECTS
+      } else {
+        process.env.VERCEL_RELATED_PROJECTS = previousRelated
+      }
+      if (previousEnv === undefined) {
+        delete process.env.VERCEL_ENV
+      } else {
+        process.env.VERCEL_ENV = previousEnv
+      }
+    }
   })
 })

@@ -50,10 +50,12 @@ if (options.url === undefined || options.out === undefined) {
 mkdirSync(options.out, { recursive: true })
 
 const browser = await chromium.launch()
-const page = await browser.newPage({
+const context = await browser.newContext({
+  ignoreHTTPSErrors: true,
   reducedMotion: 'reduce',
   viewport: { height: 900, width: 1280 },
 })
+const page = await context.newPage()
 
 try {
   await page.goto(options.url, { waitUntil: 'domcontentloaded' })

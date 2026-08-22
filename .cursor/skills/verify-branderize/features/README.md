@@ -6,7 +6,7 @@ This directory is the maintained source for verifying user-facing Branderize beh
 
 - Launch with `node .cursor/skills/verify-branderize/bin/launch.mjs web` for public-site features, or `fleet` for console features.
 - Run `node .cursor/skills/verify-branderize/bin/doctor.mjs` and require `web.drive` (and `app.drive` for console) to be `ok`, not `refuse`.
-- Never drive a process that this skill did not start. Ports 3000, 3001, and 2000-2006 are shared and cannot host a second fleet.
+- Never drive a process that this skill did not start. Isolated `web` uses port 3000. The fleet cannot share `http://web.localhost:1355` or `http://app.localhost:1355` with another session.
 - Local console sign-in uses email plus any non-empty code of up to six characters. No email is sent.
 - Onboarding writes to the shared Neon development branch. Use unique `verify-<runId>` slugs and a disposable `verify-<runId>@example.test` email.
 

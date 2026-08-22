@@ -1,30 +1,19 @@
 #!/usr/bin/env node
 
+import { readRunningProxyPort } from '../../../../scripts/dev-local.mjs'
 import { fetchText, portIsListening } from '../lib/http.mjs'
 import {
   AGENT_ORIGINS,
   APP_ORIGIN,
   APP_PORT,
+  fleetAppOrigin,
+  fleetWebOrigin,
   LANDING_HEADING,
   SIGN_IN_HEADING,
   WEB_ORIGIN,
   WEB_PORT,
 } from '../lib/paths.mjs'
 import { processIsAlive, readRunState } from '../lib/run-state.mjs'
-
-const inspectSurface = async ({ heading, name, origin, path, port }) => {
-  const listening = await portIsListening(port)
-  const page = await fetchText(`${origin}${path}`)
-
-  return {
-    headingFound: page.body.includes(heading),
-    listening,
-    name,
-    origin,
-    status: page.status,
-    worthDriving: page.ok && page.body.includes(heading),
-  }
-}
 
 const driveStatus = ({ foreign, worthDriving }) => {
   if (foreign) {
@@ -36,85 +25,159 @@ const driveStatus = ({ foreign, worthDriving }) => {
   return 'down'
 }
 
-const inspectAgents = async () =>
-  Promise.all(
-    Object.entries(AGENT_ORIGINS).map(async ([name, origin]) => {
-      const page = await fetchText(`${origin}/eve/v1/health`)
-      return {
-        name,
-        origin,
-        status: page.status,
-        worthDriving: page.ok,
-      }
-    })
-  )
-
-const runState = readRunState()
-const ourPidAlive = runState === null ? false : processIsAlive(runState.pid)
-const web = await inspectSurface({
-  heading: LANDING_HEADING,
-  name: 'web',
-  origin: WEB_ORIGIN,
-  path: '/',
-  port: WEB_PORT,
-})
-const app = await inspectSurface({
-  heading: SIGN_IN_HEADING,
-  name: 'app',
-  origin: APP_ORIGIN,
-  path: '/sign-in',
-  port: APP_PORT,
-})
-const agents = await inspectAgents()
-
-const webIsOurs =
-  ourPidAlive && (runState.mode === 'web' || runState.mode === 'fleet')
-const appIsOurs = ourPidAlive && runState.mode === 'fleet'
-const webForeign = web.listening && !webIsOurs
-const appForeign = app.listening && !appIsOurs
-
-const isolation = []
-if (webForeign) {
-  isolation.push(
-    'refuse web: port 3000 is occupied by a process this skill did not start'
-  )
-}
-if (appForeign) {
-  isolation.push(
-    'refuse console: port 3001 is occupied by a process this skill did not start'
-  )
-}
-if (isolation.length === 0 && runState === null) {
-  isolation.push('idle: no verify run is recorded. Launch before driving.')
-} else if (isolation.length === 0 && !ourPidAlive) {
-  isolation.push('stale: run.json exists but the recorded pid is gone')
-} else if (isolation.length === 0) {
-  isolation.push(`ours: run ${runState.runId} (${runState.mode}) is alive`)
+const occupiedMessage = ({ isFleetSurface, kind, origin, port }) => {
+  if (isFleetSurface) {
+    return `refuse ${kind}: ${origin} is occupied by a process this skill did not start`
+  }
+  return `refuse ${kind}: port ${String(port)} is occupied by a process this skill did not start`
 }
 
-const report = {
-  agents,
-  app: {
-    ...app,
-    drive: driveStatus({ foreign: appForeign, worthDriving: app.worthDriving }),
-  },
-  isolation,
-  ok: webIsOurs && web.worthDriving && !webForeign,
-  runState:
-    runState === null
-      ? null
-      : {
-          alive: ourPidAlive,
-          artifactDir: runState.artifactDir,
-          mode: runState.mode,
-          pid: runState.pid,
-          runId: runState.runId,
-        },
-  web: {
-    ...web,
-    drive: driveStatus({ foreign: webForeign, worthDriving: web.worthDriving }),
-  },
+const isolationMessages = (input) => {
+  const messages = []
+  if (input.webForeign) {
+    messages.push(
+      occupiedMessage({
+        isFleetSurface: input.isFleet,
+        kind: 'web',
+        origin: input.webOrigin,
+        port: WEB_PORT,
+      })
+    )
+  }
+  if (input.appForeign) {
+    messages.push(
+      occupiedMessage({
+        isFleetSurface: input.isFleet,
+        kind: 'console',
+        origin: input.appOrigin,
+        port: APP_PORT,
+      })
+    )
+  }
+  if (messages.length > 0) {
+    return messages
+  }
+  if (input.runState === null) {
+    return ['idle: no verify run is recorded. Launch before driving.']
+  }
+  if (!input.ourPidAlive) {
+    return ['stale: run.json exists but the recorded pid is gone']
+  }
+  return [`ours: run ${input.runState.runId} (${input.runState.mode}) is alive`]
 }
 
-process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
-process.exitCode = report.ok ? 0 : 1
+const serializeRunState = ({ ourPidAlive, runState }) => {
+  if (runState === null) {
+    return null
+  }
+  const snapshot = {
+    alive: ourPidAlive,
+    artifactDir: runState.artifactDir,
+    mode: runState.mode,
+    pid: runState.pid,
+    runId: runState.runId,
+  }
+  return snapshot
+}
+
+const inspectSurface = async (surface) => {
+  const listening = surface.isFleet
+    ? false
+    : await portIsListening(surface.port)
+  const page = await fetchText(`${surface.origin}${surface.path}`)
+  const inspection = {
+    headingFound: page.body.includes(surface.heading),
+    listening: surface.isFleet ? page.status > 0 : listening,
+    name: surface.name,
+    origin: surface.origin,
+    status: page.status,
+    worthDriving: page.ok && page.body.includes(surface.heading),
+  }
+  return inspection
+}
+
+const inspectAgent = async (entry) => {
+  const [name, origin] = entry
+  const page = await fetchText(`${origin}/eve/v1/health`)
+  const agent = {
+    name,
+    origin,
+    status: page.status,
+    worthDriving: page.ok,
+  }
+  return agent
+}
+
+const inspectAgents = (fleetSource) =>
+  Promise.all(Object.entries(AGENT_ORIGINS(fleetSource)).map(inspectAgent))
+
+const main = async () => {
+  const runState = readRunState()
+  const isFleet = runState !== null && runState.mode === 'fleet'
+  const fleetSource = {
+    PORTLESS_PROXY_PORT:
+      process.env.PORTLESS_PROXY_PORT ??
+      process.env.PORTLESS_HTTPS_PORT ??
+      readRunningProxyPort() ??
+      '1355',
+  }
+  const webOrigin = isFleet ? fleetWebOrigin(fleetSource) : WEB_ORIGIN
+  const appOrigin = isFleet ? fleetAppOrigin(fleetSource) : APP_ORIGIN
+  const web = await inspectSurface({
+    heading: LANDING_HEADING,
+    isFleet,
+    name: 'web',
+    origin: webOrigin,
+    path: '/',
+    port: WEB_PORT,
+  })
+  const app = await inspectSurface({
+    heading: SIGN_IN_HEADING,
+    isFleet,
+    name: 'app',
+    origin: appOrigin,
+    path: '/sign-in',
+    port: APP_PORT,
+  })
+  const agents = isFleet ? await inspectAgents(fleetSource) : []
+  const ourPidAlive = runState === null ? false : processIsAlive(runState.pid)
+  const webIsOurs =
+    ourPidAlive && (runState.mode === 'web' || runState.mode === 'fleet')
+  const appIsOurs = ourPidAlive && runState.mode === 'fleet'
+  const webForeign = web.listening && !webIsOurs
+  const appForeign = app.listening && !appIsOurs
+  const isolation = isolationMessages({
+    appForeign,
+    appOrigin,
+    isFleet,
+    ourPidAlive,
+    runState,
+    webForeign,
+    webOrigin,
+  })
+  const report = {
+    agents,
+    app: {
+      ...app,
+      drive: driveStatus({
+        foreign: appForeign,
+        worthDriving: app.worthDriving,
+      }),
+    },
+    isolation,
+    ok: webIsOurs && web.worthDriving && !webForeign,
+    runState: serializeRunState({ ourPidAlive, runState }),
+    web: {
+      ...web,
+      drive: driveStatus({
+        foreign: webForeign,
+        worthDriving: web.worthDriving,
+      }),
+    },
+  }
+
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
+  process.exitCode = report.ok ? 0 : 1
+}
+
+await main()
